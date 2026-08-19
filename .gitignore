@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# macOS
+.DS_Store
+
+# Project: keep the catalogue and the exploratory notebooks private.
+# The Street Garms art number data is hand-built and not for publication.
+notebooks/
+*.csv
+
