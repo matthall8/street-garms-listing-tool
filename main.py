@@ -15,18 +15,25 @@ def cli() -> None:
 
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
-        "image",
+        "art_image",
         nargs="?",
         default="images/label.png",
         type=Path,
-        help="path to a label photo (default: images/label.png)",
+        help="photo of the ART number tag (default: images/label.png)",
+    )
+    ap.add_argument(
+        "details_image",
+        nargs="?",
+        type=Path,
+        help="optional photo of the care label (size, composition, origin)",
     )
     args = ap.parse_args()
 
-    if not args.image.is_file():
-        ap.error(f"no such image: {args.image}")
+    for image in (args.art_image, args.details_image):
+        if image is not None and not image.is_file():
+            ap.error(f"no such image: {image}")
 
-    print(json.dumps(asdict(extract(args.image)), indent=2))
+    print(json.dumps(asdict(extract(args.art_image, args.details_image)), indent=2))
 
 
 if __name__ == "__main__":

@@ -57,12 +57,19 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.25rem; }
 .drop .hint { display: block; color: var(--dim); font-size: 0.9rem; margin-top: 0.4rem; }
 .drop input { display: none; }
 
-#preview {
+.shots { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 40rem) { .shots { grid-template-columns: 1fr 1fr; } }
+
+.preview {
   display: none;
   max-width: 100%;
   margin-top: 1rem;
   border-radius: 10px;
 }
+
+.shots-col { display: grid; gap: 1rem; align-content: start; }
+figure { margin: 0; }
+figcaption { color: var(--dim); font-size: 0.8rem; margin-top: 0.4rem; }
 
 button {
   margin-top: 1rem;
@@ -108,4 +115,19 @@ th, td { text-align: left; padding: 0.5rem 0; border-bottom: 1px solid var(--lin
 th { color: var(--dim); font-weight: 400; text-transform: capitalize; width: 38%; }
 td.empty { color: #55584c; }
 
+.dim { color: var(--dim); }
+
+/* Observation, not transcription — kept visually distinct on purpose. */
+.observed {
+  margin-top: 1rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--dim);
+}
+
+.observed .label { display: block; margin-bottom: 0.15rem; }
+
 .again { display: inline-block; margin-top: 1.25rem; color: var(--accent); }
+
+.lead { color: var(--dim); margin: 0 0 1rem; }
