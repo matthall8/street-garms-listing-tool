@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post" enctype="multipart/form-data" id="form">
+  <label class="drop" for="photo">
+    <span class="big">Photograph the care label</span>
+    <span class="hint">Fill the frame with the art number. Tap to open the camera.</span>
+    <!-- capture="environment" opens the rear camera over plain HTTP,
+         unlike getUserMedia which needs a secure context. -->
+    <input type="file" id="photo" name="photo" accept="image/*" capture="environment" required>
+  </label>
+
+  <img id="preview" alt="">
+
+  <button type="submit">Read label</button>
+  <p class="working" id="working">Reading label…</p>
+</form>
+
+<script>
+  const input = document.getElementById('photo');
+  const preview = document.getElementById('preview');
+  const form = document.getElementById('form');
+
+  input.addEventListener('change', () => {
+    const file = input.files[0];
+    if (!file) return;
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+  });
+
+  // The API call takes a few seconds — show that something is happening.
+  form.addEventListener('submit', () => {
+    document.getElementById('working').style.display = 'block';
+    form.querySelector('button').disabled = true;
+  });
+</script>
+{% endblock %}

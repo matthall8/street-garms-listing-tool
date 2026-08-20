@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="result">
+  <img class="shot" src="{{ preview }}" alt="the label just photographed">
+
+  <div class="reading">
+    <p class="decoded">{{ extraction.decoded }}</p>
+    <p class="art">{{ extraction.art_number_raw or "— no art number read —" }}</p>
+
+    {% if extraction.needs_review %}
+      <p class="flag review">Needs review</p>
+    {% else %}
+      <p class="flag ok">Clean read</p>
+    {% endif %}
+
+    {% if extraction.all_reads %}
+      <p class="label">Ambiguous characters</p>
+      <ul>{% for a in extraction.all_reads %}<li>{{ a }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    {% if extraction.flags %}
+      <p class="label">Decoder flags</p>
+      <ul>{% for f in extraction.flags %}<li>{{ f }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    <table>
+      {% for key in ["year", "season", "brand", "garment", "size",
+                     "composition", "made_in", "certilogo", "legibility"] %}
+        <tr>
+          <th>{{ key.replace("_", " ") }}</th>
+          <td class="{{ 'empty' if fields[key] is none }}">
+            {{ fields[key] if fields[key] is not none else "—" }}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <a class="again" href="{{ url_for('main.index') }}">Read another</a>
+  </div>
+</div>
+{% endblock %}
