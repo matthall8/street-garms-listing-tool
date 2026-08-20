@@ -143,13 +143,20 @@ def transcribe(
     art: Optional[tuple[bytes, str]] = None,
     details: Optional[tuple[bytes, str]] = None,
 ) -> LabelReading:
-    """Run whichever reads the caller supplied photos for.
+    """Read both halves, from whichever photos the caller supplied.
 
-    Each argument is (image_bytes, media_type), or None to skip that read.
+    Each argument is (image_bytes, media_type). Both reads always run: each
+    prefers its own photo but falls back to the other one, so a single photo
+    gets read twice with two focused prompts. That is the C.P. Company case,
+    where the ART number and the care details share one label. Two photos is
+    the Stone Island case, where the ART number lives on a separate tag.
     """
+    for_art = art or details
+    for_details = details or art
+
     reading = LabelReading()
-    if art is not None:
-        reading.art = transcribe_art(*art)
-    if details is not None:
-        reading.details = transcribe_details(*details)
+    if for_art is not None:
+        reading.art = transcribe_art(*for_art)
+    if for_details is not None:
+        reading.details = transcribe_details(*for_details)
     return reading

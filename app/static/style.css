@@ -129,3 +129,5 @@ td.empty { color: #55584c; }
 .observed .label { display: block; margin-bottom: 0.15rem; }
 
 .again { display: inline-block; margin-top: 1.25rem; color: var(--accent); }
+
+.lead { color: var(--dim); margin: 0 0 1rem; }

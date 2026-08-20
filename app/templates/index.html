@@ -4,11 +4,14 @@
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
 <form method="post" enctype="multipart/form-data" id="form">
+  <p class="lead">One photo is enough when everything is on one label — usually
+    C.P. Company. Add a second when the ART number sits on its own tag —
+    usually Stone Island.</p>
+
   <div class="shots">
     <label class="drop" for="art_photo">
-      <span class="big">1 — ART number</span>
-      <span class="hint">Fill the frame with the long product code. On Stone
-        Island it is often on a separate tag, or folded behind the care label.</span>
+      <span class="big">Main label</span>
+      <span class="hint">The care label, or whichever tag shows the most.</span>
       <!-- capture="environment" opens the rear camera over plain HTTP,
            unlike getUserMedia which needs a secure context. -->
       <input type="file" id="art_photo" name="art_photo" accept="image/*" capture="environment">
@@ -16,8 +19,9 @@
     </label>
 
     <label class="drop" for="details_photo">
-      <span class="big">2 — Care label</span>
-      <span class="hint">Size, composition, country of origin, Certilogo.</span>
+      <span class="big">Second tag <span class="dim">— optional</span></span>
+      <span class="hint">Add this if the ART number is on a separate tag, or
+        folded behind the care label.</span>
       <input type="file" id="details_photo" name="details_photo" accept="image/*" capture="environment">
       <img class="preview" alt="">
     </label>
