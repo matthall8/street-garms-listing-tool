@@ -2,13 +2,24 @@
 {% block content %}
 
 <div class="result">
-  <img class="shot" src="{{ preview }}" alt="the label just photographed">
+  <div class="shots-col">
+    {% if art_preview %}
+      <figure><img class="shot" src="{{ art_preview }}" alt="ART number photo">
+        <figcaption>ART number</figcaption></figure>
+    {% endif %}
+    {% if details_preview %}
+      <figure><img class="shot" src="{{ details_preview }}" alt="care label photo">
+        <figcaption>Care label</figcaption></figure>
+    {% endif %}
+  </div>
 
   <div class="reading">
     <p class="decoded">{{ extraction.decoded }}</p>
     <p class="art">{{ extraction.art_number_raw or "— no art number read —" }}</p>
 
-    {% if extraction.needs_review %}
+    {% if extraction.legibility == "not_visible" %}
+      <p class="flag review">No ART number in that photo — try the seam tag or unfold the label</p>
+    {% elif extraction.needs_review %}
       <p class="flag review">Needs review</p>
     {% else %}
       <p class="flag ok">Clean read</p>
@@ -16,7 +27,11 @@
 
     {% if extraction.all_reads %}
       <p class="label">Ambiguous characters</p>
-      <ul>{% for a in extraction.all_reads %}<li>{{ a }}</li>{% endfor %}</ul>
+      <ul>
+        {% for a in extraction.all_reads %}
+          <li>position {{ a.position }}: <b>{{ a.reading }}</b> or {{ a.alternative }}</li>
+        {% endfor %}
+      </ul>
     {% endif %}
 
     {% if extraction.flags %}
@@ -35,6 +50,13 @@
         </tr>
       {% endfor %}
     </table>
+
+    {% if extraction.colour_observed %}
+      <p class="observed">
+        <span class="label">Colour — observed, not printed</span>
+        {{ extraction.colour_observed }}
+      </p>
+    {% endif %}
 
     <a class="again" href="{{ url_for('main.index') }}">Read another</a>
   </div>

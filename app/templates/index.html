@@ -4,33 +4,42 @@
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
 <form method="post" enctype="multipart/form-data" id="form">
-  <label class="drop" for="photo">
-    <span class="big">Photograph the care label</span>
-    <span class="hint">Fill the frame with the art number. Tap to open the camera.</span>
-    <!-- capture="environment" opens the rear camera over plain HTTP,
-         unlike getUserMedia which needs a secure context. -->
-    <input type="file" id="photo" name="photo" accept="image/*" capture="environment" required>
-  </label>
+  <div class="shots">
+    <label class="drop" for="art_photo">
+      <span class="big">1 — ART number</span>
+      <span class="hint">Fill the frame with the long product code. On Stone
+        Island it is often on a separate tag, or folded behind the care label.</span>
+      <!-- capture="environment" opens the rear camera over plain HTTP,
+           unlike getUserMedia which needs a secure context. -->
+      <input type="file" id="art_photo" name="art_photo" accept="image/*" capture="environment">
+      <img class="preview" alt="">
+    </label>
 
-  <img id="preview" alt="">
+    <label class="drop" for="details_photo">
+      <span class="big">2 — Care label</span>
+      <span class="hint">Size, composition, country of origin, Certilogo.</span>
+      <input type="file" id="details_photo" name="details_photo" accept="image/*" capture="environment">
+      <img class="preview" alt="">
+    </label>
+  </div>
 
   <button type="submit">Read label</button>
   <p class="working" id="working">Reading label…</p>
 </form>
 
 <script>
-  const input = document.getElementById('photo');
-  const preview = document.getElementById('preview');
+  for (const input of document.querySelectorAll('.drop input')) {
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if (!file) return;
+      const img = input.parentElement.querySelector('.preview');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+    });
+  }
+
+  // Two API calls take a few seconds — show that something is happening.
   const form = document.getElementById('form');
-
-  input.addEventListener('change', () => {
-    const file = input.files[0];
-    if (!file) return;
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = 'block';
-  });
-
-  // The API call takes a few seconds — show that something is happening.
   form.addEventListener('submit', () => {
     document.getElementById('working').style.display = 'block';
     form.querySelector('button').disabled = true;
