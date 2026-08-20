@@ -225,3 +225,7 @@ __marimo__/
 notebooks/
 *.csv
 
+# Label photos stay local. They can carry live Certilogo authentication
+# codes and scannable QR codes for specific garments.
+images/
+
