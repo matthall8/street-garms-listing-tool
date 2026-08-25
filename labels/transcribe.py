@@ -5,13 +5,18 @@ character-level precision and strict anti-guessing rules; the care label
 fields are ordinary text OCR where those rules only get in the way.
 """
 
+from functools import cache
 from typing import Optional
 
 from pydantic_ai import Agent, BinaryContent
 
 from labels.schemas import ArtNumberReading, LabelDetails, LabelReading
 
-DEFAULT_MODEL = "anthropic:claude-sonnet-5"
+# Two constants, because the two reads are not equally hard. The ART pass is
+# character-level work on small, faded print; the details pass is ordinary OCR
+# on large clear text and could run on something cheaper.
+ART_MODEL = "anthropic:claude-sonnet-5"
+DETAILS_MODEL = "anthropic:claude-sonnet-5"
 
 ART_PROMPT = """\
 You are a visual transcription system for Stone Island and C.P. Company
@@ -100,40 +105,35 @@ the season or the product type. If no garment fabric is visible in the
 image, leave it null.
 """
 
-_art_agent: Optional[Agent] = None
-_details_agent: Optional[Agent] = None
+@cache
+def get_art_agent(model: str = ART_MODEL) -> Agent:
+    """Build on first use, so importing this module needs no API key.
+
+    Cached per model so the eval harness can compare models in one run.
+    """
+    return Agent(model, system_prompt=ART_PROMPT, output_type=ArtNumberReading)
 
 
-def get_art_agent() -> Agent:
-    """Build on first use, so importing this module needs no API key."""
-    global _art_agent
-    if _art_agent is None:
-        _art_agent = Agent(
-            DEFAULT_MODEL, system_prompt=ART_PROMPT, output_type=ArtNumberReading
-        )
-    return _art_agent
+@cache
+def get_details_agent(model: str = DETAILS_MODEL) -> Agent:
+    return Agent(model, system_prompt=DETAILS_PROMPT, output_type=LabelDetails)
 
 
-def get_details_agent() -> Agent:
-    global _details_agent
-    if _details_agent is None:
-        _details_agent = Agent(
-            DEFAULT_MODEL, system_prompt=DETAILS_PROMPT, output_type=LabelDetails
-        )
-    return _details_agent
-
-
-def transcribe_art(data: bytes, media_type: str) -> ArtNumberReading:
+def transcribe_art(
+    data: bytes, media_type: str, model: str = ART_MODEL
+) -> ArtNumberReading:
     """Read the ART number from a photo framed on the ART number tag."""
-    return get_art_agent().run_sync([
+    return get_art_agent(model).run_sync([
         "Transcribe the ART number visible in this image.",
         BinaryContent(data=data, media_type=media_type),
     ]).output
 
 
-def transcribe_details(data: bytes, media_type: str) -> LabelDetails:
+def transcribe_details(
+    data: bytes, media_type: str, model: str = DETAILS_MODEL
+) -> LabelDetails:
     """Read size, composition, origin and CLG from the care label photo."""
-    return get_details_agent().run_sync([
+    return get_details_agent(model).run_sync([
         "Transcribe the visible care label details.",
         BinaryContent(data=data, media_type=media_type),
     ]).output

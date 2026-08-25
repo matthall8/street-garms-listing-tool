@@ -228,4 +228,8 @@ notebooks/
 # Label photos stay local. They can carry live Certilogo authentication
 # codes and scannable QR codes for specific garments.
 images/
+evals/photos/
+evals/results/
+evals/manifest.csv
+!evals/manifest.example.csv
 
