@@ -224,10 +224,12 @@ __marimo__/
 # The Street Garms art number data is hand-built and not for publication.
 notebooks/
 *.csv
+data/
 
 # Label photos stay local. They can carry live Certilogo authentication
 # codes and scannable QR codes for specific garments.
 images/
+data/
 evals/photos/
 evals/results/
 evals/manifest.csv
