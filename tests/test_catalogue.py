@@ -1,91 +1,83 @@
-"""Check catalogue lookup against every row it contains.
+"""Catalogue loading and exact lookup."""
 
-No network, no API key. The catalogue is its own test corpus: every row must
-look up to itself, so the suite grows as the catalogue does.
-
-    python tests/test_catalogue.py
-"""
-
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import pytest
 
-from labels.catalogue import (  # noqa: E402
-    ART_CSV_PATH,
-    art_lookup,
-    load_catalogue,
-    normalise,
-    product_name,
-)
-
-failures: list[str] = []
+from labels.catalogue import art_lookup, load_catalogue, normalise, product_name
 
 
-def check(name: str, ok: bool, detail: str = "") -> None:
-    print(f"  {'PASS' if ok else 'FAIL'}  {name}{'  ' + detail if detail else ''}")
-    if not ok:
-        failures.append(name)
+class TestNormalise:
+    def test_strips_spaces(self):
+        assert normalise("05CMSH022A 004275A") == "05CMSH022A004275A"
+
+    def test_upcases(self):
+        assert normalise("k1s154100067") == "K1S154100067"
+
+    def test_keeps_leading_zeros(self):
+        assert normalise("0126422791") == "0126422791"
+
+    @pytest.mark.parametrize("value", [None, "", "   "])
+    def test_empty_inputs_give_empty_string(self, value):
+        assert normalise(value) == ""
 
 
-def main() -> int:
-    catalogue = load_catalogue()
+class TestLoadCatalogue:
+    def test_missing_file_returns_empty(self):
+        assert load_catalogue(Path("data/does-not-exist.csv")) == {}
 
-    if not catalogue:
-        print(f"no catalogue at {ART_CSV_PATH} — skipping.")
-        print("The Street Garms catalogue is private and not part of this repo.")
-        return 0
+    def test_keys_are_normalised(self, catalogue):
+        assert all(k == normalise(k) for k in catalogue)
 
-    print(f"catalogue: {len(catalogue)} rows\n")
+    def test_every_row_has_the_expected_columns(self, catalogue):
+        expected = {"ART", "Brand", "Type", "Product Name"}
+        assert all(expected <= set(row) for row in catalogue.values())
 
-    # 1. Every row resolves to itself. The core guarantee.
-    missed = [k for k, row in catalogue.items() if art_lookup(k) is not row]
-    check("every row looks up to itself", not missed,
-          f"{len(catalogue) - len(missed)}/{len(catalogue)}")
-    for k in missed[:5]:
-        print(f"        missed: {k}")
+    def test_no_duplicate_codes(self, catalogue):
+        # A dict cannot hold duplicates, so this checks the CSV itself.
+        import csv
 
-    # 2. Product names come back, and match the row.
-    wrong = [
-        k for k, row in catalogue.items()
-        if product_name(k) != (row.get("Product Name") or None)
-    ]
-    check("product_name matches the row", not wrong, f"{len(wrong)} mismatched")
+        from labels.catalogue import ART_CSV_PATH
 
-    # 3. Leading zeros survive the CSV read. 0126422791 must not become an int.
-    zeros = [k for k in catalogue if k.startswith("0")]
-    check("leading zeros preserved", bool(zeros) and all(art_lookup(k) for k in zeros),
-          f"{len(zeros)} such codes")
-
-    # 4. Normalisation: OCR returns spaces and mixed case, the catalogue does not.
-    sample = next(iter(catalogue))
-    spaced = " ".join([sample[:4], sample[4:]])
-    check("matches despite spacing", art_lookup(spaced) is not None, repr(spaced))
-    check("matches despite case", art_lookup(sample.lower()) is not None)
-    check("normalise strips and upcases",
-          normalise(" 05cmsh022a 004275a ") == "05CMSH022A004275A")
-
-    # 5. Misses are None, not exceptions or empty strings.
-    check("unknown code returns None", art_lookup("NOTAREALCODE") is None)
-    check("None input returns None", art_lookup(None) is None)
-    check("empty string returns None", art_lookup("") is None)
-
-    # 6. Absent catalogue degrades, since data/ is gitignored.
-    check("missing file returns empty dict",
-          load_catalogue(Path("data/does-not-exist.csv")) == {})
-
-    # 7. The whole row is available, not just the name.
-    row = art_lookup(sample)
-    check("row carries Brand and Type",
-          bool(row) and {"ART", "Brand", "Type", "Product Name"} <= set(row))
-
-    print()
-    if failures:
-        print(f"{len(failures)} FAILED: {', '.join(failures)}")
-        return 1
-    print("all checks passed")
-    return 0
+        with open(ART_CSV_PATH, encoding="utf-8-sig") as f:
+            codes = [normalise(r["ART"]) for r in csv.DictReader(f)]
+        assert len(codes) == len(set(codes)), "duplicate ART numbers in the CSV"
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+class TestArtLookup:
+    def test_every_row_looks_up_to_itself(self, catalogue):
+        """The core guarantee. Would have caught the .iloc[0] bug immediately."""
+        missed = [k for k, row in catalogue.items() if art_lookup(k) is not row]
+        assert not missed, f"{len(missed)} rows did not resolve, e.g. {missed[:3]}"
+
+    def test_matches_despite_spacing(self, a_code, catalogue):
+        spaced = f"{a_code[:4]} {a_code[4:]}"
+        assert art_lookup(spaced) is catalogue[a_code]
+
+    def test_matches_despite_case(self, a_code, catalogue):
+        assert art_lookup(a_code.lower()) is catalogue[a_code]
+
+    def test_leading_zero_codes_resolve(self, catalogue):
+        zeros = [k for k in catalogue if k.startswith("0")]
+        assert zeros, "expected some codes with a leading zero"
+        assert all(art_lookup(k) for k in zeros)
+
+    @pytest.mark.parametrize("value", ["NOTAREALCODE", None, ""])
+    def test_misses_return_none(self, value):
+        assert art_lookup(value) is None
+
+    def test_returns_the_whole_row(self, a_code):
+        row = art_lookup(a_code)
+        assert {"ART", "Brand", "Type", "Product Name"} <= set(row)
+
+
+class TestProductName:
+    def test_matches_the_row(self, catalogue):
+        wrong = [
+            k for k, row in catalogue.items()
+            if product_name(k) != (row.get("Product Name") or None)
+        ]
+        assert not wrong, f"{len(wrong)} names did not match"
+
+    def test_miss_returns_none(self):
+        assert product_name("NOTAREALCODE") is None

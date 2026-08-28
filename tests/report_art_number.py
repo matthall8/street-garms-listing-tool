@@ -16,7 +16,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from labels.art_number import parse  # noqa: E402
 
-CATALOGUE = Path(__file__).parent.parent / "notebooks/art-number/art-number.csv"
+from labels.catalogue import ART_CSV_PATH  # noqa: E402
+
+CATALOGUE = ART_CSV_PATH  # one source of truth for where the catalogue lives
 SEASON_RE = re.compile(r"\b([AS])/([WS])\s*'?(\d{2})\b")
 
 
