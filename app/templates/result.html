@@ -14,13 +14,28 @@
   </div>
 
   <div class="reading">
+    {% if extraction.product_name %}
+      <h1>{{ extraction.product_name }}</h1>
+    {% endif %} 
     <p class="decoded">{{ extraction.decoded }}</p>
-    <p class="art">{{ extraction.art_number_raw or "— no art number read —" }}</p>
-
+    {% if extraction.catalogue_match == "corrected" %}
+      {# What was read is superseded by what the catalogue matched. Styling
+         says which is which, so no caption is needed. #}
+      <p class="art">
+        <span class="superseded">{{ extraction.art_number_raw }}</span>
+        &rarr; {{ extraction.matched_art }}
+      </p>
+    {% else %}
+      <p class="art">{{ extraction.art_number_raw or "— no art number read —" }}</p>
+    {% endif %}
+    {# Ordered by urgency: a photo problem outranks a review flag, which
+       outranks a catalogue gap. A miss is not a fault in the read. #}
     {% if extraction.legibility == "not_visible" %}
       <p class="flag review">No ART number in that photo — try the seam tag or unfold the label</p>
     {% elif extraction.needs_review %}
       <p class="flag review">Needs review</p>
+    {% elif extraction.catalogue_match == "miss" %}
+      <p class="flag gap">Read fine — not in your catalogue yet</p>
     {% else %}
       <p class="flag ok">Clean read</p>
     {% endif %}
