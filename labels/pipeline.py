@@ -7,6 +7,7 @@ from typing import Optional
 from labels.art_number import parse
 from labels.schemas import Extraction
 from labels.transcribe import transcribe
+from labels.catalogue import resolve
 
 Photo = tuple[bytes, str]  # (image_bytes, media_type)
 
@@ -23,6 +24,8 @@ def extract_bytes(
     reading = transcribe(art=art, details=details)
     art_read, det = reading.art, reading.details
     decoded = parse(art_read.art_number_raw or "")
+    matched = resolve(art_read.art_number_raw, art_read.art_legible)
+
 
     return Extraction(
         source_image=source,
@@ -32,6 +35,9 @@ def extract_bytes(
         season=decoded.season,
         brand=decoded.brand or det.brand_printed,
         garment=decoded.garment,
+        product_name=matched.product_name,
+        catalogue_match=matched.status,
+        matched_art=matched.matched_art,
         size=" / ".join(f"{s.system} {s.value}" for s in det.sizes) or None,
         composition=det.composition,
         made_in=det.made_in,
@@ -46,6 +52,7 @@ def extract_bytes(
             or bool(decoded.flags)
             or decoded.format is None
             or decoded.year is None
+            or matched.status in ("corrected", "ambiguous")
         ),
     )
 

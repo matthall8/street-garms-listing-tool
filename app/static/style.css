@@ -93,8 +93,28 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .shot { width: 100%; border-radius: 12px; border: 1px solid var(--line); }
 
+/* The listing title, from the catalogue. Leads the page when we have one. */
+.reading h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 0.35rem;
+}
+
+/* Decoded structure. The headline when there is no product name; when an h1
+   precedes it there IS a name, so it demotes itself to a subtitle. No second
+   class needed — the adjacent sibling selector reads the situation. */
 .decoded { font-size: 1.35rem; font-weight: 600; margin: 0 0 0.25rem; }
+.reading h1 + .decoded {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--dim);
+}
 .art { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); margin: 0 0 1rem; }
+
+/* The code as read, when the catalogue matched a different one. Dimmed and
+   struck through so it reads as "seen, but not used". */
+.superseded { color: var(--dim); text-decoration: line-through; }
 
 .flag {
   display: inline-block;
@@ -106,6 +126,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .flag.review { background: #3a2418; color: #f0c99a; }
 .flag.ok { background: #1f2a17; color: var(--accent); }
+
+/* Not a fault — the read worked, the garment is simply new to the catalogue.
+   Neutral rather than warning-coloured, so it does not read as an error. */
+.flag.gap { background: #1c2230; color: #9db4d4; }
 
 .label { color: var(--dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
 ul { margin: 0 0 1rem; padding-left: 1.1rem; color: #d8c9a8; }
