@@ -128,6 +128,7 @@ class Extraction:
     source_image: str
     art_number_raw: Optional[str]
     decoded: str
+    product_name: Optional[str]
     year: Optional[int]
     season: Optional[str]
     brand: Optional[str]
@@ -140,4 +141,6 @@ class Extraction:
     legibility: str
     all_reads: list
     flags: list
+    catalogue_match: str
+    matched_art: Optional[str]
     needs_review: bool
