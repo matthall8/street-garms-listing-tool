@@ -8,12 +8,14 @@ The metric that matters most is OVERCONFIDENCE: how often the model returns
 art_legible="clear" while getting the code wrong. That is the value any
 auto-accept logic keys on, so its error rate is the real defect.
 
-Photos and manifest are gitignored — label photos can carry live Certilogo
-codes. See evals/manifest.example.csv for the format.
+Photos, manifest and results are gitignored — label photos can carry live
+Certilogo codes. See evals/README.md for setup and how to read the report.
 
-    python tests/eval_transcription.py
-    python tests/eval_transcription.py --model anthropic:claude-opus-5
-    python tests/eval_transcription.py --model openai:gpt-5 --workers 8
+    python tests/eval_transcription.py --model test          # offline, no API calls
+    python tests/eval_transcription.py --repeat 3 --note "baseline: current prompt"
+    python tests/eval_transcription.py --repeat 3 --note "whole-label search" \\
+        --baseline evals/results/<baseline>.json
+    python tests/eval_transcription.py --model anthropic:claude-opus-5 --no-save
 """
 
 import argparse
@@ -195,7 +197,9 @@ def load_baseline(path: Path) -> Optional[EvaluationReport]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--model", default=ART_MODEL, help=f"default: {ART_MODEL}")
     ap.add_argument("--workers", type=int, default=4,
                     help="reads at once (default: 4)")
@@ -236,7 +240,9 @@ def main() -> int:
     from dotenv import load_dotenv
     load_dotenv()
 
-    dataset = Dataset(name="art-number-transcription", cases=cases, evaluators=[CorrectArtNumber()], report_evaluators=[ConfidenceRates()])
+    dataset = Dataset(name="art-number-transcription",
+                      cases=cases, evaluators=[CorrectArtNumber()],
+                      report_evaluators=[ConfidenceRates()])
     task = partial(get_art_number_reading, model=args.model)
     report = dataset.evaluate_sync(
         task,
