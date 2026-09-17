@@ -22,13 +22,16 @@ import hashlib
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from functools import partial
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Optional
 
+from pydantic import ValidationError
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext, ReportEvaluator, ReportEvaluatorContext
+from pydantic_evals.reporting import EvaluationReport, EvaluationReportAdapter
 from pydantic_evals.reporting.analyses import ScalarResult
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -167,6 +170,29 @@ def run_metadata(args: argparse.Namespace) -> dict:
         "note": args.note,
     }
 
+def save(report, model) -> Path:
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    path = RESULTS / f"{stamp}-{model.replace(':', '_').replace('/', '_')}.json"
+    path.write_bytes(EvaluationReportAdapter.dump_json(report, indent=2))
+    return path
+
+
+def load_baseline(path: Path) -> Optional[EvaluationReport]:
+    """A report saved by an earlier run, to diff this one against.
+
+    Prints why and returns None if the file is missing or isn't a saved report.
+    """
+    if not path.is_file():
+        print(f"no baseline at {path}")
+        return None
+    try:
+        return EvaluationReportAdapter.validate_json(path.read_bytes())
+    except ValidationError:
+        print(f"{path} is not a saved eval report. Results from before the "
+              "pydantic-evals port use an older format and can't be baselines.")
+        return None
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
@@ -178,6 +204,10 @@ def main() -> int:
                     help="read every photo N times (default: 1)")
     ap.add_argument("--note", default="",
                     help="what this run is testing, saved with the results")
+    ap.add_argument("--no-save", action="store_true",
+                    help="don't write the report to evals/results/")
+    ap.add_argument("--baseline", type=Path,
+                    help="a saved report in evals/results/ to compare this run against")
     args = ap.parse_args()
 
     if not MANIFEST.is_file():
@@ -191,6 +221,18 @@ def main() -> int:
         print(f"{MANIFEST} has no usable rows.")
         return 1
 
+    # Loaded before any reads, so a bad path fails fast instead of after the API calls.
+    baseline = None
+    if args.baseline:
+        baseline = load_baseline(args.baseline)
+        if baseline is None:
+            return 1
+        baseline_repeat = (baseline.experiment_metadata or {}).get("repeat", 1)
+        if baseline_repeat != args.repeat:
+            # Repeats rename cases ("photo [1/3]"), and the diff matches cases by name.
+            print(f"warning: baseline used --repeat {baseline_repeat}, this run uses "
+                  f"--repeat {args.repeat}, so cases won't line up in the diff")
+
     from dotenv import load_dotenv
     load_dotenv()
 
@@ -203,7 +245,9 @@ def main() -> int:
         name=args.model,
         metadata=run_metadata(args),
     )
-    report.print(include_output=True, include_expected_output=True)
+    report.print(include_output=True, include_expected_output=True, baseline=baseline)
+    if not args.no_save:
+        print(f"\nwrote {save(report, args.model).relative_to(EVALS.parent)}")
     return 0
 
 
