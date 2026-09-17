@@ -18,6 +18,8 @@ codes. See evals/manifest.example.csv for the format.
 
 import argparse
 import csv
+import hashlib
+import subprocess
 import sys
 from dataclasses import dataclass
 from functools import partial
@@ -32,7 +34,7 @@ from pydantic_evals.reporting.analyses import ScalarResult
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from labels.schemas import ArtNumberReading  # noqa: E402
-from labels.transcribe import ART_MODEL, transcribe_art  # noqa: E402
+from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art  # noqa: E402
 
 EVALS = Path(__file__).parent.parent / "evals"
 MANIFEST = EVALS / "manifest.csv"
@@ -139,6 +141,32 @@ def get_art_number_reading(photo_path: Path, model: str) -> ArtNumberReading:
         model=model
     )
 
+def git(*args: str) -> str:
+    """Output of a git command run in the repo, or "" if it fails."""
+    result = subprocess.run(
+        ["git", *args], cwd=EVALS.parent, capture_output=True, text=True
+    )
+    return result.stdout.strip()
+
+
+def fingerprint(data: bytes) -> str:
+    """Short hash: enough to tell two versions apart, not a security measure."""
+    return hashlib.sha256(data).hexdigest()[:12]
+
+
+def run_metadata(args: argparse.Namespace) -> dict:
+    """What produced this run, so a saved report can be traced back to it."""
+    return {
+        "model": args.model,
+        "commit": git("rev-parse", "--short", "HEAD"),
+        "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
+        "prompt": fingerprint(ART_PROMPT.encode()),
+        "manifest": fingerprint(MANIFEST.read_bytes()),
+        "limit": args.limit,
+        "repeat": args.repeat,
+        "note": args.note,
+    }
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
@@ -146,6 +174,10 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=4,
                     help="reads at once (default: 4)")
     ap.add_argument("--limit", type=int, help="only run the first N cases")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="read every photo N times (default: 1)")
+    ap.add_argument("--note", default="",
+                    help="what this run is testing, saved with the results")
     args = ap.parse_args()
 
     if not MANIFEST.is_file():
@@ -164,7 +196,13 @@ def main() -> int:
 
     dataset = Dataset(name="art-number-transcription", cases=cases, evaluators=[CorrectArtNumber()], report_evaluators=[ConfidenceRates()])
     task = partial(get_art_number_reading, model=args.model)
-    report = dataset.evaluate_sync(task, max_concurrency=args.workers, name=args.model)
+    report = dataset.evaluate_sync(
+        task,
+        max_concurrency=args.workers,
+        repeat=args.repeat,
+        name=args.model,
+        metadata=run_metadata(args),
+    )
     report.print(include_output=True, include_expected_output=True)
     return 0
 
