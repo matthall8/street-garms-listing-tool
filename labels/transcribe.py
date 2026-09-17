@@ -8,7 +8,7 @@ fields are ordinary text OCR where those rules only get in the way.
 from functools import cache
 from typing import Optional
 
-from pydantic_ai import Agent, BinaryContent
+from pydantic_ai import Agent, BinaryContent, ModelSettings
 
 from labels.schemas import ArtNumberReading, LabelDetails, LabelReading
 
@@ -17,6 +17,9 @@ from labels.schemas import ArtNumberReading, LabelDetails, LabelReading
 # on large clear text and could run on something cheaper.
 ART_MODEL = "anthropic:claude-sonnet-5"
 DETAILS_MODEL = "anthropic:claude-sonnet-5"
+
+# Model settings to reduce timeout time to 1 minute, rather than the client's default.
+MODEL_SETTINGS = ModelSettings(timeout=60)
 
 ART_PROMPT = """\
 You are a visual transcription system for Stone Island and C.P. Company
@@ -111,12 +114,18 @@ def get_art_agent(model: str = ART_MODEL) -> Agent:
 
     Cached per model so the eval harness can compare models in one run.
     """
-    return Agent(model, system_prompt=ART_PROMPT, output_type=ArtNumberReading)
+    return Agent(model,
+                 system_prompt=ART_PROMPT,
+                 model_settings=MODEL_SETTINGS,
+                 output_type=ArtNumberReading)
 
 
 @cache
 def get_details_agent(model: str = DETAILS_MODEL) -> Agent:
-    return Agent(model, system_prompt=DETAILS_PROMPT, output_type=LabelDetails)
+    return Agent(model,
+                 system_prompt=DETAILS_PROMPT,
+                 model_settings=MODEL_SETTINGS,
+                 output_type=LabelDetails)
 
 
 def transcribe_art(
