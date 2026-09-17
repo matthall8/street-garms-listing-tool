@@ -19,13 +19,15 @@ codes. See evals/manifest.example.csv for the format.
 import argparse
 import csv
 import sys
-
+from dataclasses import dataclass
 from functools import partial
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Optional
 
 from pydantic_evals import Case, Dataset
+from pydantic_evals.evaluators import Evaluator, EvaluatorContext, ReportEvaluator, ReportEvaluatorContext
+from pydantic_evals.reporting.analyses import ScalarResult
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -56,6 +58,64 @@ def levenshtein(a: str, b: str) -> int:
 def normalise(s: Optional[str]) -> str:
     """Compare codes ignoring spacing and case, which are not the interesting errors."""
     return "".join((s or "").split()).upper()
+
+
+@dataclass
+class CorrectArtNumber(Evaluator):
+    def evaluate(self, ctx: EvaluatorContext) -> dict:
+        expected_art_number = normalise(ctx.expected_output)
+        detected_art_number = normalise(ctx.output.art_number_raw)
+        exact = expected_art_number == detected_art_number
+        cer = levenshtein(detected_art_number, expected_art_number) / len(expected_art_number)
+        legibility = ctx.output.art_legible
+        return {
+            "exact": exact,
+            "cer": cer,
+            "legibility": legibility,
+        }
+
+def percent(part: list, whole: list) -> float:
+    return 100 * len(part) / len(whole)
+
+
+@dataclass
+class ConfidenceRates(ReportEvaluator):
+    """Whole-run rates that the per-case averages can't show."""
+
+    def evaluate(self, ctx: ReportEvaluatorContext) -> list[ScalarResult]:
+        cases = ctx.report.cases
+        if not cases:
+            return []
+
+        clear = [r for r in cases if r.output.art_legible == "clear"]
+        flagged = [r for r in cases if r.output.ambiguous_characters]
+        clear_but_wrong = [r for r in clear if not r.assertions["exact"].value]
+        overconfident = [
+            r for r in clear_but_wrong if not r.output.ambiguous_characters
+        ]
+        flagged_right = [r for r in flagged if r.assertions["exact"].value]
+
+        results = [
+            ScalarResult(
+                title="overconfident",
+                value=percent(overconfident, cases),
+                unit="%",
+            ),
+            ScalarResult(
+                title="flagged but correct",
+                value=percent(flagged_right, cases),
+                unit="%",
+            ),
+        ]
+        if clear:  # a prompt change could stop the model saying "clear" at all
+            results.append(
+                ScalarResult(
+                    title="clear but wrong",
+                    value=percent(clear_but_wrong, clear),
+                    unit="%",
+                )
+            )
+        return results
 
 
 def load_manifest() -> list[Case]:
@@ -101,8 +161,8 @@ def main() -> int:
 
     from dotenv import load_dotenv
     load_dotenv()
-    
-    dataset = Dataset(name="art-number-transcription", cases=cases)
+
+    dataset = Dataset(name="art-number-transcription", cases=cases, evaluators=[CorrectArtNumber()], report_evaluators=[ConfidenceRates()])
     task = partial(get_art_number_reading, model=args.model)
     report = dataset.evaluate_sync(task, max_concurrency=args.workers, name=args.model)
     report.print(include_output=True, include_expected_output=True)
