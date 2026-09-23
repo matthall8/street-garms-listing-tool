@@ -235,3 +235,6 @@ evals/results/
 evals/manifest.csv
 !evals/manifest.example.csv
 
+# Working notes and audits — local scratch, not part of the repo.
+docs/
+
