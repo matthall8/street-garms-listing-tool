@@ -43,6 +43,7 @@ from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art  # noqa: E40
 
 EVALS = Path(__file__).parent.parent / "evals"
 MANIFEST = EVALS / "manifest.csv"
+NO_ART_NUMBER = "NONE"
 PHOTOS = EVALS / "photos"
 RESULTS = EVALS / "results"
 
@@ -70,16 +71,27 @@ def normalise(s: Optional[str]) -> str:
 @dataclass
 class CorrectArtNumber(Evaluator):
     def evaluate(self, ctx: EvaluatorContext) -> dict:
-        expected_art_number = normalise(ctx.expected_output)
-        detected_art_number = normalise(ctx.output.art_number_raw)
-        exact = expected_art_number == detected_art_number
-        cer = levenshtein(detected_art_number, expected_art_number) / len(expected_art_number)
-        legibility = ctx.output.art_legible
-        return {
-            "exact": exact,
-            "cer": cer,
-            "legibility": legibility,
+        expected = normalise(ctx.expected_output)
+        detected = normalise(ctx.output.art_number_raw)
+        is_negative = expected == NO_ART_NUMBER
+
+        result = {
+            "legibility": ctx.output.art_legible,
+            "kind": "negative" if is_negative else "positive"
         }
+        
+        if is_negative:
+            # Correct means no code came back at all. Saying "illegible" rather
+            # than "not_visible" is a lesser error, visible via the legibility label.
+            # An all-"?" read invents nothing either: ART_PROMPT rule 3 tells the
+            # model to write "?" for characters it cannot read, so that is the
+            # honest answer here, not a fabrication. Any real character surviving
+            # the strip means it claimed to read something that is not there.
+            result["exact"] = not detected.strip("?")
+        else:
+            result["exact"] = expected == detected
+            result["cer"] = levenshtein(detected, expected) / len(expected)
+        return result
 
 def percent(part: list, whole: list) -> float:
     return 100 * len(part) / len(whole)
@@ -88,56 +100,68 @@ def percent(part: list, whole: list) -> float:
 @dataclass
 class ConfidenceRates(ReportEvaluator):
     """Whole-run rates that the per-case averages can't show."""
-
     def evaluate(self, ctx: ReportEvaluatorContext) -> list[ScalarResult]:
-        cases = ctx.report.cases
-        if not cases:
+        # A case whose EVALUATOR raised keeps its row but carries no assertions,
+        # so exclude it rather than KeyError. (A case whose task raised goes to
+        # report.failures and never reaches here.)
+        scored = [r for r in ctx.report.cases if "exact" in r.assertions]
+        if not scored:
             return []
 
-        clear = [r for r in cases if r.output.art_legible == "clear"]
-        flagged = [r for r in cases if r.output.ambiguous_characters]
-        clear_but_wrong = [r for r in clear if not r.assertions["exact"].value]
-        overconfident = [
-            r for r in clear_but_wrong if not r.output.ambiguous_characters
-        ]
-        flagged_right = [r for r in flagged if r.assertions["exact"].value]
+        positives = [r for r in scored if r.labels["kind"].value == "positive"]
+        negatives = [r for r in scored if r.labels["kind"].value == "negative"]
+        results = []
 
-        results = [
-            ScalarResult(
-                title="overconfident",
-                value=percent(overconfident, cases),
-                unit="%",
-            ),
-            ScalarResult(
-                title="flagged but correct",
-                value=percent(flagged_right, cases),
-                unit="%",
-            ),
-        ]
-        if clear:  # a prompt change could stop the model saying "clear" at all
-            results.append(
-                ScalarResult(
-                    title="clear but wrong",
-                    value=percent(clear_but_wrong, clear),
-                    unit="%",
-                )
-            )
+        if positives:
+            clear = [r for r in positives if r.output.art_legible == "clear"]
+            flagged = [r for r in positives if r.output.ambiguous_characters]
+            clear_but_wrong = [r for r in clear if not r.assertions["exact"].value]
+            overconfident = [r for r in clear_but_wrong if not r.output.ambiguous_characters]
+            flagged_right = [r for r in flagged if r.assertions["exact"].value]
+
+            results += [
+                ScalarResult(title="overconfident",
+                                value=percent(overconfident, positives), unit="%"),
+                ScalarResult(title="flagged but correct",
+                                value=percent(flagged_right, positives), unit="%"),
+            ]
+            if clear:
+                results.append(ScalarResult(title="clear but wrong",
+                                            value=percent(clear_but_wrong, clear), unit="%"))
+
+        if negatives:
+            fabricated = [r for r in negatives if not r.assertions["exact"].value]
+            fabricated_clear = [r for r in fabricated if r.output.art_legible == "clear"]
+            results += [
+                ScalarResult(title="fabricated on no-code photos",
+                                value=percent(fabricated, negatives), unit="%"),
+                ScalarResult(title="fabricated and declared clear",
+                                value=percent(fabricated_clear, negatives), unit="%"),
+            ]
+
         return results
 
 
-def load_manifest() -> list[Case]:
-    with open(MANIFEST, encoding="utf-8-sig") as f:
-        return [
-            Case(
-                name=r["photo"].strip(),
-                inputs=PHOTOS / r["photo"].strip(),
-                expected_output=r["expected_art_number"].strip(),
-                metadata={"note": r.get("note", "").strip()},
-            )
-            for r in csv.DictReader(f)
-            if r.get("photo", "").strip() and r.get("expected_art_number", "").strip()
-        ]
 
+def load_manifest() -> list[Case]:
+    cases = []
+    with open(MANIFEST, encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            photo = r.get("photo", "").strip()
+            expected = r.get("expected_art_number", "").strip()
+            if not photo:
+                continue
+            if not expected:
+                print(f"skipping {photo}: no expected_art_number "
+                      f"(use {NO_ART_NUMBER} if the photo has no ART number)")
+                continue
+            cases.append(Case(
+                name=photo,
+                inputs=PHOTOS / photo,
+                expected_output=expected,
+                metadata={"note": r.get("note", "").strip()},
+            ))
+    return cases
 
 def get_art_number_reading(photo_path: Path, model: str) -> ArtNumberReading:
     return transcribe_art(
@@ -220,10 +244,21 @@ def main() -> int:
         print("See evals/manifest.example.csv for the format.")
         return 0
 
-    cases = load_manifest()[: args.limit]
+    all_cases = load_manifest()
+    cases = all_cases[: args.limit]
     if not cases:
         print(f"{MANIFEST} has no usable rows.")
         return 1
+
+    # --limit truncates, so it can cut every negative case off the end without
+    # saying so. The fabrication rates then vanish from the report rather than
+    # reading zero, which looks like a clean run instead of an unmeasured one.
+    def negatives(rows):
+        return [c for c in rows if normalise(c.expected_output) == NO_ART_NUMBER]
+
+    if negatives(all_cases) and not negatives(cases):
+        print(f"warning: --limit {args.limit} excluded every negative case, "
+              "so this run cannot measure fabrication")
 
     # Loaded before any reads, so a bad path fails fast instead of after the API calls.
     baseline = None
