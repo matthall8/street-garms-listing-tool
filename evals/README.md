@@ -91,9 +91,23 @@ Below the table, rates across the whole run.
 The first three are computed over **positive cases only**, so they mean exactly
 what they meant before negative cases existed:
 
-**overconfident** is the number that matters: the model said `clear`, got the
-code wrong, and flagged no characters as ambiguous. That is the value any
-auto-accept logic keys on, so its rate decides whether auto-accept is safe.
+**overconfident** — the model said `clear`, got the code wrong, and flagged no
+characters as ambiguous. This is the closest thing here to a "silently wrong"
+rate, but read it carefully: **it is not the rate at which a wrong listing gets
+published.** That gate is `needs_review` (`labels/pipeline.py:50-56`), which
+also consults the decoder and the catalogue, so this number is wrong in both
+directions:
+
+- a confidently wrong read the catalogue *corrects* does get flagged, so this
+  **overstates** the risk;
+- a confidently wrong read that decodes cleanly and either misses the catalogue
+  or lands on a *different real* code publishes with nothing flagged, and this
+  number cannot distinguish it from the flagged kind, so it **understates** the
+  failure that actually matters.
+
+To get the publish-gate number, replay `parse` + `resolve` over a saved report
+and count reads that are wrong with `needs_review` False. That costs no API
+calls.
 
 **clear but wrong** is the same failure measured only over reads the model
 called `clear` — how far `clear` can be trusted. It's omitted when no read was

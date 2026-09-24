@@ -4,9 +4,11 @@ The decoder has had a number since day one (tests/report_art_number.py, 97.0%).
 The vision half has never had one, so every claim about a prompt or a model
 change has been a guess. This gives it a number.
 
-The metric that matters most is OVERCONFIDENCE: how often the model returns
-art_legible="clear" while getting the code wrong. That is the value any
-auto-accept logic keys on, so its error rate is the real defect.
+The headline metric is OVERCONFIDENCE: how often the model returns
+art_legible="clear" while getting the code wrong. It is NOT the rate at which a
+wrong listing gets published — that gate is needs_review in labels/pipeline.py,
+which also consults the decoder and the catalogue. See evals/README.md for why
+this number is wrong in both directions and how to get the publish-gate one.
 
 Photos, manifest and results are gitignored — label photos can carry live
 Certilogo codes. See evals/README.md for setup and how to read the report.
