@@ -22,13 +22,30 @@ evals/
 
 | column | meaning |
 |---|---|
-| `photo` | filename inside `evals/photos/` |
-| `expected_art_number` | the code as printed, hand-checked by eye |
+| `photo` | filename inside `evals/photos/`, **including the extension** |
+| `expected_art_number` | the code as printed, hand-checked by eye — or `NONE` |
 | `note` | free text, kept with the case in the saved report |
 
 Expected values are compared ignoring spacing and case, so `05CMSH022A 004275A`
 and `05cmsh022a004275a` both count as correct. Every other difference counts as
 a miss.
+
+### Negative cases
+
+`expected_art_number` of `NONE` means **this photo contains no ART number at
+all**. The correct outcome is that no code comes back; returning one is a
+fabrication, which is the failure these cases exist to catch. A negative case
+is scored on `exact` only — `cer` has no denominator, so it is left out of the
+CER average rather than counted as zero.
+
+`NONE` is safe as a sentinel because it is not a shape any real ART number can
+take, so a genuine code can never be mistaken for it. (The decoder is not
+consulted during an eval run — the check is purely on the manifest string.)
+
+A **blank** `expected_art_number` is different: it means *not labelled yet*.
+Those rows are skipped with a warning on stdout rather than scored. The two
+states must not be conflated — a blank row silently treated as a negative would
+score an unlabelled photo as passing whenever the model read nothing.
 
 ## Running
 
@@ -56,14 +73,23 @@ score. An outage can't masquerade as bad transcription.
 
 Each photo gets a row with:
 
-- **exact** — ✔ or ✗; the Averages row shows the share that passed
+- **exact** — ✔ or ✗; the Averages row shows the share that passed. Note this
+  share pools positive and negative cases, so it is **not** comparable to a run
+  recorded before negative cases existed, and it shifts if the positive/negative
+  mix changes. The per-kind rates below are the ones to compare
 - **cer** — character error rate: edits needed to reach the expected code,
   divided by its length. It moves before exact match does, so it's the more
-  sensitive signal when comparing two prompts or two models
+  sensitive signal when comparing two prompts or two models. Shown as `-` on
+  negative cases, which are excluded from its average
 - **legibility** — what the model said: `clear`, `partial`, `illegible` or
   `not_visible`
+- **kind** — `positive` or `negative`; the Averages row shows the mix, which is
+  how you check the set still covers what you think it does
 
-Below the table, rates across the whole run:
+Below the table, rates across the whole run.
+
+The first three are computed over **positive cases only**, so they mean exactly
+what they meant before negative cases existed:
 
 **overconfident** is the number that matters: the model said `clear`, got the
 code wrong, and flagged no characters as ambiguous. That is the value any
@@ -75,6 +101,17 @@ called `clear` — how far `clear` can be trusted. It's omitted when no read was
 
 **flagged but correct** is the opposite failure — noise in the review queue.
 A high number here means staff learn to ignore the flag.
+
+The next two are computed over **negative cases only**, and are omitted when
+the set has none:
+
+**fabricated on no-code photos** — the model returned a code for a photo that
+has none. A prompt change that pushes the model to search harder will move this
+first, and it is invisible on an all-positive manifest.
+
+**fabricated and declared clear** — the same failure, asserted confidently. This
+is the negative-case counterpart of **overconfident**, and the one that would
+put an invented code on a listing with nothing flagged for review.
 
 ## Comparing runs
 
