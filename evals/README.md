@@ -159,6 +159,15 @@ is not a publish rate: most invented codes fail to decode, get the decoder flag
 that happen to decode cleanly — for example a digit string whose first two
 digits are a valid season number — which pass the gate unflagged.
 
+Last, a **per photo** table: one row per photo, counting its reads across
+`--repeat`. `reads` is how many were scored — fewer than `--repeat` means that
+photo lost a read to a failure. `exact`, `missed` and `overconfident` count
+reads out of `reads`; negatives count `fabricated clear` instead. These use the
+same per-read tests as the rates above, so summed over photos they reproduce
+them. This is the table to compare two runs on: a photo is the unit, and the
+repeats of one photo are not independent evidence. Widen the terminal if the
+photo names are cut off; the saved report always has them in full.
+
 ## Comparing runs
 
 Every report records what produced it, shown in its header:

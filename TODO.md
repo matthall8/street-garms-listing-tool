@@ -61,7 +61,8 @@ it leaves an audit trail. Record what you changed here.
       after `git stash pop` confirm `MODEL_SETTINGS` still exists and is still
       passed to both agents. And the `--baseline` diff pairs repeats by index
       (`photo [2/3]` against `photo [2/3]`), which are unrelated samples —
-      compare per-photo x/3 counts and the aggregate rates, not per-case flips.
+      compare the *per photo* table's x/3 counts and the aggregate rates, not
+      per-case flips.
       Third, and before anything is committed: the draft quotes values copied
       from eval photos, one of them a manifest code. Delete every such line
       (replace only where the draft stops making sense; a made-up value must
@@ -220,7 +221,9 @@ Neither blocks nor is blocked by the sequence above.
 Committed before the baseline exists, so no result can move it. Everything is
 judged per photo across `--repeat 3`, never on single reads. A photo is
 **missed** when 2 or more of its 3 reads return no characters (the harness's
-`missed` definition).
+`missed` definition). Read every count below straight from the report's
+*per photo* table: its `missed`, `overconfident` and `fabricated clear`
+columns.
 
 - **Win:** photos going from missed on the baseline to not missed on the draft
   (wins) must outnumber those going the other way (losses) by the two-sided
