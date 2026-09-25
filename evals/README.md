@@ -33,11 +33,13 @@ a miss.
 ### What counts as the ART number
 
 `expected_art_number` is the style code as printed, **plus its colour suffix**
-if one is printed attached after a slash (`581540846/181`). Colour suffixes in
-the catalogue are 1–4 digits or a single letter. Leave out:
+if one is printed attached to it. In the catalogue that is a slash followed by
+2–4 digits or a single letter (`581540846/181`), or a hyphen followed by a
+single letter. Leave out:
 
 - the `ART` / `ART.` caption
-- lot or batch codes — anything marked `LOT`, or containing hyphens
+- lot or batch codes — anything marked `LOT` or batch, or a separate
+  multi-part code printed after the ART number
 - any other number printed nearby (phone numbers, dates, postcodes)
 
 This is fixed independently of the prompt, so two prompts are always scored
@@ -103,16 +105,19 @@ Each photo gets a row with:
 
 Below the table, rates across the whole run.
 
-The first four are computed over **positive cases only**, so they mean exactly
-what they meant before negative cases existed:
+The first four are computed over **positive cases only**, so adding negative
+cases never moves them. The last three of these mean exactly what they meant
+before negative cases existed:
 
 **missed** — the model returned no characters for a photo that has a code: null
 or blank, whether it labelled the read `not_visible` or `illegible`. A read of
 all `?` counts as an attempt, since the model found the code. This separates
 *didn't find it* from *misread it*, which exact and cer both lump together — a
 miss scores cer 1.0 just like a completely wrong read. It also explains a
-suspiciously clean overconfident rate: a missed read can never be confidently
-wrong.
+suspiciously clean overconfident rate: a read the model declines as
+`not_visible` or `illegible` can never be confidently wrong. (An empty read
+labelled `clear` is incoherent but possible, and counts as both missed and
+overconfident.)
 
 **overconfident** — the model said `clear`, got the code wrong, and flagged no
 characters as ambiguous. This is the closest thing here to a "silently wrong"

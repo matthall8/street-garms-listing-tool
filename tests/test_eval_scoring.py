@@ -294,6 +294,20 @@ class TestMissed:
     def test_a_wrong_read_is_an_attempt(self):
         assert rates(WRONG_AND_SURE)["missed"] == 0.0
 
+    def test_an_empty_clear_read_is_missed_and_overconfident(self):
+        """Incoherent but allowed by the schema. It counts in both rates, which
+        the README states; pinned so a change to either is deliberate."""
+        result = rates(("ABC", None, "clear", 0))
+        assert result["missed"] == 100.0
+        assert result["overconfident"] == 100.0
+
+    def test_a_declined_read_is_never_overconfident(self):
+        """Why a model that declines most photos shows a clean overconfident
+        rate: a not_visible miss sits in the denominator, never the numerator."""
+        result = rates(CORRECT, NOT_READ)
+        assert result["missed"] == 50.0
+        assert result["overconfident"] == 0.0
+
     def test_negatives_do_not_move_missed(self):
         """Scoped to positives like the other rates, so adding negatives to the
         manifest cannot shift it."""
