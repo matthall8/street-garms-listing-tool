@@ -24,8 +24,12 @@ it leaves an audit trail. Record what you changed here.
       scores as a miss on every future run. Also worth an eye: `01`/`06` and
       `10`/`14` are one character apart, `07`/`13`, `09`/`10` and `12`/`13` two;
       and photos `01` and `11` expect codes that are not in the catalogue.
-      Checking ground truth *before* any result exists is validation, not
-      editing it to make a run pass.
+      Note on `01`: its difference from `06` is `5` vs `1`, which is not a
+      confusion pair, so the catalogue cannot bridge a misread there. A correct
+      read of `01` resolves as `miss`, not `corrected`. Photo 01 is also
+      `si_namespace` (`no-season-in-code`), so it sets `needs_review` whatever
+      the read. Checking ground truth *before* any result exists is validation,
+      not editing it to make a run pass.
 
 - [ ] **Decide the negative count — now or never for this baseline.** There is
       one negative case, so across `--repeat 3` the fabrication rates can only
@@ -41,7 +45,9 @@ it leaves an audit trail. Record what you changed here.
       thread-per-sync-task model; not reproduced against the real API here
       (5 runs, ~60 calls, no stalls), so it is precaution, not a fix. The
       `--note` should state: in-sample, Stone Island only, n positives + n
-      negatives, and the resolution split. Save `shasum -a 256 evals/photos/*`
+      negatives, and the resolution split — including that the only negative
+      (`si_details_photo_04.JPG`) is 4032x3024, so fabrication is measured only
+      in the capture regime that already reads well. Save `shasum -a 256 evals/photos/*`
       and `pip freeze` beside the report — the photos are gitignored, so
       nothing else records which bytes were scored.
 
@@ -60,7 +66,7 @@ Neither blocks nor is blocked by the sequence above.
 - [ ] **Add C.P. photos to the eval set.** Split out of the harness work because
       it needs garments and a camera, not desk time — bundled, it stalls the
       whole item. The manifest is 12 `si_numeric` + 3 `si_namespace`: two of
-      five format families, against the spec in `evals/README.md:124-127`. The
+      five format families, against the spec in `evals/README.md:180-181`. The
       catalogue holds 489 `cp_modern` and 86 `si_alpha` rows, so roughly a fifth
       of stock is a format the eval has never tested. `cp_modern` at minimum;
       ideally `si_alpha` and one with a trailing colour code. Re-baseline after,
@@ -128,25 +134,37 @@ Neither blocks nor is blocked by the sequence above.
   not fixing all 71. Until then, 97.0% is measured against ground truth that
   hasn't been verified.
 
-- **Capture resolution, not the prompt, may be the dominant variable.** Measured
-  2026-09-24, one repeat, `--workers 4`, stable across two runs:
+- **Capture resolution, not the prompt, may be the dominant variable.**
+  Provisional: the 2026-09-24 figures come from unsaved probe runs (one repeat,
+  `--workers 4`), so no report backs them. The baseline run will be the saved
+  record, and should confirm or overturn this. Two independent dates so far:
 
-  | photos | resolution | exact |
-  |---|---|---|
-  | 01-04 | 4032x3024 | **3 of 4** |
-  | 05-15 | 1200x1600 | **0 of 11** |
+  | photos | resolution | 2026-09-16 (archived) | 2026-09-24 (probe) |
+  |---|---|---|---|
+  | 01-04 | 4032x3024 | 2 of 4 | 3 of 4 |
+  | 05-15 | 1200x1600 | **0 of 10** (photo 13 errored) | **0 of 11** |
 
-  12 of 15 positives came back `art_legible="not_visible"` — the model said no
-  ART number was present at all, rather than misreading one. Exact match ~20%.
-  Attribution under concurrency was checked and is correct: each successful read
-  matched its own photo. Two consequences. First, the confidence rates look
-  deceptively clean (0% overconfident, 0% fabricated) because a photo the model
-  calls `not_visible` never enters the `clear` denominator — reassuring numbers,
-  produced by declining to read. Second, the stashed prompt draft may be
+  The robust half is the low-resolution result: no successful read on either
+  date. The
+  high-resolution half varies per photo. Photo 02 read correctly on one date
+  and came back `not_visible` on the other, so "mostly works" is as far as it
+  goes.
+
+  The failures are `art_legible="not_visible"`: the model says no ART number is
+  present at all, rather than misreading one. Exact match is ~13-20%.
+  Attribution under concurrency was checked and is correct: each successful
+  read matched its own photo.
+
+  Two consequences. First, the confidence rates look deceptively clean (0%
+  overconfident, 0% fabricated), because a `not_visible` read can never be
+  counted as wrong-but-confident. It is in the denominator of overconfident
+  (all positives) but can never reach the numerator, and it is left out of the
+  clear-but-wrong denominator entirely. So the numbers look reassuring only
+  because the model declines to read. Second, the stashed prompt draft may be
   treating a symptom: if the low-resolution photos lack the pixels, no prompt
-  rewrite recovers them. Cheapest test is re-shooting two or three of the
-  failing labels at full phone resolution and re-running. n=15 with a clean
-  split, so this is a strong correlation with an obvious mechanism, not proof.
+  rewrite recovers them. The cheapest test is to re-shoot two or three of the
+  failing labels at full phone resolution and run again. With n=15 this is a
+  strong correlation with an obvious mechanism, not proof.
 
 - **The eval set measures a narrower surface than "OCR".** Two of five format
   families (12 `si_numeric`, 3 `si_namespace`, no C.P. or alphanumeric), one
@@ -194,7 +212,9 @@ numbers, and the manifest md5 it ran against.
 
 | date | md5 | what changed |
 |---|---|---|
-| 2026-09-24 | `6e91e2f0e7c059542fde28fb57f58aa8` | negative case added, row order adjusted |
+| 2026-09-15→16 | not recorded | Photo 03's expected code changed from `7514113WN` to `7515113WN`. This happened before the tripwire existed and was found later in the archived reports: the same read scored a miss on 09-15 and exact on 09-16. It was almost certainly a transcription typo corrected. `7515113WN` is in the catalogue and `7514113WN` is not. |
+| 2026-09-24 | `6e91e2f0e7c059542fde28fb57f58aa8` | Negative case added and row order adjusted. |
+| 2026-09-25 | `4d583ebee12c3d72e3813013f1575437` | Trailing comma removed from the negative-case row; it had added a fourth, unnamed column. No expected value changed. **Current.** |
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.
