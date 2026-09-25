@@ -205,6 +205,7 @@ class TestNegativeBranch:
 CORRECT = ("ABC", "ABC", "clear", 0)                  # positive, read right
 WRONG_AND_SURE = ("ABC", "XYZ", "clear", 0)           # positive, wrong, unflagged
 WRONG_BUT_FLAGGED = ("ABC", "XYZ", "clear", 1)        # positive, wrong, flagged
+NOT_READ = ("ABC", None, "not_visible", 0)            # positive, nothing came back
 CLEAN_NEGATIVE = (NO_ART_NUMBER, None, "not_visible", 0)
 FABRICATION = (NO_ART_NUMBER, "581540923", "clear", 0)
 
@@ -252,6 +253,7 @@ class TestConfidenceRates:
 
     def test_positive_rates_are_omitted_when_the_set_is_all_negative(self):
         result = rates(CLEAN_NEGATIVE, FABRICATION)
+        assert "missed" not in result
         assert "overconfident" not in result
         assert "flagged but correct" not in result
 
@@ -262,6 +264,42 @@ class TestConfidenceRates:
     def test_flagged_but_correct_measures_review_queue_noise(self):
         flagged_right = ("ABC", "ABC", "clear", 1)
         assert rates(flagged_right, CORRECT)["flagged but correct"] == 50.0
+
+
+class TestMissed:
+    """Positive cases where the model returned no characters at all.
+
+    Judged on the output, not the legibility label, so the two ways of declining
+    count the same and an all-"?" read counts as an attempt. This separates
+    "didn't find the code" from "misread it", which exact and cer conflate.
+    """
+
+    def test_a_null_read_is_missed(self):
+        assert rates(CORRECT, NOT_READ)["missed"] == 50.0
+
+    @pytest.mark.parametrize("raw", ["", "   "])
+    def test_a_blank_read_is_missed(self, raw):
+        assert rates(("ABC", raw, "not_visible", 0))["missed"] == 100.0
+
+    def test_illegible_with_no_code_is_missed_too(self):
+        """The label says a code is present; the output still has none."""
+        assert rates(("ABC", None, "illegible", 0))["missed"] == 100.0
+
+    @pytest.mark.parametrize("raw", ["?", "?????", "58?54"])
+    def test_a_question_mark_read_is_an_attempt(self, raw):
+        """The model located the code and marked what it couldn't read. That is
+        a transcription failure, not a detection one."""
+        assert rates(("ABC", raw, "partial", 0))["missed"] == 0.0
+
+    def test_a_wrong_read_is_an_attempt(self):
+        assert rates(WRONG_AND_SURE)["missed"] == 0.0
+
+    def test_negatives_do_not_move_missed(self):
+        """Scoped to positives like the other rates, so adding negatives to the
+        manifest cannot shift it."""
+        without = rates(CORRECT, NOT_READ)["missed"]
+        with_negatives = rates(CORRECT, NOT_READ, CLEAN_NEGATIVE, FABRICATION)["missed"]
+        assert without == with_negatives == 50.0
 
 
 class TestLoadManifest:

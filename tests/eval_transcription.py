@@ -115,6 +115,10 @@ class ConfidenceRates(ReportEvaluator):
         results = []
 
         if positives:
+            # Judged on what came back, not on the legibility label: an all-"?"
+            # read found the code and is an attempt; null or blank is a miss
+            # whether the model called it not_visible or illegible.
+            missed = [r for r in positives if not normalise(r.output.art_number_raw)]
             clear = [r for r in positives if r.output.art_legible == "clear"]
             flagged = [r for r in positives if r.output.ambiguous_characters]
             clear_but_wrong = [r for r in clear if not r.assertions["exact"].value]
@@ -122,6 +126,8 @@ class ConfidenceRates(ReportEvaluator):
             flagged_right = [r for r in flagged if r.assertions["exact"].value]
 
             results += [
+                ScalarResult(title="missed",
+                                value=percent(missed, positives), unit="%"),
                 ScalarResult(title="overconfident",
                                 value=percent(overconfident, positives), unit="%"),
                 ScalarResult(title="flagged but correct",

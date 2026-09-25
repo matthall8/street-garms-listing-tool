@@ -103,8 +103,16 @@ Each photo gets a row with:
 
 Below the table, rates across the whole run.
 
-The first three are computed over **positive cases only**, so they mean exactly
+The first four are computed over **positive cases only**, so they mean exactly
 what they meant before negative cases existed:
+
+**missed** — the model returned no characters for a photo that has a code: null
+or blank, whether it labelled the read `not_visible` or `illegible`. A read of
+all `?` counts as an attempt, since the model found the code. This separates
+*didn't find it* from *misread it*, which exact and cer both lump together — a
+miss scores cer 1.0 just like a completely wrong read. It also explains a
+suspiciously clean overconfident rate: a missed read can never be confidently
+wrong.
 
 **overconfident** — the model said `clear`, got the code wrong, and flagged no
 characters as ambiguous. This is the closest thing here to a "silently wrong"
