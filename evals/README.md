@@ -124,8 +124,12 @@ has none. A prompt change that pushes the model to search harder will move this
 first, and it is invisible on an all-positive manifest.
 
 **fabricated and declared clear** — the same failure, asserted confidently. This
-is the negative-case counterpart of **overconfident**, and the one that would
-put an invented code on a listing with nothing flagged for review.
+is the negative-case counterpart of **overconfident**, and the one that *can*
+put an invented code on a listing with nothing flagged. Like overconfident, it
+is not a publish rate: most invented codes fail to decode, get the decoder flag
+`unrecognised`, and are caught by `needs_review`. The dangerous ones are those
+that happen to decode cleanly — for example a digit string whose first two
+digits are a valid season number — which pass the gate unflagged.
 
 ## Comparing runs
 
