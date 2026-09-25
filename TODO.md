@@ -42,8 +42,9 @@ it leaves an audit trail. Record what you changed here.
 - [x] **Record the manifest md5 below before and after any edit.** It is the
       only tripwire on gitignored ground truth. Keep doing it.
 
-- [ ] **Record the baseline.** `--repeat 3 --workers 1` on a clean tree. Serial
-      is cheap insurance against a suspected concurrency stall in pydantic-ai's
+- [x] **Record the baseline.** Done 2026-09-25 — see *Current baseline*.
+      `--repeat 3 --workers 1` on a clean tree. Serial is cheap insurance
+      against a suspected concurrency stall in pydantic-ai's
       thread-per-sync-task model; not reproduced against the real API here
       (5 runs, ~60 calls, no stalls), so it is precaution, not a fix. The
       `--note` should state: in-sample, Stone Island only, 18 positives + 4
@@ -97,8 +98,8 @@ Neither blocks nor is blocked by the sequence above.
 
 - [ ] **Preprocessing experiment — now the leading candidate.** The measurement
       in Known issues reverses the assumption this item started with: the large
-      4032x3024 photos are the ones that *work* (3 of 4), and every 1200x1600
-      photo fails. So the problem looks like too few pixels on the code, not
+      4032x3024 photos are the ones that *work* (4 of 7 at baseline), and every
+      1200x1600 photo fails. So the problem looks like too few pixels on the code, not
       downscaling of large images. `labels/transcribe.py:135-138` passes raw
       bytes to `BinaryContent` with no crop and no resize, so nothing here is
       measured or controlled. Test order: re-shoot a failing label at full
@@ -146,23 +147,28 @@ Neither blocks nor is blocked by the sequence above.
   hasn't been verified.
 
 - **Capture resolution, not the prompt, may be the dominant variable.**
-  Provisional: the 2026-09-24 figures come from unsaved probe runs (one repeat,
-  `--workers 4`), so no report backs them. The baseline run will be the saved
-  record, and should confirm or overturn this. Two independent dates so far:
+  The 2026-09-24 figures come from unsaved probe runs (one repeat,
+  `--workers 4`); the 2026-09-25 baseline is the saved record. It confirms the
+  low-resolution half. It weakens the high-resolution half: the new care-label
+  photos 16–18 are 4032x3024 too, yet two of the three were missed every read,
+  so at baseline high resolution is 4 of 7 photos (12 of 21 reads). Either the
+  care labels are a confound (a whole label, the code small within it) or
+  resolution explains less than this heading says. Three independent dates:
 
-  | photos | resolution | 2026-09-16 (archived) | 2026-09-24 (probe) |
-  |---|---|---|---|
-  | 01-04 | 4032x3024 | 2 of 4 | 3 of 4 |
-  | 05-15 | 1200x1600 | **0 of 10** (photo 13 errored) | **0 of 11** |
+  | photos | resolution | 2026-09-16 (archived) | 2026-09-24 (probe) | 2026-09-25 (baseline, 3 reads each) |
+  |---|---|---|---|---|
+  | 01-04 | 4032x3024 | 2 of 4 | 3 of 4 | 3 of 4 (01 missed every read) |
+  | 05-15 | 1200x1600 | **0 of 10** (photo 13 errored) | **0 of 11** | **0 of 11** (0 of 33 reads) |
+  | 16-18 | 4032x3024 care labels | — | — | 1 of 3 |
 
-  The robust half is the low-resolution result: no successful read on either
-  date. The
-  high-resolution half varies per photo. Photo 02 read correctly on one date
-  and came back `not_visible` on the other, so "mostly works" is as far as it
-  goes.
+  The robust half is the low-resolution result: no successful read on any
+  date. The high-resolution half varies per photo across dates — photo 02 came
+  back `not_visible` on 09-16 but read correctly on 09-24 and on all three
+  baseline reads — so "mostly works" is as far as it goes.
 
   The failures are `art_legible="not_visible"`: the model says no ART number is
-  present at all, rather than misreading one. Exact match is ~13-20%.
+  present at all, rather than misreading one. Exact match on positives was
+  22% at baseline (12 of 54 reads).
   Attribution under concurrency was checked and is correct: each successful
   read matched its own photo.
 
@@ -174,8 +180,8 @@ Neither blocks nor is blocked by the sequence above.
   because the model declines to read. Second, the stashed prompt draft may be
   treating a symptom: if the low-resolution photos lack the pixels, no prompt
   rewrite recovers them. The cheapest test is to re-shoot two or three of the
-  failing labels at full phone resolution and run again. With n=15 this is a
-  strong correlation with an obvious mechanism, not proof.
+  failing labels at full phone resolution and run again. With 18 positives this
+  is a strong correlation with an obvious mechanism, not proof.
 
 - **The eval set measures a narrower surface than "OCR".** Two of five format
   families (14 `si_numeric`, 4 `si_namespace`, no C.P. or alphanumeric), four
@@ -251,8 +257,50 @@ has fewer is rerun, not judged.
 
 ## Current baseline
 
-None recorded yet. Once one exists: path, date, what the set covers, headline
-numbers, and the manifest md5 it ran against.
+**2026-09-25 — current `ART_PROMPT` on `anthropic:claude-sonnet-5`.**
+
+- Report: `evals/results/20260925T163049Z-anthropic_claude-sonnet-5.json`
+  (gitignored), with the manifest's photo hashes (`.photos.sha256`) and
+  `pip freeze` (`.pip-freeze.txt`) saved beside it.
+- Code: tag `eval-baseline-2026-09-25` → `3a6a45e`, `dirty: False`.
+- Set: manifest md5 `cb321369b2b7bd1e3b27eac7a6e9ff74` — 18 positives + 4
+  negatives, in-sample, Stone Island only. `--repeat 3 --workers 1` —
+  `--workers` isn't recorded in the report header or the note, so it rests on
+  this line; put it in the `--note` on future runs.
+- The photo hashes and pip freeze were written after the run finished, but
+  from unchanged bytes: no manifest photo's mtime or ctime is later than 16:36
+  BST, well before the run started (about 17:28 BST, going by the report's
+  write time and task durations). Every hash still matches.
+- Completeness: 66 of 66 reads scored, no failures; every photo `reads` 3.
+
+| rate | value |
+|---|---|
+| missed | 77.8% (42 of 54 positive reads) |
+| exact, positives | 22.2% (12 of 54) |
+| overconfident | 0% |
+| clear but wrong | 0% (of 9 `clear` reads) |
+| flagged but correct | 0% |
+| fabricated on no-code photos | 0% (0 of 12) |
+| fabricated and declared clear | 0% |
+
+Per photo, every photo returned the identical read on all three repeats — same
+code, same legibility. So there was no run-to-run noise on this set, but the
+three reads were in effect one sample per photo; photo 02 did vary across
+earlier dates. Treat x/3 counts accordingly:
+
+- **Read correctly 3/3:** 02, 03, 04, 18. These are the only photos the draft
+  can lose.
+- **Missed 3/3:** 01, 05–15, 16, 17 — 14 photos, the pool the draft can win
+  from. It needs at least 6 wins with no losses, 8 with one, 10 with two (see
+  *Decision rule*). Photo 05 is in-sample for the draft.
+- **Negatives:** all 12 reads returned no code.
+- 3 of the 12 correct reads — all three reads of photo 03 — were labelled
+  `partial`. `needs_review` would send them to review, but *flagged but
+  correct* doesn't count them — it keys on ambiguous characters only.
+
+The confidence rates are clean mostly because the model declines: 42 of 54
+positive reads were `not_visible`, so there were few chances to be
+confidently wrong.
 
 **Manifest md5 (the only tripwire on gitignored ground truth):**
 
