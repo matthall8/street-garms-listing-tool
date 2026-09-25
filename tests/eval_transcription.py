@@ -178,20 +178,29 @@ class PerPhotoCounts(ReportEvaluator):
     is judged on, so nobody has to tally `photo [k/3]` rows by hand.
 
     `reads` is how many reads were scored. A failed read is left out, so
-    `reads` below --repeat shows exactly which photo lost one.
+    `reads` below --repeat shows exactly which photo lost one — including a
+    photo that lost every read, which still gets a row with `reads` 0.
     """
     def evaluate(self, ctx: ReportEvaluatorContext) -> list[TableResult]:
+        def photo_of(r):
+            return r.source_case_name or r.name
+
+        # Every photo the run touched, failed reads included, so none can drop
+        # out of the table. Kind comes from the manifest value, as it does in
+        # CorrectArtNumber, because a photo with no scored read has no label.
+        expected = {photo_of(r): r.expected_output
+                    for r in [*ctx.report.cases, *ctx.report.failures]}
+        if not expected:
+            return []
         by_photo = defaultdict(list)
         for r in scored_cases(ctx):
-            by_photo[r.source_case_name or r.name].append(r)
-        if not by_photo:
-            return []
+            by_photo[photo_of(r)].append(r)
 
         rows = []
-        for photo in sorted(by_photo):
+        for photo in sorted(expected):
             reads = by_photo[photo]
-            kind = reads[0].labels["kind"].value
-            positive = kind == "positive"
+            positive = normalise(expected[photo]) != NO_ART_NUMBER
+            kind = "positive" if positive else "negative"
 
             def count(test):
                 return sum(1 for r in reads if test(r))

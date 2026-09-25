@@ -79,13 +79,20 @@ def rates(*specs) -> dict:
     return {r.title: r.value for r in report.analyses}
 
 
-def per_photo(photos: dict) -> tuple[dict, dict]:
+def per_photo(photos: dict, expected: dict | None = None) -> tuple[dict, dict]:
     """Run photos through the real path with --repeat; return (table, rates).
 
     `photos` maps a name to one spec per repeat, so each read can differ. A spec
-    of None makes that read fail, as an API error would. Serial, so the order
-    reads are drawn in doesn't matter — only the counts are asserted.
+    of None makes that read fail, as an API error would. A photo's manifest
+    value comes from its first real spec, or from `expected` — needed when every
+    read fails (default "ABC"). Serial, so the order reads are drawn in doesn't
+    matter — only the counts are asserted.
     """
+    expected = expected or {}
+    repeat = len(next(iter(photos.values())))
+    # A short list would surface as a failed read and a long one would be
+    # silently truncated — either way a typo here would pose as a failure count.
+    assert all(len(specs) == repeat for specs in photos.values())
     queues = {name: iter(specs) for name, specs in photos.items()}
 
     def task(name):
@@ -96,7 +103,8 @@ def per_photo(photos: dict) -> tuple[dict, dict]:
 
     cases = [
         Case(name=name, inputs=name,
-             expected_output=next(s for s in specs if s is not None)[0])
+             expected_output=expected.get(
+                 name, next((s[0] for s in specs if s is not None), "ABC")))
         for name, specs in photos.items()
     ]
     report = Dataset(
@@ -104,7 +112,7 @@ def per_photo(photos: dict) -> tuple[dict, dict]:
         cases=cases,
         evaluators=[CorrectArtNumber()],
         report_evaluators=[ConfidenceRates(), PerPhotoCounts()],
-    ).evaluate_sync(task, repeat=len(next(iter(photos.values()))), max_concurrency=1)
+    ).evaluate_sync(task, repeat=repeat, max_concurrency=1)
 
     [table] = [a for a in report.analyses if a.title == "per photo"]
     rows = {row[0]: dict(zip(table.columns, row)) for row in table.rows}
@@ -390,8 +398,32 @@ class TestPerPhotoCounts:
         assert rows["a"]["reads"] == 2
         assert rows["b"]["reads"] == 3
 
+    def test_a_photo_that_lost_every_read_still_gets_a_row(self):
+        """Otherwise it would vanish from the win/loss tally unnoticed."""
+        rows, _ = per_photo({"a": [None] * 3, "b": [CORRECT] * 3})
+        assert rows["a"]["reads"] == 0
+        assert rows["a"]["kind"] == "positive"
+        assert rows["a"]["missed"] == 0
+
+    def test_a_negative_that_lost_every_read_keeps_its_kind(self):
+        """Kind comes from the manifest value, since there's no scored read to
+        carry a label — and losing the only negative must not go unseen."""
+        rows, _ = per_photo({"n": [None] * 2, "a": [CORRECT] * 2},
+                            expected={"n": NO_ART_NUMBER})
+        assert rows["n"]["kind"] == "negative"
+        assert rows["n"]["reads"] == 0
+        assert rows["n"]["fabricated clear"] == 0
+        assert rows["n"]["missed"] is None
+
+    def test_a_single_run_keys_rows_on_the_photo_name(self):
+        """At --repeat 1 pydantic-evals sets no source_case_name, so the row
+        falls back to the case name — which is the photo."""
+        rows, _ = per_photo({"b": [CORRECT], "a": [NOT_READ]})
+        assert rows["a"]["reads"] == rows["b"]["reads"] == 1
+        assert rows["a"]["missed"] == 1
+
     def test_rows_are_sorted_by_photo(self):
-        rows, _ = per_photo({"b": [CORRECT], "a": [CORRECT]})
+        rows, _ = per_photo({"b": [CORRECT] * 2, "a": [CORRECT] * 2})
         assert list(rows) == ["a", "b"]
 
     def test_the_table_and_the_rates_count_the_same_reads(self):
@@ -400,8 +432,8 @@ class TestPerPhotoCounts:
         being judged on different definitions."""
         rows, scalars = per_photo({
             "a": [CORRECT, NOT_READ, WRONG_AND_SURE],
-            "b": [NOT_READ, NOT_READ, WRONG_BUT_FLAGGED],
-            "n": [CLEAN_NEGATIVE, FABRICATION, CLEAN_NEGATIVE],
+            "b": [NOT_READ, None, WRONG_BUT_FLAGGED],   # a failed read, where
+            "n": [CLEAN_NEGATIVE, FABRICATION, None],   # the two could drift
         })
         positive_reads = sum(r["reads"] for r in rows.values() if r["kind"] == "positive")
         negative_reads = rows["n"]["reads"]

@@ -77,7 +77,7 @@ Neither blocks nor is blocked by the sequence above.
 - [ ] **Add C.P. photos to the eval set.** Split out of the harness work because
       it needs garments and a camera, not desk time — bundled, it stalls the
       whole item. The manifest is 14 `si_numeric` + 4 `si_namespace`: two of
-      five format families, against the spec in `evals/README.md:180-181`. The
+      five format families, against the spec in `evals/README.md` *Choosing photos*. The
       catalogue holds 489 `cp_modern` and 86 `si_alpha` rows, so roughly a fifth
       of stock is a format the eval has never tested. `cp_modern` at minimum;
       ideally `si_alpha` and one with a trailing colour code. Re-baseline after,
@@ -223,7 +223,8 @@ judged per photo across `--repeat 3`, never on single reads. A photo is
 **missed** when 2 or more of its 3 reads return no characters (the harness's
 `missed` definition). Read every count below straight from the report's
 *per photo* table: its `missed`, `overconfident` and `fabricated clear`
-columns.
+columns. Every photo must have `reads` 3 in both runs; a run where any photo
+has fewer is rerun, not judged.
 
 - **Win:** photos going from missed on the baseline to not missed on the draft
   (wins) must outnumber those going the other way (losses) by the two-sided
