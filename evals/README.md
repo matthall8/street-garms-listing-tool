@@ -22,13 +22,30 @@ evals/
 
 | column | meaning |
 |---|---|
-| `photo` | filename inside `evals/photos/`, **including the extension** |
+| `photo` | filename inside `evals/photos/`, **including the extension**. The extension sets the media type sent to the model, so it must match the file's real format — a PNG saved as `.JPG` goes out labelled `image/jpeg` |
 | `expected_art_number` | the code as printed, hand-checked by eye — or `NONE` |
 | `note` | free text, kept with the case in the saved report |
 
 Expected values are compared ignoring spacing and case, so `05CMSH022A 004275A`
 and `05cmsh022a004275a` both count as correct. Every other difference counts as
 a miss.
+
+### What counts as the ART number
+
+`expected_art_number` is the style code as printed, **plus its colour suffix**
+if one is printed attached to it. In the catalogue that is a slash followed by
+2–4 digits or a single letter (`581540846/181`), or a hyphen followed by a
+single letter. Leave out:
+
+- the `ART` / `ART.` caption
+- lot or batch codes — anything marked `LOT` or batch, or a separate
+  multi-part code printed after the ART number
+- any other number printed nearby (phone numbers, dates, postcodes)
+
+This is fixed independently of the prompt, so two prompts are always scored
+against the same target. `exact` stays strict against it: a read that includes
+a lot code or the caption is a miss, because that string would also miss the
+catalogue in production (`labels/catalogue.py` strips only spacing and case).
 
 ### Negative cases
 
@@ -88,8 +105,19 @@ Each photo gets a row with:
 
 Below the table, rates across the whole run.
 
-The first three are computed over **positive cases only**, so they mean exactly
-what they meant before negative cases existed:
+The first four are computed over **positive cases only**, so adding negative
+cases never moves them. The last three of these mean exactly what they meant
+before negative cases existed:
+
+**missed** — the model returned no characters for a photo that has a code: null
+or blank, whether it labelled the read `not_visible` or `illegible`. A read of
+all `?` counts as an attempt, since the model found the code. This separates
+*didn't find it* from *misread it*, which exact and cer both lump together — a
+miss scores cer 1.0 just like a completely wrong read. It also explains a
+suspiciously clean overconfident rate: a read the model declines as
+`not_visible` or `illegible` can never be confidently wrong. (An empty read
+labelled `clear` is incoherent but possible, and counts as both missed and
+overconfident.)
 
 **overconfident** — the model said `clear`, got the code wrong, and flagged no
 characters as ambiguous. This is the closest thing here to a "silently wrong"

@@ -6,9 +6,10 @@ Current state and in-flight work. Stable architecture and invariants are in CLAU
 
 **Done since last update:** `.env` key fixed and `.env.example` added (#11);
 negative cases implemented, tested and documented (#12); the six pre-port
-reports archived to `evals/results/archive/`. `si_certilogo_01.png` was ruled
-out as a negative — it does carry an ART number, blurry, so it is a candidate
-*positive* instead. The manifest's negative is `si_details_photo_04.JPG`.
+reports archived to `evals/results/archive/`. On 2026-09-25 the manifest grew
+to 18 positives + 4 negatives, all ground truth re-checked by eye (see the md5
+table). `si_certilogo_01.png` carries an ART number but is too hard to read, so
+it was removed rather than used.
 
 ### The chain
 
@@ -18,10 +19,12 @@ gitignored territory — `evals/manifest.csv`, `evals/photos/` and
 it leaves an audit trail. Record what you changed here.
 
 - [ ] **Resolve the duplicate expected code.** `si_art_number_photo_07.JPG` and
-      `si_art_number_photo_12.JPG` both expect `771563020`. Either they are the
-      same garment shot twice — in which case 15 positives is really 14, one
-      double-weighted — or one row is wrong and a correct read of that photo
-      scores as a miss on every future run. Also worth an eye: `01`/`06` and
+      `si_art_number_photo_12.JPG` share one expected code. Either they are the
+      same garment shot twice — one label double-weighted — or one row is wrong
+      and a correct read of that photo scores as a miss on every future run.
+      Note the 18 positives hold only 14 distinct codes: photos 16–18 are the
+      care labels of the garments in 03, 01 and 02 by design, so wins on a pair
+      are correlated, not independent. Also worth an eye: `01`/`06` and
       `10`/`14` are one character apart, `07`/`13`, `09`/`10` and `12`/`13` two;
       and photos `01` and `11` expect codes that are not in the catalogue.
       Note on `01`: its difference from `06` is `5` vs `1`, which is not a
@@ -31,25 +34,26 @@ it leaves an audit trail. Record what you changed here.
       the read. Checking ground truth *before* any result exists is validation,
       not editing it to make a run pass.
 
-- [ ] **Decide the negative count — now or never for this baseline.** There is
-      one negative case, so across `--repeat 3` the fabrication rates can only
-      read 0/33/67/100%. Adding negatives later changes the manifest
-      fingerprint, which voids this baseline for comparison. Either add more now
-      or accept n=1 and say so in the `--note`.
+- [x] **Decide the negative count — now or never for this baseline.** Four
+      negatives as of 2026-09-25: one 4032x3024 care label and three ~976px
+      Certilogo crops, a third capture regime. All four are CLG-type; an RN/CA
+      care label or importer tag would widen what fabrication is tested on.
 
-- [ ] **Record the manifest md5 below before and after any edit.** It is the
-      only tripwire on gitignored ground truth.
+- [x] **Record the manifest md5 below before and after any edit.** It is the
+      only tripwire on gitignored ground truth. Keep doing it.
 
 - [ ] **Record the baseline.** `--repeat 3 --workers 1` on a clean tree. Serial
       is cheap insurance against a suspected concurrency stall in pydantic-ai's
       thread-per-sync-task model; not reproduced against the real API here
       (5 runs, ~60 calls, no stalls), so it is precaution, not a fix. The
-      `--note` should state: in-sample, Stone Island only, n positives + n
-      negatives, and the resolution split — including that the only negative
-      (`si_details_photo_04.JPG`) is 4032x3024, so fabrication is measured only
-      in the capture regime that already reads well. Save `shasum -a 256 evals/photos/*`
-      and `pip freeze` beside the report — the photos are gitignored, so
-      nothing else records which bytes were scored.
+      `--note` should state: in-sample, Stone Island only, 18 positives + 4
+      negatives, and the capture split — 4032x3024 (01–04, 16–18 and the
+      `si_details_photo_01` negative), 1200x1600 (05–15), ~976px crops (the
+      other three negatives). Save `pip freeze` and the hashes of the
+      manifest's photos only beside the report — the photos are gitignored, so
+      nothing else records which bytes were scored. Hashing the whole folder
+      would break once held-out photos are added:
+      `tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`
 
 - [ ] **Measure the stashed prompt draft.** `stash@{0}` ("On evals: prompt draft:
       unlabelled ART numbers"). Two cautions: it was created on `d56b51b`, which
@@ -58,6 +62,12 @@ it leaves an audit trail. Record what you changed here.
       passed to both agents. And the `--baseline` diff pairs repeats by index
       (`photo [2/3]` against `photo [2/3]`), which are unrelated samples —
       compare per-photo x/3 counts and the aggregate rates, not per-case flips.
+      Third, and before anything is committed: the draft quotes values copied
+      from eval photos, one of them a manifest code. Delete every such line
+      (replace only where the draft stops making sense; a made-up value must
+      miss the catalogue and the manifest), commit the stripped version, then
+      `git stash drop`. The stripped version is the one measured. Judge the
+      result against *Decision rule* below.
 
 ### Independent of the chain
 
@@ -65,7 +75,7 @@ Neither blocks nor is blocked by the sequence above.
 
 - [ ] **Add C.P. photos to the eval set.** Split out of the harness work because
       it needs garments and a camera, not desk time — bundled, it stalls the
-      whole item. The manifest is 12 `si_numeric` + 3 `si_namespace`: two of
+      whole item. The manifest is 14 `si_numeric` + 4 `si_namespace`: two of
       five format families, against the spec in `evals/README.md:180-181`. The
       catalogue holds 489 `cp_modern` and 86 `si_alpha` rows, so roughly a fifth
       of stock is a format the eval has never tested. `cp_modern` at minimum;
@@ -167,8 +177,9 @@ Neither blocks nor is blocked by the sequence above.
   strong correlation with an obvious mechanism, not proof.
 
 - **The eval set measures a narrower surface than "OCR".** Two of five format
-  families (12 `si_numeric`, 3 `si_namespace`, no C.P. or alphanumeric), one
-  negative case, and two capture regimes mixed into one score. The set is also
+  families (14 `si_numeric`, 4 `si_namespace`, no C.P. or alphanumeric), four
+  negative cases all of one kind (Certilogo), and three capture regimes mixed
+  into one score. The set is also
   in-sample: the prompt was tuned while looking at results on these photos, so
   the baseline is a development-set number, not an estimate of production.
 
@@ -194,7 +205,8 @@ Neither blocks nor is blocked by the sequence above.
   the preprocessing experiment and which half of the eval set is the real one.
 - Is 97.0% on `report_art_number.py` a floor that must not regress?
 - What's the gate for shipping a prompt change — which metric, what margin, how
-  many repeats before a difference is believed?
+  many repeats before a difference is believed? Answered for the stashed draft
+  in *Decision rule* below; still open as a general policy.
 - Could `DETAILS_MODEL` run on something cheaper? `labels/transcribe.py:15-17`
   says it could — "ordinary OCR on large clear text" — never measured. One
   `--model` run once a baseline exists, with a standing per-listing saving
@@ -202,6 +214,36 @@ Neither blocks nor is blocked by the sequence above.
   whatever records the model must handle both shapes.
 - Is the Flask app localhost-only or reachable? Decides whether the missing
   rate limit and auth on `POST /` matter.
+
+## Decision rule for the stashed draft
+
+Committed before the baseline exists, so no result can move it. Everything is
+judged per photo across `--repeat 3`, never on single reads. A photo is
+**missed** when 2 or more of its 3 reads return no characters (the harness's
+`missed` definition).
+
+- **Win:** photos going from missed on the baseline to not missed on the draft
+  (wins) must outnumber those going the other way (losses) by the two-sided
+  sign test at p < 0.05:
+
+  | losses | wins needed |
+  |---|---|
+  | 0 | 6 |
+  | 1 | 8 |
+  | 2 | 10 |
+  | 3+ | reject |
+
+  Photos 16–18 share garments with 03, 01 and 02, so if a win on one of a pair
+  is needed to clear the bar, say so when reporting the result.
+- **Guardrails** — failing either rejects the draft, whatever else improves:
+  - fabricated-and-clear stays at 0 across every negative read. Hard line.
+  - no photo is *newly* overconfident in 2 or more of its 3 reads:
+    `clear`, wrong, and no ambiguous characters flagged.
+- The second guardrail assumes clean reads may be auto-accepted (see Open
+  questions). Revisit it if every listing gets human review.
+- A win here is in-sample: the unstripped draft quotes a code from this set.
+  Before merging the draft, run both tagged commits on photos not seen while
+  writing it.
 
 ## Current baseline
 
@@ -212,9 +254,11 @@ numbers, and the manifest md5 it ran against.
 
 | date | md5 | what changed |
 |---|---|---|
-| 2026-09-15→16 | not recorded | Photo 03's expected code changed from `7514113WN` to `7515113WN`. This happened before the tripwire existed and was found later in the archived reports: the same read scored a miss on 09-15 and exact on 09-16. It was almost certainly a transcription typo corrected. `7515113WN` is in the catalogue and `7514113WN` is not. |
+| 2026-09-15→16 | not recorded | Photo 03's expected code changed by one digit. This happened before the tripwire existed and was found later in the archived reports: the same read scored a miss on 09-15 and exact on 09-16. It was almost certainly a transcription typo corrected: the new value is in the catalogue and the old one is not. Re-checked by eye 2026-09-25. |
 | 2026-09-24 | `6e91e2f0e7c059542fde28fb57f58aa8` | Negative case added and row order adjusted. |
-| 2026-09-25 | `4d583ebee12c3d72e3813013f1575437` | Trailing comma removed from the negative-case row; it had added a fourth, unnamed column. No expected value changed. **Current.** |
+| 2026-09-25 | `4d583ebee12c3d72e3813013f1575437` | Trailing comma removed from the negative-case row; it had added a fourth, unnamed column. No expected value changed. |
+| 2026-09-25 | `743c2fc3525c68b5271c4773a5584c0d` | Ground truth re-checked by eye. Now 18 positives + 4 negatives. The old negative renamed `si_details_photo_04.JPG` → `si_details_photo_01.JPG`; three new negatives `si_details_photo_02`–`04` (Certilogo crops); the three old care-label photos added as positives `si_art_number_photo_16`–`18` (same garments as photos 03, 01, 02). `si_certilogo_01.png` removed: it carries an ART number but is too hard to read. |
+| 2026-09-25 | `cb321369b2b7bd1e3b27eac7a6e9ff74` | `si_details_photo_02`–`04` renamed `.JPG` → `.png` to match their real format; the extension sets the media type sent to the model. No expected value changed. **Current.** |
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.
