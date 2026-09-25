@@ -25,6 +25,7 @@ import csv
 import hashlib
 import subprocess
 import sys
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
@@ -36,7 +37,7 @@ from pydantic import ValidationError
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext, ReportEvaluator, ReportEvaluatorContext
 from pydantic_evals.reporting import EvaluationReport, EvaluationReportAdapter
-from pydantic_evals.reporting.analyses import ScalarResult
+from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -99,14 +100,38 @@ def percent(part: list, whole: list) -> float:
     return 100 * len(part) / len(whole)
 
 
+# Per-read tests, shared by the whole-run rates and the per-photo table so the
+# two can never count differently.
+
+def was_missed(r) -> bool:
+    """Judged on what came back, not on the legibility label: an all-"?" read
+    found the code and is an attempt; null or blank is a miss whether the model
+    called it not_visible or illegible."""
+    return not normalise(r.output.art_number_raw)
+
+
+def was_overconfident(r) -> bool:
+    return (r.output.art_legible == "clear"
+            and not r.assertions["exact"].value
+            and not r.output.ambiguous_characters)
+
+
+def was_fabricated_clear(r) -> bool:
+    return not r.assertions["exact"].value and r.output.art_legible == "clear"
+
+
+def scored_cases(ctx: ReportEvaluatorContext) -> list:
+    # A case whose EVALUATOR raised keeps its row but carries no assertions,
+    # so exclude it rather than KeyError. (A case whose task raised goes to
+    # report.failures and never reaches here.)
+    return [r for r in ctx.report.cases if "exact" in r.assertions]
+
+
 @dataclass
 class ConfidenceRates(ReportEvaluator):
     """Whole-run rates that the per-case averages can't show."""
     def evaluate(self, ctx: ReportEvaluatorContext) -> list[ScalarResult]:
-        # A case whose EVALUATOR raised keeps its row but carries no assertions,
-        # so exclude it rather than KeyError. (A case whose task raised goes to
-        # report.failures and never reaches here.)
-        scored = [r for r in ctx.report.cases if "exact" in r.assertions]
+        scored = scored_cases(ctx)
         if not scored:
             return []
 
@@ -115,14 +140,11 @@ class ConfidenceRates(ReportEvaluator):
         results = []
 
         if positives:
-            # Judged on what came back, not on the legibility label: an all-"?"
-            # read found the code and is an attempt; null or blank is a miss
-            # whether the model called it not_visible or illegible.
-            missed = [r for r in positives if not normalise(r.output.art_number_raw)]
+            missed = [r for r in positives if was_missed(r)]
             clear = [r for r in positives if r.output.art_legible == "clear"]
             flagged = [r for r in positives if r.output.ambiguous_characters]
             clear_but_wrong = [r for r in clear if not r.assertions["exact"].value]
-            overconfident = [r for r in clear_but_wrong if not r.output.ambiguous_characters]
+            overconfident = [r for r in positives if was_overconfident(r)]
             flagged_right = [r for r in flagged if r.assertions["exact"].value]
 
             results += [
@@ -139,7 +161,7 @@ class ConfidenceRates(ReportEvaluator):
 
         if negatives:
             fabricated = [r for r in negatives if not r.assertions["exact"].value]
-            fabricated_clear = [r for r in fabricated if r.output.art_legible == "clear"]
+            fabricated_clear = [r for r in negatives if was_fabricated_clear(r)]
             results += [
                 ScalarResult(title="fabricated on no-code photos",
                                 value=percent(fabricated, negatives), unit="%"),
@@ -149,6 +171,53 @@ class ConfidenceRates(ReportEvaluator):
 
         return results
 
+
+@dataclass
+class PerPhotoCounts(ReportEvaluator):
+    """Counts per photo across --repeat: the unit the decision rule in TODO.md
+    is judged on, so nobody has to tally `photo [k/3]` rows by hand.
+
+    `reads` is how many reads were scored. A failed read is left out, so
+    `reads` below --repeat shows exactly which photo lost one — including a
+    photo that lost every read, which still gets a row with `reads` 0.
+    """
+    def evaluate(self, ctx: ReportEvaluatorContext) -> list[TableResult]:
+        def photo_of(r):
+            return r.source_case_name or r.name
+
+        # Every photo the run touched, failed reads included, so none can drop
+        # out of the table. Kind comes from the manifest value, as it does in
+        # CorrectArtNumber, because a photo with no scored read has no label.
+        expected = {photo_of(r): r.expected_output
+                    for r in [*ctx.report.cases, *ctx.report.failures]}
+        if not expected:
+            return []
+        by_photo = defaultdict(list)
+        for r in scored_cases(ctx):
+            by_photo[photo_of(r)].append(r)
+
+        rows = []
+        for photo in sorted(expected):
+            reads = by_photo[photo]
+            positive = normalise(expected[photo]) != NO_ART_NUMBER
+            kind = "positive" if positive else "negative"
+
+            def count(test):
+                return sum(1 for r in reads if test(r))
+
+            rows.append([
+                photo, kind, len(reads),
+                count(lambda r: r.assertions["exact"].value),
+                count(was_missed) if positive else None,
+                count(was_overconfident) if positive else None,
+                None if positive else count(was_fabricated_clear),
+            ])
+        return [TableResult(
+            title="per photo",
+            columns=["photo", "kind", "reads", "exact", "missed",
+                     "overconfident", "fabricated clear"],
+            rows=rows,
+        )]
 
 
 def load_manifest() -> list[Case]:
@@ -285,7 +354,7 @@ def main() -> int:
 
     dataset = Dataset(name="art-number-transcription",
                       cases=cases, evaluators=[CorrectArtNumber()],
-                      report_evaluators=[ConfidenceRates()])
+                      report_evaluators=[ConfidenceRates(), PerPhotoCounts()])
     task = partial(get_art_number_reading, model=args.model)
     report = dataset.evaluate_sync(
         task,

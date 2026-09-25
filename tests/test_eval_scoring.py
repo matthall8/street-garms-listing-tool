@@ -20,6 +20,7 @@ from eval_transcription import (
     NO_ART_NUMBER,
     ConfidenceRates,
     CorrectArtNumber,
+    PerPhotoCounts,
     levenshtein,
     load_manifest,
     normalise,
@@ -43,6 +44,19 @@ def score(expected, raw, legible="clear") -> dict:
     return CorrectArtNumber().evaluate(ctx(expected, raw, legible))
 
 
+def reading(spec) -> ArtNumberReading:
+    """(expected, raw, legible, ambiguous_count) -> the model output it stands for."""
+    _, raw, legible, ambiguous_count = spec
+    return ArtNumberReading(
+        art_number_raw=raw,
+        art_legible=legible,
+        ambiguous_characters=[
+            AmbiguousCharacter(position=p + 1, reading="0", alternative="O")
+            for p in range(ambiguous_count)
+        ],
+    )
+
+
 def rates(*specs) -> dict:
     """Run the real scoring path over stub readings; return {title: value}.
 
@@ -51,17 +65,10 @@ def rates(*specs) -> dict:
     genuine pydantic-evals wiring that ConfidenceRates reads through.
     """
     readings, cases = {}, []
-    for i, (expected, raw, legible, ambiguous_count) in enumerate(specs):
+    for i, spec in enumerate(specs):
         name = f"case{i}"
-        readings[name] = ArtNumberReading(
-            art_number_raw=raw,
-            art_legible=legible,
-            ambiguous_characters=[
-                AmbiguousCharacter(position=p + 1, reading="0", alternative="O")
-                for p in range(ambiguous_count)
-            ],
-        )
-        cases.append(Case(name=name, inputs=name, expected_output=expected))
+        readings[name] = reading(spec)
+        cases.append(Case(name=name, inputs=name, expected_output=spec[0]))
 
     report = Dataset(
         name="rates",
@@ -70,6 +77,47 @@ def rates(*specs) -> dict:
         report_evaluators=[ConfidenceRates()],
     ).evaluate_sync(lambda n: readings[n])
     return {r.title: r.value for r in report.analyses}
+
+
+def per_photo(photos: dict, expected: dict | None = None) -> tuple[dict, dict]:
+    """Run photos through the real path with --repeat; return (table, rates).
+
+    `photos` maps a name to one spec per repeat, so each read can differ. A spec
+    of None makes that read fail, as an API error would. A photo's manifest
+    value comes from its first real spec, or from `expected` — needed when every
+    read fails (default "ABC"). Serial, so the order reads are drawn in doesn't
+    matter — only the counts are asserted.
+    """
+    expected = expected or {}
+    repeat = len(next(iter(photos.values())))
+    # A short list would surface as a failed read and a long one would be
+    # silently truncated — either way a typo here would pose as a failure count.
+    assert all(len(specs) == repeat for specs in photos.values())
+    queues = {name: iter(specs) for name, specs in photos.items()}
+
+    def task(name):
+        spec = next(queues[name])
+        if spec is None:
+            raise RuntimeError("read failed")
+        return reading(spec)
+
+    cases = [
+        Case(name=name, inputs=name,
+             expected_output=expected.get(
+                 name, next((s[0] for s in specs if s is not None), "ABC")))
+        for name, specs in photos.items()
+    ]
+    report = Dataset(
+        name="per-photo",
+        cases=cases,
+        evaluators=[CorrectArtNumber()],
+        report_evaluators=[ConfidenceRates(), PerPhotoCounts()],
+    ).evaluate_sync(task, repeat=repeat, max_concurrency=1)
+
+    [table] = [a for a in report.analyses if a.title == "per photo"]
+    rows = {row[0]: dict(zip(table.columns, row)) for row in table.rows}
+    scalars = {a.title: a.value for a in report.analyses if a.title != "per photo"}
+    return rows, scalars
 
 
 class TestLevenshtein:
@@ -314,6 +362,89 @@ class TestMissed:
         without = rates(CORRECT, NOT_READ)["missed"]
         with_negatives = rates(CORRECT, NOT_READ, CLEAN_NEGATIVE, FABRICATION)["missed"]
         assert without == with_negatives == 50.0
+
+
+class TestPerPhotoCounts:
+    """The table the decision rule in TODO.md is read from: one row per photo,
+    counts out of --repeat. Run through the real pydantic-evals repeat path,
+    since grouping reads by photo depends on its source_case_name."""
+
+    def test_counts_every_read_of_a_photo(self):
+        rows, _ = per_photo({"a": [CORRECT, NOT_READ, NOT_READ]})
+        assert rows["a"]["reads"] == 3
+        assert rows["a"]["exact"] == 1
+        assert rows["a"]["missed"] == 2
+
+    def test_overconfident_uses_the_same_test_as_the_rate(self):
+        """A wrong read with a flagged character goes to review, so it is not
+        overconfident here either."""
+        rows, _ = per_photo({"a": [WRONG_AND_SURE, WRONG_AND_SURE, WRONG_BUT_FLAGGED]})
+        assert rows["a"]["overconfident"] == 2
+
+    def test_a_negative_row_counts_fabricated_clear_only(self):
+        rows, _ = per_photo({"n": [CLEAN_NEGATIVE, FABRICATION, FABRICATION]})
+        assert rows["n"]["kind"] == "negative"
+        assert rows["n"]["fabricated clear"] == 2
+        assert rows["n"]["missed"] is None
+        assert rows["n"]["overconfident"] is None
+
+    def test_a_positive_row_leaves_fabrication_blank(self):
+        rows, _ = per_photo({"a": [CORRECT, CORRECT]})
+        assert rows["a"]["fabricated clear"] is None
+
+    def test_a_failed_read_shows_as_fewer_reads(self):
+        """The denominator the pooled rates hide: which photo lost a read."""
+        rows, _ = per_photo({"a": [CORRECT, None, CORRECT], "b": [CORRECT] * 3})
+        assert rows["a"]["reads"] == 2
+        assert rows["b"]["reads"] == 3
+
+    def test_a_photo_that_lost_every_read_still_gets_a_row(self):
+        """Otherwise it would vanish from the win/loss tally unnoticed."""
+        rows, _ = per_photo({"a": [None] * 3, "b": [CORRECT] * 3})
+        assert rows["a"]["reads"] == 0
+        assert rows["a"]["kind"] == "positive"
+        assert rows["a"]["missed"] == 0
+
+    def test_a_negative_that_lost_every_read_keeps_its_kind(self):
+        """Kind comes from the manifest value, since there's no scored read to
+        carry a label — and losing the only negative must not go unseen."""
+        rows, _ = per_photo({"n": [None] * 2, "a": [CORRECT] * 2},
+                            expected={"n": NO_ART_NUMBER})
+        assert rows["n"]["kind"] == "negative"
+        assert rows["n"]["reads"] == 0
+        assert rows["n"]["fabricated clear"] == 0
+        assert rows["n"]["missed"] is None
+
+    def test_a_single_run_keys_rows_on_the_photo_name(self):
+        """At --repeat 1 pydantic-evals sets no source_case_name, so the row
+        falls back to the case name — which is the photo."""
+        rows, _ = per_photo({"b": [CORRECT], "a": [NOT_READ]})
+        assert rows["a"]["reads"] == rows["b"]["reads"] == 1
+        assert rows["a"]["missed"] == 1
+
+    def test_rows_are_sorted_by_photo(self):
+        rows, _ = per_photo({"b": [CORRECT] * 2, "a": [CORRECT] * 2})
+        assert list(rows) == ["a", "b"]
+
+    def test_the_table_and_the_rates_count_the_same_reads(self):
+        """Summed over photos, the table must reproduce the pooled rates. If
+        the two ever disagree, the decision rule and the headline number are
+        being judged on different definitions."""
+        rows, scalars = per_photo({
+            "a": [CORRECT, NOT_READ, WRONG_AND_SURE],
+            "b": [NOT_READ, None, WRONG_BUT_FLAGGED],   # a failed read, where
+            "n": [CLEAN_NEGATIVE, FABRICATION, None],   # the two could drift
+        })
+        positive_reads = sum(r["reads"] for r in rows.values() if r["kind"] == "positive")
+        negative_reads = rows["n"]["reads"]
+
+        def pooled(column, reads):
+            return 100 * sum(r[column] or 0 for r in rows.values()) / reads
+
+        assert pooled("missed", positive_reads) == pytest.approx(scalars["missed"])
+        assert pooled("overconfident", positive_reads) == pytest.approx(scalars["overconfident"])
+        assert pooled("fabricated clear", negative_reads) == pytest.approx(
+            scalars["fabricated and declared clear"])
 
 
 class TestLoadManifest:

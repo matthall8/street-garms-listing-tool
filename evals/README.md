@@ -159,6 +159,22 @@ is not a publish rate: most invented codes fail to decode, get the decoder flag
 that happen to decode cleanly — for example a digit string whose first two
 digits are a valid season number — which pass the gate unflagged.
 
+Last, a **per photo** table: one row per photo, counting its reads across
+`--repeat`. `reads` is how many were scored — fewer than `--repeat` means that
+photo lost a read to a failure, and a photo that lost every read still gets a
+row, with `reads` 0. The other columns count reads out of `reads`:
+
+- `exact` — on a positive, the code was read correctly; on a negative, no code
+  came back
+- `missed` and `overconfident` — positives only
+- `fabricated clear` — negatives only
+
+These use the same per-read tests as the rates above, so summed over photos
+they reproduce them. This is the table to compare two runs on: a photo is the
+unit, and the repeats of one photo are not independent evidence. Widen the
+terminal if the photo names are cut off; the saved report always has them in
+full.
+
 ## Comparing runs
 
 Every report records what produced it, shown in its header:
@@ -181,7 +197,14 @@ To test a change:
    `--repeat 3 --note "whole-label search" --baseline evals/results/<baseline>.json`
 
 The diff shows what changed in the header (`prompt: 8f1e… → 3a7c…`) and, per
-photo, results that flipped (`✔ → ✗`).
+photo, results that flipped (`✔ → ✗`). With `--repeat` those flips pair
+`photo [2/3]` against `photo [2/3]`, which are unrelated samples, so judge the
+change on the two **per photo** tables instead. The diff prints only the new
+run's table; print the baseline's from its saved report:
+
+```bash
+COLUMNS=120 .venv/bin/python -c "import sys; from pydantic_evals.reporting import EvaluationReportAdapter as A; A.validate_json(open(sys.argv[1],'rb').read()).print()" evals/results/<baseline>.json
+```
 
 Things that make a comparison meaningless:
 
