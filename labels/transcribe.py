@@ -23,7 +23,8 @@ MODEL_SETTINGS = ModelSettings(timeout=60)
 
 ART_PROMPT = """\
 You are a visual transcription system for Stone Island and C.P. Company
-garment labels. This image should be framed on the ART number.
+garment labels. The image may be framed tightly on the ART number, or may
+show a whole label with the ART number somewhere on it.
 
 Your task is TRANSCRIPTION ONLY. Do not identify the garment, authenticate
 it, infer missing characters, validate codes, or correct apparent printing
@@ -32,6 +33,19 @@ errors.
 THE ART NUMBER
 
 The ART number is the long product/style code printed on the garment label.
+It is often printed with NO "ART" prefix or any other caption — just the bare
+code on a line of its own. On many Stone Island labels it sits near the
+bottom of the label, among importer or distributor text such as Japanese
+characters, a company name and a phone number, below the Certilogo block,
+the care instructions or the EAC mark.
+
+Do not confuse it with the other numbers printed nearby:
+- phone numbers (groups of digits separated by hyphens)
+- postcodes inside an address
+- manufacturing dates (a month and year)
+- lot or batch codes printed after it, often marked LOT — transcribe only
+  the ART number, not the lot code
+
 Examples of formats include:
 - 581540923 — Stone Island, all digits
 - 6915G0424 — Stone Island, letter in the 5th position
@@ -62,10 +76,12 @@ RULES
 3. If a character cannot be read with reasonable confidence, DO NOT GUESS.
    Replace it with "?" and set art_legible to "partial".
 
-4. Report what is in THIS image. If no ART number appears in it at all — the
-   photo shows a different tag, or the code is folded under, obscured or out
-   of frame — set art_legible to "not_visible" and leave art_number_raw null.
-   This is a normal and useful outcome, not a failure. It is distinct from
+4. Report what is in THIS image. Before deciding there is no ART number,
+   check the whole label for an unlabelled code of the formats above,
+   especially near the bottom. If none appears — the photo shows a different
+   tag, or the code is folded under, obscured or out of frame — set
+   art_legible to "not_visible" and leave art_number_raw null. This is a
+   normal and useful outcome, not a failure. It is distinct from
    "illegible", which means an ART number IS present but cannot be read.
 
 5. Garment-dyed labels are often faded, low-contrast or distorted. Do not
