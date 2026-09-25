@@ -4,37 +4,60 @@ Current state and in-flight work. Stable architecture and invariants are in CLAU
 
 ## Now
 
+**Done since last update:** `.env` key fixed and `.env.example` added (#11);
+negative cases implemented, tested and documented (#12); the six pre-port
+reports archived to `evals/results/archive/`. `si_certilogo_01.png` was ruled
+out as a negative — it does carry an ART number, blurry, so it is a candidate
+*positive* instead. The manifest's negative is `si_details_photo_04.JPG`.
+
 ### The chain
 
-Strictly in order — each item unblocks the next, and the last one is the point
-of the whole sequence.
+Strictly in order. Note that everything here except this file lives in
+gitignored territory — `evals/manifest.csv`, `evals/photos/` and
+`evals/results/` are all untracked, so none of it produces a commit and none of
+it leaves an audit trail. Record what you changed here.
 
-- [ ] **Fix the invalid `ANTHROPIC_API_KEY` in `.env`.** 5 min, blocks every
-      item below. Add `.env.example` in the same change.
+- [ ] **Resolve the duplicate expected code.** `si_art_number_photo_07.JPG` and
+      `si_art_number_photo_12.JPG` both expect `771563020`. Either they are the
+      same garment shot twice — in which case 15 positives is really 14, one
+      double-weighted — or one row is wrong and a correct read of that photo
+      scores as a miss on every future run. Also worth an eye: `01`/`06` and
+      `10`/`14` are one character apart, `07`/`13`, `09`/`10` and `12`/`13` two;
+      and photos `01` and `11` expect codes that are not in the catalogue.
+      Note on `01`: its difference from `06` is `5` vs `1`, which is not a
+      confusion pair, so the catalogue cannot bridge a misread there. A correct
+      read of `01` resolves as `miss`, not `corrected`. Photo 01 is also
+      `si_namespace` (`no-season-in-code`), so it sets `needs_review` whatever
+      the read. Checking ground truth *before* any result exists is validation,
+      not editing it to make a run pass.
 
-- [ ] **Allow negative cases in the eval harness.** ~30 min at the keyboard, and
-      it is what makes the baseline worth recording.
-  - `tests/eval_transcription.py:138` drops any row with an empty
-    `expected_art_number`, so "there is no ART number in this photo" is
-    unrepresentable and `not_visible` has zero coverage. Decide the convention
-    first: "no code present" and "not yet labelled" are different states and
-    must not share a representation.
-  - Add `si_certilogo_01.png` as the first negative case — the ART-vs-Certilogo
-    confusion the prompt guards against at `labels/transcribe.py:47-48`,
-    already in the photos directory, unused.
+- [ ] **Decide the negative count — now or never for this baseline.** There is
+      one negative case, so across `--repeat 3` the fabrication rates can only
+      read 0/33/67/100%. Adding negatives later changes the manifest
+      fingerprint, which voids this baseline for comparison. Either add more now
+      or accept n=1 and say so in the `--note`.
 
-- [ ] **Record the baseline.** `--repeat 3` on a clean tree. All six reports in
-      `evals/results/` are pre-port format and rejected by `load_baseline()` —
-      archive them to `evals/results/archive/` rather than deleting. Label what
-      it actually covers in `--note`, including the resolution split (photos
-      01-04 are 4032x3024, 05-15 are 1200x1600).
+- [ ] **Record the manifest md5 below before and after any edit.** It is the
+      only tripwire on gitignored ground truth.
+
+- [ ] **Record the baseline.** `--repeat 3 --workers 1` on a clean tree. Serial
+      is cheap insurance against a suspected concurrency stall in pydantic-ai's
+      thread-per-sync-task model; not reproduced against the real API here
+      (5 runs, ~60 calls, no stalls), so it is precaution, not a fix. The
+      `--note` should state: in-sample, Stone Island only, n positives + n
+      negatives, and the resolution split — including that the only negative
+      (`si_details_photo_04.JPG`) is 4032x3024, so fabrication is measured only
+      in the capture regime that already reads well. Save `shasum -a 256 evals/photos/*`
+      and `pip freeze` beside the report — the photos are gitignored, so
+      nothing else records which bytes were scored.
 
 - [ ] **Measure the stashed prompt draft.** `stash@{0}` ("On evals: prompt draft:
-      unlabelled ART numbers") targets bare ART numbers printed with no "ART"
-      prefix — `evals/README.md:122-123`. Blocked on the negative case
-      specifically, not on C.P. coverage: the draft makes the model hunt harder
-      for a code, and on an all-positive manifest that can only ever look like
-      an improvement.
+      unlabelled ART numbers"). Two cautions: it was created on `d56b51b`, which
+      predates the `MODEL_SETTINGS` timeout commit and touches the same file, so
+      after `git stash pop` confirm `MODEL_SETTINGS` still exists and is still
+      passed to both agents. And the `--baseline` diff pairs repeats by index
+      (`photo [2/3]` against `photo [2/3]`), which are unrelated samples —
+      compare per-photo x/3 counts and the aggregate rates, not per-case flips.
 
 ### Independent of the chain
 
@@ -43,7 +66,7 @@ Neither blocks nor is blocked by the sequence above.
 - [ ] **Add C.P. photos to the eval set.** Split out of the harness work because
       it needs garments and a camera, not desk time — bundled, it stalls the
       whole item. The manifest is 12 `si_numeric` + 3 `si_namespace`: two of
-      five format families, against the spec in `evals/README.md:124-127`. The
+      five format families, against the spec in `evals/README.md:180-181`. The
       catalogue holds 489 `cp_modern` and 86 `si_alpha` rows, so roughly a fifth
       of stock is a format the eval has never tested. `cp_modern` at minimum;
       ideally `si_alpha` and one with a trailing colour code. Re-baseline after,
@@ -61,12 +84,15 @@ Neither blocks nor is blocked by the sequence above.
 
 ## Next
 
-- [ ] **Preprocessing experiment.** `labels/transcribe.py:135-138` passes raw
-      bytes to `BinaryContent` — no crop, no resize. The API downscales large
-      images (confirm the threshold; believed ~1568px on the long edge), so
-      small faded print on photos 01-04 may be lost before the model sees it.
-      Cropping to the label region could do more for accuracy than any prompt
-      edit, and it's currently neither measured nor controlled.
+- [ ] **Preprocessing experiment — now the leading candidate.** The measurement
+      in Known issues reverses the assumption this item started with: the large
+      4032x3024 photos are the ones that *work* (3 of 4), and every 1200x1600
+      photo fails. So the problem looks like too few pixels on the code, not
+      downscaling of large images. `labels/transcribe.py:135-138` passes raw
+      bytes to `BinaryContent` with no crop and no resize, so nothing here is
+      measured or controlled. Test order: re-shoot a failing label at full
+      resolution (free, no code), then try cropping to the label region before
+      the call. Confirm the API's own downscale threshold while you're in there.
 
 - [ ] **Decoder unit tests for `labels/art_number.py`** — no pytest coverage,
       needs no catalogue, so these are what make CI meaningful. Write the
@@ -108,11 +134,43 @@ Neither blocks nor is blocked by the sequence above.
   not fixing all 71. Until then, 97.0% is measured against ground truth that
   hasn't been verified.
 
+- **Capture resolution, not the prompt, may be the dominant variable.**
+  Provisional: the 2026-09-24 figures come from unsaved probe runs (one repeat,
+  `--workers 4`), so no report backs them. The baseline run will be the saved
+  record, and should confirm or overturn this. Two independent dates so far:
+
+  | photos | resolution | 2026-09-16 (archived) | 2026-09-24 (probe) |
+  |---|---|---|---|
+  | 01-04 | 4032x3024 | 2 of 4 | 3 of 4 |
+  | 05-15 | 1200x1600 | **0 of 10** (photo 13 errored) | **0 of 11** |
+
+  The robust half is the low-resolution result: no successful read on either
+  date. The
+  high-resolution half varies per photo. Photo 02 read correctly on one date
+  and came back `not_visible` on the other, so "mostly works" is as far as it
+  goes.
+
+  The failures are `art_legible="not_visible"`: the model says no ART number is
+  present at all, rather than misreading one. Exact match is ~13-20%.
+  Attribution under concurrency was checked and is correct: each successful
+  read matched its own photo.
+
+  Two consequences. First, the confidence rates look deceptively clean (0%
+  overconfident, 0% fabricated), because a `not_visible` read can never be
+  counted as wrong-but-confident. It is in the denominator of overconfident
+  (all positives) but can never reach the numerator, and it is left out of the
+  clear-but-wrong denominator entirely. So the numbers look reassuring only
+  because the model declines to read. Second, the stashed prompt draft may be
+  treating a symptom: if the low-resolution photos lack the pixels, no prompt
+  rewrite recovers them. The cheapest test is to re-shoot two or three of the
+  failing labels at full phone resolution and run again. With n=15 this is a
+  strong correlation with an obvious mechanism, not proof.
+
 - **The eval set measures a narrower surface than "OCR".** Two of five format
-  families, no negative cases, and two capture regimes in one set — a failure
-  on photos 01-04 can't be attributed to the label versus the capture path.
-  Being addressed in Now; noted here so a baseline number isn't over-read in
-  the meantime.
+  families (12 `si_numeric`, 3 `si_namespace`, no C.P. or alphanumeric), one
+  negative case, and two capture regimes mixed into one score. The set is also
+  in-sample: the prompt was tuned while looking at results on these photos, so
+  the baseline is a development-set number, not an estimate of production.
 
 - **`evals/photos/duplicates/` holds four `_dup` copies** (photos 05, 06, 08,
   15). Inert — the harness is manifest-driven, not glob-driven. If they're
@@ -128,11 +186,12 @@ Neither blocks nor is blocked by the sequence above.
 - **What fraction of real listings miss the catalogue?** Decides how much the
   decoder carries — on a hit the product name supplies the season, on a miss the
   decoder is the only source.
-- **What will production photos actually look like?** Phone camera, or the
-  smaller format? The eval set holds both (01-04 at 4032x3024, 05-15 at
-  1200x1600), so today at most 11 of 15 cases resemble production and possibly
-  only 4. The answer sets the target for the preprocessing experiment in Next
-  and decides which half of the set is the one that matters.
+- **What will production photos actually look like?** Now the most consequential
+  open question, not a detail. Only the 4032x3024 photos read successfully at
+  all, so if production is full-resolution phone captures the pipeline may
+  already work far better than the baseline suggests — and if it is the smaller
+  format, the current answer is that it barely works. Decides the target for
+  the preprocessing experiment and which half of the eval set is the real one.
 - Is 97.0% on `report_art_number.py` a floor that must not regress?
 - What's the gate for shipping a prompt change — which metric, what margin, how
   many repeats before a difference is believed?
@@ -147,7 +206,18 @@ Neither blocks nor is blocked by the sequence above.
 ## Current baseline
 
 None recorded yet. Once one exists: path, date, what the set covers, headline
-numbers.
+numbers, and the manifest md5 it ran against.
+
+**Manifest md5 (the only tripwire on gitignored ground truth):**
+
+| date | md5 | what changed |
+|---|---|---|
+| 2026-09-15→16 | not recorded | Photo 03's expected code changed from `7514113WN` to `7515113WN`. This happened before the tripwire existed and was found later in the archived reports: the same read scored a miss on 09-15 and exact on 09-16. It was almost certainly a transcription typo corrected. `7515113WN` is in the catalogue and `7514113WN` is not. |
+| 2026-09-24 | `6e91e2f0e7c059542fde28fb57f58aa8` | Negative case added and row order adjusted. |
+| 2026-09-25 | `4d583ebee12c3d72e3813013f1575437` | Trailing comma removed from the negative-case row; it had added a fourth, unnamed column. No expected value changed. **Current.** |
+
+Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
+with no row here means an unrecorded ground-truth edit.
 
 ## Dropped
 
