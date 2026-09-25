@@ -22,13 +22,28 @@ evals/
 
 | column | meaning |
 |---|---|
-| `photo` | filename inside `evals/photos/`, **including the extension** |
+| `photo` | filename inside `evals/photos/`, **including the extension**. The extension sets the media type sent to the model, so it must match the file's real format — a PNG saved as `.JPG` goes out labelled `image/jpeg` |
 | `expected_art_number` | the code as printed, hand-checked by eye — or `NONE` |
 | `note` | free text, kept with the case in the saved report |
 
 Expected values are compared ignoring spacing and case, so `05CMSH022A 004275A`
 and `05cmsh022a004275a` both count as correct. Every other difference counts as
 a miss.
+
+### What counts as the ART number
+
+`expected_art_number` is the style code as printed, **plus its colour suffix**
+if one is printed attached after a slash (`581540846/181`). Colour suffixes in
+the catalogue are 1–4 digits or a single letter. Leave out:
+
+- the `ART` / `ART.` caption
+- lot or batch codes — anything marked `LOT`, or containing hyphens
+- any other number printed nearby (phone numbers, dates, postcodes)
+
+This is fixed independently of the prompt, so two prompts are always scored
+against the same target. `exact` stays strict against it: a read that includes
+a lot code or the caption is a miss, because that string would also miss the
+catalogue in production (`labels/catalogue.py` strips only spacing and case).
 
 ### Negative cases
 
