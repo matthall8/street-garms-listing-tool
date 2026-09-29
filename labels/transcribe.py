@@ -147,7 +147,7 @@ def get_details_agent(model: str = DETAILS_MODEL) -> Agent:
 def transcribe_art(
     data: bytes, media_type: str, model: str = ART_MODEL
 ) -> ArtNumberReading:
-    """Read the ART number from a photo framed on the ART number tag."""
+    """Read the ART number from a photo of the ART number tag or a whole label."""
     return get_art_agent(model).run_sync([
         "Transcribe the ART number visible in this image.",
         BinaryContent(data=data, media_type=media_type),
