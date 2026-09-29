@@ -266,7 +266,7 @@ gain holds.
   (gitignored), with the manifest's photo hashes (`.photos.sha256`) and
   `pip freeze` (`.pip-freeze.txt`) saved beside it — both identical to the
   previous baseline's.
-- Code: commit `b4b2622`, `dirty: False`.
+- Code: tag `eval-baseline-2026-09-25b` → `b4b2622`, `dirty: False`.
 - Set: manifest md5 `cb321369b2b7bd1e3b27eac7a6e9ff74` — 18 positives + 4
   negatives, in-sample, Stone Island only. `--repeat 3 --workers 1`.
   `--workers` isn't recorded in the report header, so put it in the `--note`.
