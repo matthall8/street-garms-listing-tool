@@ -106,6 +106,15 @@ Neither blocks nor is blocked by the sequence above.
       assertions until after the 71-row triage, or you encode the bug as the
       expected value.
 
+- [ ] **`ArtNumberReading`'s docstring still says "framed on the ART number
+      tag"** (`labels/schemas.py`). Unlike a function docstring, it reaches
+      the model: pydantic puts it in the output schema sent with every call.
+      So updating it to match the whole-label prompt is a behaviour change —
+      make it on its own and measure it. Related gap: the eval's `prompt`
+      fingerprint hashes only `ART_PROMPT`, so a schema-description edit
+      moves nothing in the report header; consider hashing
+      `ArtNumberReading.model_json_schema()` into it too.
+
 - [ ] **Capture usage and cost per call.** `.usage()` is discarded in
       `transcribe_art` / `transcribe_details`. One JSONL line per call:
       timestamp, model, prompt fingerprint, tokens in/out, latency, stop reason.
@@ -141,9 +150,12 @@ Neither blocks nor is blocked by the sequence above.
 - **Six photos still come back `not_visible` on every read.** Until
   2026-09-25 every 1200x1600 photo failed on every date, which pointed at
   capture resolution. The whole-label prompt change overturned most of that:
-  6 of the 11 now read correctly on every read. The old prompt's assumption of
-  a tightly framed tag, with the code usually printed bare and uncaptioned,
-  was the main cause — not the pixels.
+  6 of the 11 now read correctly on every read, so the prompt — which assumed
+  a tightly framed tag, while these labels print the code bare and
+  uncaptioned — was the larger cause. Resolution still correlates, though: 5
+  of the 6 remaining misses are 1200x1600. And the change bundled several
+  edits (whole label, bare code, nearby numbers to avoid), so which of them
+  did the work isn't isolated.
 
   | photos | resolution | 2026-09-16 (archived) | 2026-09-24 (probe) | 2026-09-25, old prompt | 2026-09-25, current prompt |
   |---|---|---|---|---|---|
@@ -154,10 +166,11 @@ Neither blocks nor is blocked by the sequence above.
   (09-24 figures are from unsaved probe runs; both 09-25 columns are saved
   reports, 3 reads per photo.)
 
-  Still missed: 06, 08, 09, 10, 12 (1200x1600) and 17 (care label). Photos 12
-  and 17 show the same garments as 07 and 01, which now read, so for those two
-  the capture fails, not the label. Resolution may still explain the rest; the
-  cheapest test is to re-shoot them at full phone resolution.
+  Still missed: 06, 08, 09, 10, 12 (1200x1600) and 17 (care label). Photo 12
+  shares its expected code with 07, which now reads — whether it is a second
+  shot of the same label is the open duplicate-code item above. Photo 17 is
+  the care label of 01's garment, a different label from 01's tag. The
+  cheapest test for all six is to re-shoot them at full phone resolution.
 
   The misses are `art_legible="not_visible"`: the model says no ART number is
   present at all, rather than misreading one. Attribution under concurrency
@@ -166,9 +179,9 @@ Neither blocks nor is blocked by the sequence above.
 - **The eval set measures a narrower surface than "OCR".** Two of five format
   families (14 `si_numeric`, 4 `si_namespace`, no C.P. or alphanumeric), four
   negative cases all of one kind (Certilogo), and three capture regimes mixed
-  into one score. The set is also
-  in-sample: the prompt was tuned while looking at results on these photos, so
-  the baseline is a development-set number, not an estimate of production.
+  into one score. The set is also in-sample: it is the same set the prompt
+  changes were measured and accepted on, so the baseline is a development-set
+  number, not an estimate of production.
 
 - **`evals/photos/duplicates/` holds four `_dup` copies** (photos 05, 06, 08,
   15). Inert — the harness is manifest-driven, not glob-driven. If they're
@@ -184,12 +197,13 @@ Neither blocks nor is blocked by the sequence above.
 - **What fraction of real listings miss the catalogue?** Decides how much the
   decoder carries — on a hit the product name supplies the season, on a miss the
   decoder is the only source.
-- **What will production photos actually look like?** Now the most consequential
-  open question, not a detail. Only the 4032x3024 photos read successfully at
-  all, so if production is full-resolution phone captures the pipeline may
-  already work far better than the baseline suggests — and if it is the smaller
-  format, the current answer is that it barely works. Decides the target for
-  the preprocessing experiment and which half of the eval set is the real one.
+- **What will production photos actually look like?** With the current
+  prompt, 6 of 7 4032x3024 photos read against 6 of 11 1200x1600, so the
+  smaller format still carries most of the misses. If production is
+  full-resolution phone captures, the pipeline may work better than the
+  baseline suggests; if it is the smaller format, expect roughly half of
+  labels to need a re-shoot or review. Decides the target for the
+  preprocessing experiment and which part of the eval set is the real one.
 - Is 97.0% on `report_art_number.py` a floor that must not regress?
 - What's the gate for shipping a prompt change — which metric, what margin, how
   many repeats before a difference is believed? *Decision rule* below is the
@@ -236,6 +250,13 @@ every count below straight from the report's *per photo* table: its `missed`,
 01, 05, 07, 11, 13, 14, 15, 16, eight different garments — and 0 losses
 (p ≈ 0.008). No photo newly overconfident; fabricated-and-clear 0 of 12, and
 no fabrication of any kind.
+
+The rule as first written also required confirming a pass on photos outside
+this set before merging, because a pass here is in-sample. That condition was
+**waived for this merge** by decision, on confidence that the change is better
+generally. It still applies in spirit: when new photos are added (see *Add
+C.P. photos*), run the previous and current baselines on them and check the
+gain holds.
 
 ## Current baseline
 
