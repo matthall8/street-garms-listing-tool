@@ -28,9 +28,6 @@ def client(monkeypatch):
     monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     app = create_app()
-    # The patch above only works while create_app() imports load_dotenv inside
-    # the function. Checked as a bool: a bare `not in os.environ` assertion
-    # would print the whole environment, key included, when it fails.
     leaked = "ANTHROPIC_API_KEY" in os.environ
     assert not leaked, "create_app() loaded .env despite the patch"
     app.config["TESTING"] = True
