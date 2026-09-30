@@ -106,16 +106,11 @@ def test_failed_extraction_is_a_502(client, monkeypatch):
     response = client.post("/", data=data, content_type="multipart/form-data")
     assert response.status_code == 502
     assert b"Extraction failed" in response.data
-    # Only the fake could have put "boom" here, so this is what proves its
-    # error reached the page. The status and prefix look the same for any
-    # failure the route catches.
     assert b"boom" in response.data
 
 
 @pytest.mark.parametrize("media_type", sorted(routes.ACCEPTED))
 def test_supported_type_reaches_the_pipeline(client, extract_calls, media_type):
-    # The media type is given explicitly: werkzeug would otherwise guess it
-    # from the filename, and mimetypes may not know .heic or .heif.
     filename = "label." + media_type.split("/")[1]
     data = _upload(filename, media_type)
     response = client.post("/", data=data, content_type="multipart/form-data")
