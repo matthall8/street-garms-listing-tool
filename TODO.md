@@ -9,7 +9,10 @@ negative cases implemented, tested and documented (#12); the six pre-port
 reports archived to `evals/results/archive/`. On 2026-09-25 the manifest grew
 to 18 positives + 4 negatives, all ground truth re-checked by eye (see the md5
 table). `si_certilogo_01.png` carries an ART number but is too hard to read, so
-it was removed rather than used.
+it was removed rather than used. Flask route tests merged (#18). CI added
+(`.github/workflows/tests.yml`) ahead of the decoder tests, by decision: on a
+clean runner with no catalogue, 111 tests pass and 42 skip. What it does not
+cover is under *Next*.
 
 ### The chain
 
@@ -98,8 +101,18 @@ Neither blocks nor is blocked by the sequence above.
       then try cropping to the label region before the call. Confirm the API's
       own downscale threshold while you're in there.
 
+- [ ] **Run the `needs_review` gate invariants in CI.** CI has no catalogue,
+      so both gate tests skip there: corrections forcing review
+      (`tests/test_pipeline.py:88-89`) and misses not flagging
+      (`tests/test_pipeline.py:92`), along with `TestResolveCorrected` and
+      `TestCorrectionSafety`. A green CI run says nothing about the gate.
+      `TestResolveAmbiguous` (`tests/test_resolve.py:140-162`) already
+      monkeypatches `labels.catalogue.load_catalogue` with a synthetic dict;
+      add new tests on that pattern alongside the real-catalogue ones, not
+      instead of them.
+
 - [ ] **Decoder unit tests for `labels/art_number.py`** — no pytest coverage,
-      needs no catalogue, so these are what make CI meaningful. Write the
+      needs no catalogue, so they run in full in CI. Write the
       uncontroversial half now: format-family detection, the `len(s) >= 8`
       truncation guard, the `/181` colour-code strip, the `222` flag, the
       `0`→`O` repair, the `'10'` namespace carve-out. Hold the season
@@ -134,10 +147,6 @@ Neither blocks nor is blocked by the sequence above.
       Once closed this may earn a line in CLAUDE.md conventions.
 
 - [ ] **Top-level README.** Two lines today; names none of the commands.
-
-- [ ] **CI on GitHub Actions.** After the decoder tests exist — without them a
-      clean runner has no catalogue, most of the suite skips, and CI reports
-      green while testing almost nothing.
 
 ## Known issues
 
