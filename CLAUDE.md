@@ -34,6 +34,7 @@ meet. Nothing imports `app/` or `main.py`.
 |---|---|
 | install | `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` |
 | tests | `.venv/bin/python -m pytest` — offline, no API key |
+| CI | `.github/workflows/tests.yml` — `pytest -rs` on push/PR to main, no catalogue, no key |
 | CLI | `.venv/bin/python main.py <art.jpg> [details.jpg]` |
 | web | `.venv/bin/flask --app app run` |
 | decoder score | `.venv/bin/python tests/report_art_number.py` |
@@ -85,8 +86,8 @@ never paste a code into a commit message or issue.
   (`labels.pipeline.transcribe`), not the source function
   (`tests/test_pipeline.py:4-7`). Same for the `@cache`d `load_catalogue`.
 - A green test run without the private catalogue is not a full test run —
-  catalogue-dependent tests skip, never fail (`tests/conftest.py:3-4`). Derive
-  test codes from the `conftest.py` fixtures.
+  catalogue-dependent tests skip, never fail (`tests/conftest.py:3-4`). CI is
+  always such a run. Derive test codes from the `conftest.py` fixtures.
 
 ## Working rules
 
