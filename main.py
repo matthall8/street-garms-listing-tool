@@ -1,4 +1,4 @@
-"""CLI entry point: transcribe and decode one garment care label."""
+"""CLI entry point: read and decode the ART number from one label photo."""
 
 import argparse
 import json

@@ -135,4 +135,5 @@ def test_a_second_photo_alone_is_a_400(client, extract_calls):
     data = {"details_photo": (io.BytesIO(b"y"), "b.png", "image/png")}
     response = client.post("/", data=data, content_type="multipart/form-data")
     assert response.status_code == 400
+    assert b"Add a photo of the label" in response.data
     assert extract_calls == []

@@ -142,7 +142,9 @@ Neither blocks nor is blocked by the sequence above.
       web form and CLI take one photo now, so nothing passes `details`. It
       still runs through `transcribe()` / `extract_bytes()` / `extract()`, with
       tests that only cover it (`test_brand_falls_back_to_the_printed_brand`,
-      `TestFieldMapping`, the details-photo fallback in section 4).
+      `TestFieldMapping` in `tests/test_pipeline.py`, and in its section 4
+      `test_art_read_falls_back_to_the_details_photo` and
+      `test_two_photos_only_the_art_photo_is_read`).
 
 - [ ] **Brand can come out empty unflagged.** With the details read off,
       `decoded.brand or det.brand_printed` has no fallback. A clear read with a
