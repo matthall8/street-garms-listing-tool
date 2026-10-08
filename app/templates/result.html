@@ -55,8 +55,9 @@
     {% endif %}
 
     <table>
-      {% for key in ["year", "season", "brand", "garment", "size",
-                     "composition", "made_in", "certilogo", "legibility"] %}
+      {# size, composition, made_in and certilogo come from the details read,
+         which is switched off — see labels/transcribe.py. #}
+      {% for key in ["year", "season", "brand", "garment", "legibility"] %}
         <tr>
           <th>{{ key.replace("_", " ") }}</th>
           <td class="{{ 'empty' if fields[key] is none }}">
