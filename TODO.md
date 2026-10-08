@@ -14,6 +14,12 @@ it was removed rather than used. Flask route tests merged (#18). CI added
 clean runner with no catalogue, 111 tests pass and 42 skip. What it does not
 cover is under *Next*.
 
+On 2026-10-08 the eval set was replaced: 27 positives + 5 negatives, ten new
+garments including the first two C.P. pieces. The previous set, its manifest
+and photos are in `evals/archive/` (gitignored). Photo numbers in *Known
+issues*, *Decision rule* and *Current baseline* below refer to the archived
+set unless they say otherwise.
+
 ### The chain
 
 Strictly in order. Note that everything here except this file lives in
@@ -21,7 +27,23 @@ gitignored territory — `evals/manifest.csv`, `evals/photos/` and
 `evals/results/` are all untracked, so none of it produces a commit and none of
 it leaves an audit trail. Record what you changed here.
 
-- [ ] **Resolve the duplicate expected code.** `si_art_number_photo_07.JPG` and
+- [ ] **Record the new baseline on the 2026-10-08 set.** Same procedure as
+      the 2026-09-25 baseline below: `--repeat 3 --workers 1` on a clean tree,
+      with photo hashes and `pip freeze` saved beside the report. The manifest
+      fingerprint changed, so this replaces the baseline rather than being
+      compared against it. The `--note` should state: 27 positives (10
+      garments, 8 Stone Island + 2 C.P. `cp_modern`) + 5 negatives; every
+      positive 1536x2048 or its rotation; four negatives carried over byte for
+      byte, one new (`cp_art_number_photo_3`); `--workers 1`. No positive
+      garment overlaps the archived set, so this is the first out-of-sample
+      result for the whole-label prompt — see the waived check under
+      *Decision rule*.
+
+- [x] **Resolve the duplicate expected code.** Superseded 2026-10-08: the set
+      it describes is archived. The new set repeats garments by design (front,
+      back, rotated and re-angled shots), so 27 positives hold only 10 codes
+      and reads of one garment are correlated, not independent. Original note,
+      archived set: `si_art_number_photo_07.JPG` and
       `si_art_number_photo_12.JPG` share one expected code. Either they are the
       same garment shot twice — one label double-weighted — or one row is wrong
       and a correct read of that photo scores as a miss on every future run.
@@ -71,14 +93,11 @@ it leaves an audit trail. Record what you changed here.
 
 Neither blocks nor is blocked by the sequence above.
 
-- [ ] **Add C.P. photos to the eval set.** Split out of the harness work because
-      it needs garments and a camera, not desk time — bundled, it stalls the
-      whole item. The manifest is 14 `si_numeric` + 4 `si_namespace`: two of
-      five format families, against the spec in `evals/README.md` *Choosing photos*. The
-      catalogue holds 489 `cp_modern` and 86 `si_alpha` rows, so roughly a fifth
-      of stock is a format the eval has never tested. `cp_modern` at minimum;
-      ideally `si_alpha` and one with a trailing colour code. Re-baseline after,
-      since the manifest fingerprint changes.
+- [ ] **Widen format coverage in the eval set.** Partly done 2026-10-08:
+      `cp_modern` (2 garments, 3 positive rows) and a trailing colour code
+      (`5215M226/2525`, 2 rows) are now covered. Still missing: `si_alpha`
+      (`K1S…`, 86 catalogue rows), which the eval has never tested. Re-baseline
+      after, since the manifest fingerprint changes.
 
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
       season, not the decoder.** `labels/pipeline.py:33-35` takes year/season
@@ -91,6 +110,18 @@ Neither blocks nor is blocked by the sequence above.
       CLAUDE.md domain rules.
 
 ## Next
+
+- [ ] **The catalogue misses codes printed with an attached colour suffix.**
+      `labels/pipeline.py:26` passes the raw read to `resolve()`, and
+      `catalogue.normalise()` strips only spacing and case, so a correct read
+      of `5215M226/2525` resolves `miss` while `5215M226` resolves `exact`. The
+      decoder already strips the suffix (`labels/art_number.py:125`); the
+      catalogue side doesn't. Misses don't flag, so nothing surfaces it: the
+      listing just loses its product name. Photo 7 in the 2026-10-08 set hits
+      it on every correct read. The eval is unaffected (it scores against the
+      manifest, not the catalogue). Fix in `catalogue.py` with a test on the
+      synthetic-catalogue pattern so it runs in CI; decide whether
+      `matched_art` should carry the suffix.
 
 - [ ] **Preprocessing experiment, for the six remaining misses.** The prompt
       change fixed most of what looked like a resolution problem (see Known
@@ -185,17 +216,19 @@ Neither blocks nor is blocked by the sequence above.
   present at all, rather than misreading one. Attribution under concurrency
   was checked and is correct: each successful read matched its own photo.
 
-- **The eval set measures a narrower surface than "OCR".** Two of five format
-  families (14 `si_numeric`, 4 `si_namespace`, no C.P. or alphanumeric), four
-  negative cases all of one kind (Certilogo), and three capture regimes mixed
-  into one score. The set is also in-sample: it is the same set the prompt
-  changes were measured and accepted on, so the baseline is a development-set
-  number, not an estimate of production.
+- **The eval set measures a narrower surface than "OCR".** As of 2026-10-08:
+  `si_numeric` and `cp_modern` only, no `si_alpha`; five negatives, all
+  Certilogo-only labels. The set is lopsided: one garment (`741563051`) is 6
+  of 27 positives and four more have 4 rows each, so headline rates are
+  weighted towards a few garments. Judge on the *per photo* table, and expect
+  wins and losses to cluster by garment. Unlike the archived set, the
+  positives are out-of-sample for the current prompt, and they are a single
+  capture regime (1536x2048).
 
-- **`evals/photos/duplicates/` holds four `_dup` copies** (photos 05, 06, 08,
-  15). Inert — the harness is manifest-driven, not glob-driven. If they're
-  second captures of the same labels they'd be useful as a capture-variance
-  check; otherwise delete them.
+- **`evals/archive/photos/duplicates/` holds four `_dup` copies** (archived
+  photos 05, 06, 08, 15). Inert — the harness is manifest-driven, not
+  glob-driven. If they're second captures of the same labels they'd be useful
+  as a capture-variance check; otherwise delete them.
 
 ## Open questions
 
@@ -271,6 +304,11 @@ gain holds.
 
 **2026-09-25 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`.**
 
+> Measured on the **archived** set (manifest md5 `cb3213…`, now in
+> `evals/archive/`). Not comparable with any run on the 2026-10-08 set: the
+> manifest fingerprint differs and no positive garment is shared. Kept as the
+> record of the prompt change; superseded once the new baseline is recorded.
+
 - Report: `evals/results/20260925T171017Z-anthropic_claude-sonnet-5.json`
   (gitignored), with the manifest's photo hashes (`.photos.sha256`) and
   `pip freeze` (`.pip-freeze.txt`) saved beside it — both identical to the
@@ -319,7 +357,9 @@ labelled `partial`.
 | 2026-09-24 | `6e91e2f0e7c059542fde28fb57f58aa8` | Negative case added and row order adjusted. |
 | 2026-09-25 | `4d583ebee12c3d72e3813013f1575437` | Trailing comma removed from the negative-case row; it had added a fourth, unnamed column. No expected value changed. |
 | 2026-09-25 | `743c2fc3525c68b5271c4773a5584c0d` | Ground truth re-checked by eye. Now 18 positives + 4 negatives. The old negative renamed `si_details_photo_04.JPG` → `si_details_photo_01.JPG`; three new negatives `si_details_photo_02`–`04` (Certilogo crops); the three old care-label photos added as positives `si_art_number_photo_16`–`18` (same garments as photos 03, 01, 02). `si_certilogo_01.png` removed: it carries an ART number but is too hard to read. |
-| 2026-09-25 | `cb321369b2b7bd1e3b27eac7a6e9ff74` | `si_details_photo_02`–`04` renamed `.JPG` → `.png` to match their real format; the extension sets the media type sent to the model. No expected value changed. **Current.** |
+| 2026-09-25 | `cb321369b2b7bd1e3b27eac7a6e9ff74` | `si_details_photo_02`–`04` renamed `.JPG` → `.png` to match their real format; the extension sets the media type sent to the model. No expected value changed. Archived 2026-10-08 as `evals/archive/manifest.csv`. |
+| 2026-10-08 | `4f298e4ceb31d67d8d7c8180a332a50a` | New eval set: 27 positives + 5 negatives, 10 garments, none shared with the archived set; first C.P. photos (2 `cp_modern` garments, 1 new negative) and `_rotated` variants. The four Certilogo negatives carried over byte for byte. Not run: 13 paths did not match the files on disk. |
+| 2026-10-08 | `02cfa7cb2065ae27e6944b62731651bc` | Paths fixed to match files on disk (13 rows: zero-padding, `.JPG` case, space in `cp_art_number_photo_2 rotated.jpg`). `5215M226` → `5215M226/2525` on both photo-7 rows: the suffix is printed attached with a slash, per the `evals/README.md` rule; checked by eye. `si_art_number_photo_14_rotated.jpg` re-saved as a real 270° rotation; it had been byte-identical to the original. Expected values of photos 1, 4, 5, 9, 10, 14 and both C.P. positives re-checked by eye. **Current.** |
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.
