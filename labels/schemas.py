@@ -113,7 +113,8 @@ class LabelDetails(BaseModel):
 
 
 class LabelReading(BaseModel):
-    """The two reads joined. Either half may be absent if its photo wasn't given."""
+    """The two reads joined. Either half may be absent if its photo wasn't given;
+    details is always absent while the details read is switched off."""
 
     art: ArtNumberReading = Field(
         default_factory=lambda: ArtNumberReading(art_legible="not_visible")

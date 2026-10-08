@@ -129,13 +129,28 @@ Neither blocks nor is blocked by the sequence above.
       `ArtNumberReading.model_json_schema()` into it too.
 
 - [ ] **Capture usage and cost per call.** `.usage()` is discarded in
-      `transcribe_art` / `transcribe_details`. One JSONL line per call:
+      `transcribe_art`. One JSONL line per call:
       timestamp, model, prompt fingerprint, tokens in/out, latency, stop reason.
-      Two calls per listing, so this is a unit-economics number. Also capture
+      One call per listing while the details read is off, so this is a
+      unit-economics number. Also capture
       `response.model` into `run_metadata()` — check first whether it returns
       anything more specific than `claude-sonnet-5`; if it doesn't, note in
       `evals/README.md` that an unchanged prompt fingerprint beside a moved
       score means suspect the model.
+
+- [ ] **Remove the `details` plumbing if the care-label read stays off.** The
+      web form and CLI take one photo now, so nothing passes `details`. It
+      still runs through `transcribe()` / `extract_bytes()` / `extract()`, with
+      tests that only cover it (`test_brand_falls_back_to_the_printed_brand`,
+      `TestFieldMapping` in `tests/test_pipeline.py`, and in its section 4
+      `test_art_read_falls_back_to_the_details_photo` and
+      `test_two_photos_only_the_art_photo_is_read`).
+
+- [ ] **Brand can come out empty unflagged.** With the details read off,
+      `decoded.brand or det.brand_printed` has no fallback. A clear read with a
+      known season but a brand key missing from `BRAND`, plus a catalogue miss,
+      gives `brand=None` and `needs_review=False`. A `brand-unknown` flag would
+      fix it — a `needs_review` product decision.
 
 - [ ] **CLI error handling.** `main.py:36` calls `extract()` bare, so any API
       failure prints a ~40-line traceback instead of a message. The web path
@@ -217,11 +232,12 @@ Neither blocks nor is blocked by the sequence above.
 - What's the gate for shipping a prompt change — which metric, what margin, how
   many repeats before a difference is believed? *Decision rule* below is the
   one used so far; still open as a general policy.
-- Could `DETAILS_MODEL` run on something cheaper? `labels/transcribe.py:15-17`
-  says it could — "ordinary OCR on large clear text" — never measured. One
-  `--model` run once a baseline exists, with a standing per-listing saving
-  attached. Note that Haiku carries a dated model ID where Sonnet 5 doesn't, so
-  whatever records the model must handle both shapes.
+- When does the care-label read come back, and on what model? It's switched off
+  in `transcribe()` (2026-10-08): only the ART number is wanted for now, and it
+  halves the calls per listing. If it returns, consider a cheaper
+  `DETAILS_MODEL` — "ordinary OCR on large clear text", never measured. Note
+  that Haiku carries a dated model ID where Sonnet 5 doesn't, so whatever
+  records the model must handle both shapes.
 - Is the Flask app localhost-only or reachable? Decides whether the missing
   rate limit and auth on `POST /` matter.
 

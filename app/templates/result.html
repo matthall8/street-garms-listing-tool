@@ -3,14 +3,8 @@
 
 <div class="result">
   <div class="shots-col">
-    {% if art_preview %}
-      <figure><img class="shot" src="{{ art_preview }}" alt="ART number photo">
-        <figcaption>ART number</figcaption></figure>
-    {% endif %}
-    {% if details_preview %}
-      <figure><img class="shot" src="{{ details_preview }}" alt="care label photo">
-        <figcaption>Care label</figcaption></figure>
-    {% endif %}
+    <figure><img class="shot" src="{{ art_preview }}" alt="label photo">
+      <figcaption>Label</figcaption></figure>
   </div>
 
   <div class="reading">
@@ -55,8 +49,9 @@
     {% endif %}
 
     <table>
-      {% for key in ["year", "season", "brand", "garment", "size",
-                     "composition", "made_in", "certilogo", "legibility"] %}
+      {# size, composition, made_in and certilogo come from the details read,
+         which is switched off — see labels/transcribe.py. #}
+      {% for key in ["year", "season", "brand", "garment", "legibility"] %}
         <tr>
           <th>{{ key.replace("_", " ") }}</th>
           <td class="{{ 'empty' if fields[key] is none }}">

@@ -204,14 +204,14 @@ class TestFieldMapping:
 
 
 # ---------------------------------------------------------------------------
-# 4. One photo, two reads
+# 4. One photo, one read — the details read is switched off
 # ---------------------------------------------------------------------------
 
 
 class TestSinglePhotoFallback:
-    def test_one_photo_is_read_by_both_prompts(self, monkeypatch, clean_code):
-        """The C.P. case: everything on one label, so the single photo has to
-        serve both the ART read and the details read."""
+    def test_one_photo_is_passed_to_transcribe(self, monkeypatch, clean_code):
+        """The pipeline hands the photo through untouched; choosing which
+        reads run is transcribe()'s job."""
         seen = []
 
         def fake_transcribe(art=None, details=None):
@@ -230,26 +230,47 @@ class TestSinglePhotoFallback:
             "pipeline passes both through; transcribe() owns the fallback"
         )
 
-    def test_transcribe_falls_back_to_the_other_photo(self, monkeypatch, clean_code):
-        """The fallback itself lives in transcribe(), so test it there: given
-        only one photo, both reads run against it."""
+    @pytest.fixture
+    def calls(self, monkeypatch):
+        """Record which reads transcribe() makes, and on which photo. No code
+        needed, so these run without the private catalogue."""
         from labels import transcribe as T
 
         calls = []
         monkeypatch.setattr(
             T, "transcribe_art",
             lambda data, media_type, model=None: calls.append(("art", data))
-            or ArtNumberReading(art_number_raw=clean_code, art_legible="clear"),
+            or ArtNumberReading(art_legible="not_visible"),
         )
         monkeypatch.setattr(
             T, "transcribe_details",
             lambda data, media_type, model=None: calls.append(("details", data))
             or LabelDetails(),
         )
+        return calls
 
-        T.transcribe(art=PHOTO, details=None)
+    def test_transcribe_makes_only_the_art_call(self, calls):
+        """One API call per listing. A details call here doubles the cost."""
+        from labels import transcribe as T
 
-        assert [c[0] for c in calls] == ["art", "details"]
-        assert calls[0][1] == calls[1][1] == PHOTO[0], (
-            "both reads should have seen the same single photo"
-        )
+        reading = T.transcribe(art=PHOTO, details=None)
+
+        assert calls == [("art", PHOTO[0])]
+        assert reading.details == LabelDetails()
+
+    def test_art_read_falls_back_to_the_details_photo(self, calls):
+        """Given only a details photo, the ART read still runs against it."""
+        from labels import transcribe as T
+
+        T.transcribe(art=None, details=PHOTO)
+
+        assert calls == [("art", PHOTO[0])]
+
+    def test_two_photos_only_the_art_photo_is_read(self, calls):
+        """Given both photos, the second one is currently not read at all."""
+        from labels import transcribe as T
+
+        second = (b"second-photo", "image/png")
+        T.transcribe(art=PHOTO, details=second)
+
+        assert calls == [("art", PHOTO[0])]

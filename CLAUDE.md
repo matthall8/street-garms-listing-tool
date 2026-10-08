@@ -1,12 +1,13 @@
 # CLAUDE.md
 
 Takes photos of Stone Island / C.P. Company garment labels and produces
-structured listing data. Two vision calls transcribe the label, a deterministic
-decoder parses the ART number, and a private catalogue resolves it to a real
+structured listing data. A vision call transcribes the ART number, a
+deterministic decoder parses it, and a private catalogue resolves it to a real
 product. Pre-launch, one developer, no users.
 
 Not an agent loop: `Agent` is pydantic-ai's constrained-extraction wrapper,
-called twice.
+called once per listing. A second, care-label read exists but is switched off
+in `transcribe()` for now.
 
 This file describes stable architecture, domain invariants and working
 constraints. `TODO.md` describes what is currently changing — gaps, in-flight
@@ -17,7 +18,7 @@ work, current scores.
 ```
 main.py  /  app/routes.py
   └─ labels/pipeline.py    extract_bytes() — the only join point
-       ├─ labels/transcribe.py   2 vision calls → LabelReading   (only module that calls an API)
+       ├─ labels/transcribe.py   1 vision call → LabelReading    (only module that calls an API)
        ├─ labels/art_number.py   parse() → Art                   (pure, no I/O)
        └─ labels/catalogue.py    resolve() → Resolution          (reads the private CSV)
                                      ↓
@@ -35,7 +36,7 @@ meet. Nothing imports `app/` or `main.py`.
 | install | `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` |
 | tests | `.venv/bin/python -m pytest` — offline, no API key |
 | CI | `.github/workflows/tests.yml` — `pytest -rs` on push/PR to main, no catalogue, no key |
-| CLI | `.venv/bin/python main.py <art.jpg> [details.jpg]` |
+| CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/flask --app app run` |
 | decoder score | `.venv/bin/python tests/report_art_number.py` |
 | eval, offline | `.venv/bin/python tests/eval_transcription.py --model test --no-save` |

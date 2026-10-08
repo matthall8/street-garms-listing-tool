@@ -3,6 +3,10 @@
 Two separate reads, because they are different jobs. The ART number needs
 character-level precision and strict anti-guessing rules; the care label
 fields are ordinary text OCR where those rules only get in the way.
+
+Only the ART read runs for now. The details read is kept but switched off in
+transcribe(): one call per listing instead of two, and nothing downstream of
+the ART number depends on it.
 """
 
 from functools import cache
@@ -14,7 +18,8 @@ from labels.schemas import ArtNumberReading, LabelDetails, LabelReading
 
 # Two constants, because the two reads are not equally hard. The ART pass is
 # character-level work on small, faded print; the details pass is ordinary OCR
-# on large clear text and could run on something cheaper.
+# on large clear text and could run on something cheaper. DETAILS_MODEL is
+# unused while the details read is switched off.
 ART_MODEL = "anthropic:claude-sonnet-5"
 DETAILS_MODEL = "anthropic:claude-sonnet-5"
 
@@ -168,20 +173,15 @@ def transcribe(
     art: Optional[tuple[bytes, str]] = None,
     details: Optional[tuple[bytes, str]] = None,
 ) -> LabelReading:
-    """Read both halves, from whichever photos the caller supplied.
+    """Read the ART number from whichever photo the caller supplied.
 
-    Each argument is (image_bytes, media_type). Both reads always run: each
-    prefers its own photo but falls back to the other one, so a single photo
-    gets read twice with two focused prompts. That is the C.P. Company case,
-    where the ART number and the care details share one label. Two photos is
-    the Stone Island case, where the ART number lives on a separate tag.
+    Each argument is (image_bytes, media_type). The ART read prefers its own
+    photo but falls back to the details photo. The details read is switched
+    off for now, so `details` on the result is always empty.
     """
     for_art = art or details
-    for_details = details or art
 
     reading = LabelReading()
     if for_art is not None:
         reading.art = transcribe_art(*for_art)
-    if for_details is not None:
-        reading.details = transcribe_details(*for_details)
     return reading

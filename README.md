@@ -3,7 +3,7 @@
 ![Street Garms Logo](assets/logosg.png)
 
 Turns photos of Stone Island and C.P. Company garment labels into structured
-listing data (product name, season, size, composition, origin) for a reseller of
+listing data (product name, season, garment type) for a reseller of
 second-hand pieces. A vision model transcribes the label, a deterministic decoder
 parses the ART number, and a private catalogue resolves it to a real product.
 Pre-launch, one developer, no users.
@@ -17,9 +17,10 @@ season is slow, and one misread character can point to a different garment.
 
 ## The key decision: the model only transcribes
 
-- **Transcribe** (`labels/transcribe.py`): two vision calls, one for the ART
-  number and one for the care label. The prompt forbids identifying, inferring or
-  correcting. An unreadable character becomes `?`, never a guess.
+- **Transcribe** (`labels/transcribe.py`): one vision call for the ART number.
+  (A second, care-label read exists but is switched off for now.) The prompt
+  forbids identifying, inferring or correcting. An unreadable character becomes
+  `?`, never a guess.
 - **Decode** (`labels/art_number.py`): pure code with no I/O. It identifies the
   format family and decodes season and brand from lookup tables.
 - **Resolve** (`labels/catalogue.py`): exact catalogue lookup. On a miss it tries
@@ -42,7 +43,7 @@ those 10 would publish under the wrong title without review.
 ```
 main.py  /  app/routes.py
   └─ labels/pipeline.py    extract_bytes() — the only join point
-       ├─ labels/transcribe.py   2 vision calls → LabelReading   (only module that calls an API)
+       ├─ labels/transcribe.py   1 vision call → LabelReading    (only module that calls an API)
        ├─ labels/art_number.py   parse() → Art                   (pure, no I/O)
        └─ labels/catalogue.py    resolve() → Resolution          (reads the private CSV)
                                      ↓
@@ -83,7 +84,7 @@ tested. All 4 no-code photos are Certilogo-type (one care label, three crops), a
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env                                # add ANTHROPIC_API_KEY
-.venv/bin/python main.py <art.jpg> [details.jpg]    # CLI, prints JSON
+.venv/bin/python main.py <label.jpg>                  # CLI, prints JSON
 .venv/bin/flask --app app run                       # web upload form
 .venv/bin/python -m pytest                          # offline, no API key
 .venv/bin/python tests/report_art_number.py         # decoder score, needs catalogue
@@ -125,5 +126,6 @@ and 153 pass with it.
 ## Deliberate choices and open questions
 
 - **Catalogue misses don't set `needs_review`.** Flagging every miss would make the flag meaningless.
-- **Not an agent loop.** pydantic-ai's `Agent` is a constrained-extraction wrapper, called twice.
+- **Not an agent loop.** pydantic-ai's `Agent` is a constrained-extraction wrapper, called once per listing.
+- **The care-label read is switched off.** Only the ART number is read for now. The details prompt and agent stay in `labels/transcribe.py`, but `transcribe()` doesn't call them, which halves the cost per listing.
 - **Open:** whether clean reads auto-publish or every listing gets human review.
