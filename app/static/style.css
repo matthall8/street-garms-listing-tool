@@ -57,9 +57,6 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.25rem; }
 .drop .hint { display: block; color: var(--dim); font-size: 0.9rem; margin-top: 0.4rem; }
 .drop input { display: none; }
 
-.shots { display: grid; gap: 1rem; grid-template-columns: 1fr; }
-@media (min-width: 40rem) { .shots { grid-template-columns: 1fr 1fr; } }
-
 .preview {
   display: none;
   max-width: 100%;

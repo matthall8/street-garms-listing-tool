@@ -90,7 +90,7 @@ def _upload(filename: str, media_type: str) -> dict:
 def test_no_photo_is_a_400(client):
     response = client.post("/")
     assert response.status_code == 400
-    assert b"Add at least one photo" in response.data
+    assert b"Add a photo of the label" in response.data
 
 
 def test_unsupported_file_type_is_a_400(client):
@@ -119,3 +119,20 @@ def test_supported_type_reaches_the_pipeline(client, extract_calls, media_type):
         {"art": (b"x", media_type), "details": None, "source": filename}
     ]
     assert b"Test Jacket" in response.data
+
+
+def test_a_stray_second_photo_is_ignored(client, extract_calls):
+    """The form has one upload box; a details_photo field from an old form or
+    a script never reaches the pipeline."""
+    data = _upload("a.png", "image/png")
+    data["details_photo"] = (io.BytesIO(b"y"), "b.png", "image/png")
+    response = client.post("/", data=data, content_type="multipart/form-data")
+    assert response.status_code == 200
+    assert extract_calls == [{"art": (b"x", "image/png"), "details": None, "source": "a.png"}]
+
+
+def test_a_second_photo_alone_is_a_400(client, extract_calls):
+    data = {"details_photo": (io.BytesIO(b"y"), "b.png", "image/png")}
+    response = client.post("/", data=data, content_type="multipart/form-data")
+    assert response.status_code == 400
+    assert extract_calls == []

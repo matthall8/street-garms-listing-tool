@@ -21,19 +21,12 @@ def cli() -> None:
         type=Path,
         help="photo of the ART number tag (default: images/label.png)",
     )
-    ap.add_argument(
-        "details_image",
-        nargs="?",
-        type=Path,
-        help="optional photo of the care label (size, composition, origin)",
-    )
     args = ap.parse_args()
 
-    for image in (args.art_image, args.details_image):
-        if image is not None and not image.is_file():
-            ap.error(f"no such image: {image}")
+    if not args.art_image.is_file():
+        ap.error(f"no such image: {args.art_image}")
 
-    print(json.dumps(asdict(extract(args.art_image, args.details_image)), indent=2))
+    print(json.dumps(asdict(extract(args.art_image)), indent=2))
 
 
 if __name__ == "__main__":

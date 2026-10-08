@@ -138,14 +138,11 @@ Neither blocks nor is blocked by the sequence above.
       `evals/README.md` that an unchanged prompt fingerprint beside a moved
       score means suspect the model.
 
-- [ ] **One photo in, end to end.** The details read is off, so a second photo
-      is now never read (`transcribe()` uses it only when there is no first
-      photo). Remove the "Second tag" upload box (`app/templates/index.html`)
-      and its hint, which still sends the ART tag to the ignored box; the
-      `details_image` CLI argument and its help (`main.py`); then the `details`
-      plumbing through `transcribe()` / `extract_bytes()` / `extract()` and the
+- [ ] **Remove the `details` plumbing if the care-label read stays off.** The
+      web form and CLI take one photo now, so nothing passes `details`. It
+      still runs through `transcribe()` / `extract_bytes()` / `extract()`, with
       tests that only cover it (`test_brand_falls_back_to_the_printed_brand`,
-      `TestFieldMapping`).
+      `TestFieldMapping`, the details-photo fallback in section 4).
 
 - [ ] **Brand can come out empty unflagged.** With the details read off,
       `decoded.brand or det.brand_printed` has no fallback. A clear read with a

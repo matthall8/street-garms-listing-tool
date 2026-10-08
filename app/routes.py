@@ -32,35 +32,23 @@ def index():
 def capture():
     try:
         art = _read("art_photo")
-        details = _read("details_photo")
     except ValueError as exc:
         return render_template("index.html", error=str(exc)), 400
 
-    if art is None and details is None:
+    if art is None:
         return render_template(
-            "index.html", error="Add at least one photo — the ART number tag, the care label, or both."
+            "index.html", error="Add a photo of the label showing the ART number."
         ), 400
 
-    names = [n for n in (art and art[1], details and details[1]) if n]
+    (data, media_type), name = art
     try:
-        extraction = extract_bytes(
-            art=art[0] if art else None,
-            details=details[0] if details else None,
-            source=", ".join(names),
-        )
+        extraction = extract_bytes(art=(data, media_type), source=name)
     except Exception as exc:  # surface failures in the page, not the console
         return render_template("index.html", error=f"Extraction failed: {exc}"), 502
-
-    def preview(photo):
-        if not photo:
-            return None
-        data, media_type = photo[0]
-        return f"data:{media_type};base64,{base64.b64encode(data).decode()}"
 
     return render_template(
         "result.html",
         extraction=extraction,
         fields=asdict(extraction),
-        art_preview=preview(art),
-        details_preview=preview(details),
+        art_preview=f"data:{media_type};base64,{base64.b64encode(data).decode()}",
     )
