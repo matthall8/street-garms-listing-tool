@@ -232,6 +232,7 @@ images/
 data/
 evals/photos/
 evals/results/
+evals/archive/
 evals/manifest.csv
 !evals/manifest.example.csv
 
