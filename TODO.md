@@ -38,7 +38,7 @@ Strictly in order; each step's PR merges before the next starts. Commit, tag,
 then run, and record every result here. Photos, manifest and results stay
 gitignored, so this file is their only audit trail.
 
-- [ ] **1. Land the decision (this branch).** Commit the 2026-10-09 md5 row on
+- [x] **1. Land the decision.** Commit the 2026-10-09 md5 row on
       its own, then the wording in `README.md` and `evals/README.md`, then
       ADR-0001 with the CLAUDE.md citation and this file. Code-reviewer, PR, merge.
 
