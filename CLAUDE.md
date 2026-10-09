@@ -116,7 +116,19 @@ manifest md5. Never quote a catalogue product name.
 - Never weaken, skip or delete a test, and never alter eval ground truth, to
   make a result pass. `evals/manifest.csv` is hand-checked by eye.
 - Record the measured effect alongside the change.
-- Run the code-reviewer subagent before merging.
+- Branches, review and PRs follow *Pull requests* below.
+
+## Pull requests
+
+1. One topic per branch. Never commit to `main`.
+2. Before opening a PR, run the code-reviewer subagent. Fix or note each
+   finding; if anything changed, re-run it so the report matches HEAD.
+3. Write the PR body from `.github/pull_request_template.md` into
+   `docs/pr-body.md` (gitignored), including the reviewer's report. Then
+   stop and ask me to read it: the PR is public.
+4. After I approve: `git push -u origin <branch>`, then
+   `gh pr create --base main --title "<title>" --body-file docs/pr-body.md`.
+5. Never merge. I merge after reading the diff and the CI result.
 
 ## Where to look
 
