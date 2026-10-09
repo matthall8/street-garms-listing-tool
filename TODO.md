@@ -42,7 +42,11 @@ gitignored, so this file is their only audit trail.
       its own, then the wording in `README.md` and `evals/README.md`, then
       ADR-0001 with the CLAUDE.md citation and this file. Code-reviewer, PR, merge.
 
-- [ ] **2. Ground truth for run 0.** Add `expected_line` (the ART line exactly
+- [ ] **2. Ground truth for run 0.** First, as its own commit: add an opaque
+      `id` column to the manifest (not derived from filename or code), plus
+      `id` in `evals/manifest.example.csv` and the columns table in
+      `evals/README.md`. Edit by hand; add an md5 row noting "added id column,
+      no labels changed". Then add `expected_line` (the ART line exactly
       as printed, same-line caption included) and `expected_style` to the
       manifest, checked by eye before any result exists. Write both rules in
       `evals/README.md` and mark `expected_art_number` as legacy. Fix the stale
@@ -150,6 +154,14 @@ product names, not safety.
 
 Neither blocks nor is blocked by the sequence above.
 
+- [ ] **Split and scrub this file.** It breaks CLAUDE.md's private-data rule
+      (photo filenames, code literals, a catalogue product name) and is ~30 KB.
+      Keep Now, Next and Open questions here; move baselines and the md5
+      ledger to `evals/BASELINES.md` and the decision rule to an ADR. Refer to
+      photos by manifest `id` (row number plus md5 until it exists). The
+      code-reviewer counts code-shaped tokens and flags increases, so this
+      file doesn't block reviews meanwhile.
+
 - [ ] **Widen format coverage in the eval set.** Partly done 2026-10-08:
       `cp_modern` (2 garments, 3 positive rows) and a trailing colour code
       (`5215M226/2525`, 2 rows) are now covered. Still missing: `si_alpha`
@@ -251,7 +263,12 @@ put it in the `--note`.
       `response.model` into `run_metadata()` — check first whether it returns
       anything more specific than `claude-sonnet-5`; if it doesn't, note in
       `evals/README.md` that an unchanged prompt fingerprint beside a moved
-      score means suspect the model.
+      score means suspect the model. In the same piece of work, set the
+      Anthropic client's retries and the agent's output retries explicitly
+      (a client passed through pydantic-ai's provider, without breaking the
+      `@cache`d `get_art_agent(model)` the eval harness relies on), log the
+      request count per call, and record the resulting worst-case latency in
+      CLAUDE.md beside the timeout rule.
 
 - [ ] **Remove the `details` plumbing if the care-label read stays off.** The
       web form and CLI take one photo now, so nothing passes `details`. It

@@ -75,16 +75,29 @@ Flagging every miss would make the flag meaningless. This is not a bug — don't
 manifest, results — photos can carry live Certilogo codes. Never commit them,
 never paste a code into a commit message or issue.
 
+Code-shaped literals are allowed only in: the format examples in
+`ART_PROMPT` and the `labels/art_number.py` docstring (and those same
+examples where docs quote them), `evals/manifest.example.csv`, test
+literals already on `main`, and `tests/synthetic.py` (invented codes
+only). Tests that need a real code get it from the catalogue fixtures at
+runtime. In tracked docs, refer to a photo by its manifest `id`, never by
+filename; until the manifest has an `id` column, use row number plus
+manifest md5. Never quote a catalogue product name.
+
 ## Engineering constraints
 
 - `labels/transcribe.py` is the only module permitted to call an API. Everything
   else is pure or reads local files — that's why the suite is offline and fast.
 - All model calls use the shared 60s timeout (`MODEL_SETTINGS`). Do not remove
-  it; it is the only hard cap in the system.
+  it. It applies per HTTP attempt, so retries multiply it. When changing how a
+  model call is made (agent construction, model settings, the client), set the
+  Anthropic client's retries and the agent's output retries explicitly; don't
+  rely on library defaults.
 - Agents are built lazily and `@cache`d. Importing the module must not require
   an API key.
 - `Extraction` stays JSON-serialisable and `all_reads` stays plain dicts
-  (`tests/test_pipeline.py:198-199`) — `main.py` does `json.dumps(asdict(...))`.
+  (`TestFieldMapping::test_ambiguous_characters_serialise_to_dicts` in
+  `tests/test_pipeline.py`) — `main.py` does `json.dumps(asdict(...))`.
 - In tests, patch the name as `pipeline.py` imported it
   (`labels.pipeline.transcribe`), not the source function
   (`tests/test_pipeline.py:4-7`). Same for the `@cache`d `load_catalogue`.
