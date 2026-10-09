@@ -56,7 +56,9 @@ rule at runtime.
 
 **Transcription only transcribes** (`labels/transcribe.py`, `ART_PROMPT`). It
 must not identify, authenticate, infer or correct. Correction belongs downstream
-in `catalogue.py`, where it gets recorded.
+in `catalogue.py`, where it gets recorded. What the model returns, what code
+derives from it, and the terms for each stage (`art_line`, `style_code`, …) are
+in `adr/0001-model-vs-code-responsibilities.md`.
 
 **Unreadable characters become `?`, never a guess.** `not_visible` means no ART
 number is present in the photo; `illegible` means one is present but unreadable.
@@ -69,7 +71,7 @@ is confident (`labels/catalogue.py`, `Resolution`).
 Flagging every miss would make the flag meaningless. This is not a bug — don't
 "fix" it without changing the product semantics.
 
-**Private data never enters git** (`.gitignore:229-236`). Catalogue, photos,
+**Private data never enters git** (`.gitignore:229-238`). Catalogue, photos,
 manifest, results — photos can carry live Certilogo codes. Never commit them,
 never paste a code into a commit message or issue.
 
@@ -110,3 +112,4 @@ never paste a code into a commit message or issue.
 - `tests/test_resolve.py`, `TestCorrectionSafety` — why correction safety is the
   number that matters
 - `.claude/agents/code-reviewer.md` — review rules
+- `adr/` — architecture decisions; `0001` splits the work between model and code

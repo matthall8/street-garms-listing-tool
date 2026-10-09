@@ -4,7 +4,19 @@ Current state and in-flight work. Stable architecture and invariants are in CLAU
 
 ## Now
 
-**Done since last update:** `.env` key fixed and `.env.example` added (#11);
+**2026-10-09: the approach changed.** Replaying the 2026-10-08 baseline's
+reads through the decoder, catalogue and gate showed 21% of positive reads
+would publish wrong with no flag, mostly where a neighbouring code was joined
+onto the ART number and declared `clear`. The model now transcribes the ART
+number's whole printed line, and code does the interpreting:
+`adr/0001-model-vs-code-responsibilities.md` holds the decision, the terms
+(`art_line`, `style_code`, …), the gate and the rollout. A local scan found a
+Data Matrix on newer Stone Island back tags that carries the ART number, `V`
+code and size. Only 4 of 33 photos carry one (all 4 decode), so it becomes an
+optional stage (ADR-0002, to write), not the core. The catalogue is frozen while the
+reading is the focus. *The chain* below is the plan of record.
+
+**Done before 2026-10-09:** `.env` key fixed and `.env.example` added (#11);
 negative cases implemented, tested and documented (#12); the six pre-port
 reports archived to `evals/results/archive/`. On 2026-09-25 the manifest grew
 to 18 positives + 4 negatives, all ground truth re-checked by eye (see the md5
@@ -14,7 +26,7 @@ it was removed rather than used. Flask route tests merged (#18). CI added
 clean runner with no catalogue, 111 tests pass and 42 skip. What it does not
 cover is under *Next*.
 
-On 2026-10-08 the eval set was replaced: 27 positives + 5 negatives, ten new
+On 2026-10-08 the eval set was replaced: 28 positives + 5 negatives, ten new
 garments including the first two C.P. pieces. The previous set, its manifest
 and photos are in `evals/archive/` (gitignored). Photo numbers in *Known
 issues*, *Decision rule* and *Current baseline* below refer to the archived
@@ -22,72 +34,117 @@ set unless they say otherwise.
 
 ### The chain
 
-Strictly in order. Note that everything here except this file lives in
-gitignored territory — `evals/manifest.csv`, `evals/photos/` and
-`evals/results/` are all untracked, so none of it produces a commit and none of
-it leaves an audit trail. Record what you changed here.
+Strictly in order; each step's PR merges before the next starts. Commit, tag,
+then run, and record every result here. Photos, manifest and results stay
+gitignored, so this file is their only audit trail.
 
-- [ ] **Record the new baseline on the 2026-10-08 set.** Same procedure as
-      the 2026-09-25 baseline below: `--repeat 3 --workers 1` on a clean tree,
-      with photo hashes and `pip freeze` saved beside the report. The manifest
-      fingerprint changed, so this replaces the baseline rather than being
-      compared against it. The `--note` should state: 27 positives (10
-      garments, 8 Stone Island + 2 C.P. `cp_modern`) + 5 negatives; every
-      positive 1536x2048 or its rotation; four negatives carried over byte for
-      byte, one new (`cp_art_number_photo_3`); `--workers 1`. No positive
-      garment overlaps the archived set, so this is the first out-of-sample
-      result for the whole-label prompt — see the waived check under
-      *Decision rule*.
+- [x] **1. Land the decision.** Commit the 2026-10-09 md5 row on
+      its own, then the wording in `README.md` and `evals/README.md`, then
+      ADR-0001 with the CLAUDE.md citation and this file. Code-reviewer, PR, merge.
 
-- [x] **Resolve the duplicate expected code.** Superseded 2026-10-08: the set
-      it describes is archived. The new set repeats garments by design (front,
-      back, rotated and re-angled shots), so 27 positives hold only 10 codes
-      and reads of one garment are correlated, not independent. Original note,
-      archived set: `si_art_number_photo_07.JPG` and
-      `si_art_number_photo_12.JPG` share one expected code. Either they are the
-      same garment shot twice — one label double-weighted — or one row is wrong
-      and a correct read of that photo scores as a miss on every future run.
-      Note the 18 positives hold only 14 distinct codes: photos 16–18 are the
-      care labels of the garments in 03, 01 and 02 by design, so wins on a pair
-      are correlated, not independent. Also worth an eye: `01`/`06` and
-      `10`/`14` are one character apart, `07`/`13`, `09`/`10` and `12`/`13` two;
-      and photos `01` and `11` expect codes that are not in the catalogue.
-      Note on `01`: its difference from `06` is `5` vs `1`, which is not a
-      confusion pair, so the catalogue cannot bridge a misread there. A correct
-      read of `01` resolves as `miss`, not `corrected`. Photo 01 is also
-      `si_namespace` (`no-season-in-code`), so it sets `needs_review` whatever
-      the read. Checking ground truth *before* any result exists is validation,
-      not editing it to make a run pass.
+- [ ] **2. Ground truth for run 0.** Add `expected_line` (the ART line exactly
+      as printed, same-line caption included) and `expected_style` to the
+      manifest, checked by eye before any result exists. Write both rules in
+      `evals/README.md` and mark `expected_art_number` as legacy. Fix the stale
+      `upside down` note on `si_art_number_photo_9_rotated.jpg`: its Certilogo
+      QR reads −2°, so the photo is upright. Add an md5 row.
 
-- [x] **Decide the negative count — now or never for this baseline.** Four
-      negatives as of 2026-09-25: one 4032x3024 care label and three ~976px
-      Certilogo crops, a third capture regime. All four are CLG-type; an RN/CA
-      care label or importer tag would widen what fabrication is tested on.
+- [ ] **3. `Resolution.matched_art` → `matched_key`.** Its own PR with no
+      change in behaviour, so run 0's PR holds only behaviour.
 
-- [x] **Record the manifest md5 below before and after any edit.** It is the
-      only tripwire on gitignored ground truth. Keep doing it.
+- [ ] **4. Run 0, behaviour (PR, no API calls).**
+      - Family split in `art_number.py` into `style_code`, `art_suffix`,
+        `art_lot` and `art_trailing`. Spaces carry no meaning: C.P. splits by
+        fixed length, Stone Island numeric only at a printed slash. A remainder
+        becomes `art_suffix` or `art_lot` only when it matches a shape seen in
+        the catalogue; anything else is `art_trailing`, which flags.
+      - `pipeline.py` passes `style_code` to the existing `resolve()` (see
+        *Catalogue: frozen*).
+      - `review_reasons: list[str]` on `Extraction`, with
+        `needs_review = bool(review_reasons)`. Consistency checks in plain
+        code, not Pydantic validators, which would trigger hidden retries.
+      - Tests for every observed failure shape: a C.P. colour code after a
+        space; `V00NN` from the next line, with and without an invented slash;
+        a slash suffix; a lot code; an `si_alpha` key with an 11-character base.
+      - The era length table waits for the catalogue inspection (*Parallel*).
 
-- [x] **Record the baseline.** Done 2026-09-25 — see *Current baseline*.
-      `--repeat 3 --workers 1` on a clean tree. Serial is cheap insurance
-      against a suspected concurrency stall in pydantic-ai's
-      thread-per-sync-task model; not reproduced against the real API here
-      (5 runs, ~60 calls, no stalls), so it is precaution, not a fix. The
-      `--note` should state: in-sample, Stone Island only, 18 positives + 4
-      negatives, and the capture split — 4032x3024 (01–04, 16–18 and the
-      `si_details_photo_01` negative), 1200x1600 (05–15), ~976px crops (the
-      other three negatives). Save `pip freeze` and the hashes of the
-      manifest's photos only beside the report — the photos are gitignored, so
-      nothing else records which bytes were scored. Hashing the whole folder
-      would break once held-out photos are added:
-      `tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`
+- [ ] **5. Run 0, measurement (PR), then the new baseline.**
+      - Scorer: wrong-and-unflagged (the primary metric), style-exact through
+        the pipeline, and line-exact against `expected_line`, counted per
+        garment-side as well as per photo. Reads both `art_number_raw` and
+        `art_line`.
+      - Merge, tag, and replay the 2026-10-08 baseline's saved reads. Record
+        the result as the **new baseline**. The 2026-10-08 report stays as the
+        record of contract v1: superseded, not deleted.
+      - From the replay: set ADR-0001's success thresholds; decide its pending
+        items (atypical length plus a miss, confusion-pair neighbours,
+        uninspected pairs); draft ADR-0003 and ADR-0004. ADR-0004 changes
+        CLAUDE.md's "misses do NOT flag" invariant, so accepting it updates
+        CLAUDE.md in the same PR.
 
-- [x] **Whole-label prompt change.** `ART_PROMPT` now expects the ART number
-      to be printed bare, anywhere on a whole label, and names the nearby
-      numbers not to confuse it with. Measured 2026-09-25 against the baseline
-      and passed — see *Decision rule* and *Current baseline*. When comparing
-      runs, use the *per photo* table's x/3 counts, not the `--baseline` diff's
-      per-case flips (`photo [2/3]` against `photo [2/3]` are unrelated
-      samples).
+- [ ] **6. The 2D-code stage (PR), then the rotation run.**
+      - `labels/matrix.py`: decode, keep Data Matrix only, parse
+        `ART-Vnnnn-size-TOM…`, and return a `CodeEvidence` (angle, art,
+        variant, size, outcome). The payload's tail is the garment's CLG code:
+        drop it at parse, and never store, log or raise it. QR and Code 128
+        contents are never returned.
+      - Rotation from any decoded code's angle with
+        `im.rotate(angle, expand=True)` (sign verified on photos 8, 9 and 13),
+        behind a flag that is off by default.
+      - Per-field merge in `pipeline.py` with a `source` for each value; a
+        disagreement with the vision read becomes a review reason.
+        Synthetic-code tests (`zxing-cpp` can write codes as well as read
+        them); `zxing-cpp` and `pillow` in `requirements.txt`. Write ADR-0002.
+      - The vision path must be complete when the stage returns nothing. The
+        eval scores it with the stage off and reports the 2D results
+        separately.
+      - Then one paid run: rotation on, against the new baseline.
+
+- [ ] **7. Model runs 1–4**, as in ADR-0001's *Rollout*. One PR each; commit,
+      tag and run on the branch, and merge only if it passes. Before run 1,
+      make the eval's `prompt` fingerprint cover the output schema (see
+      *Next*): runs 2–4 add output fields, which change only the schema. Run 2
+      (orientation) runs with rotation off, or the upside-down photos arrive
+      upright. Decide whether size is mandatory before run 4.
+
+- [ ] **8. Capture guidance in the web UI.** Back tag with the square code in
+      frame; decode on upload; prompt for a retake if nothing decodes.
+
+- [ ] **9. Launch decision** on the held-out set: do clean reads auto-publish,
+      or is every listing reviewed? (See *Open questions*.)
+
+### Parallel, by eye
+
+Starts now; each item blocks only what it names.
+
+- [ ] **Catalogue inspection.** The six bare/compound duplicates and the other
+      bare/compound pairs (~31 in all); the ~25 keys with a suffix typed on and
+      no separator, many filed under a different product name from their bare
+      key; and the odd rows: the `si_alpha` key with an 11-character base, the
+      other 11-character `si_alpha` keys, the 9-character `cp_modern` key, the
+      11-character `cp_transitional` key, `0126422791` (the only key starting
+      `01`), and a 10-character `si_numeric` key containing a `V00NN`-like run.
+      Settle the Stone Island numeric era length table from bare-looking rows:
+      it is frozen data, so a person decides it. Blocks only the era table and
+      the uninspected-pairs decision.
+- [ ] **Photos.** `K1S…` labels, which decide whether `S0…` codes print on the
+      ART line; new garments for a held-out set, not looked at while tuning;
+      more front labels, to confirm the Certilogo tag sits level with the EAC
+      label that carries the ART number (2 of 2 so far).
+- [x] **Positive count.** 28 is right: the manifest has 28 positive rows,
+      and the report's `.photos.sha256` lists 33 photos. The 27 in the
+      2026-10-08 run note and the `4f298e…` md5 row was a miscount, not a
+      ground-truth edit; whether that version had 27 rows can no longer be
+      checked.
+
+### Catalogue: frozen
+
+`labels/catalogue.py` keeps its current behaviour while the reading is the
+focus. Planned, not started: an index derived from the unchanged CSV, a
+confusion-pair margin on exact hits, and a flag on uninspected pairs
+(ADR-0003 and ADR-0004). Known limitation meanwhile: looked up by
+`style_code`, the 42 compound keys miss. Misses don't flag, so this costs
+product names, not safety.
 
 ### Independent of the chain
 
@@ -109,10 +166,31 @@ Neither blocks nor is blocked by the sequence above.
       truth wins, not a refactor — once decided, the precedence rule belongs in
       CLAUDE.md domain rules.
 
+### Done (previous chain)
+
+Superseded by the 2026-10-08 set and the chain above: the duplicate-code
+check, the negative count, both 2026-09-25 baselines, the whole-label prompt
+change and the 2026-10-08 baseline. The full notes are in git history before
+the 2026-10-09 TODO update.
+
+### Eval run procedure
+
+`--repeat 3 --workers 1` on a clean tree. Save the manifest's photo hashes and
+`pip freeze` beside the report, and record the manifest md5 before and after
+any edit. Hash only the manifest's photos, not the whole folder:
+`tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`.
+Serial running is a precaution against a suspected pydantic-ai concurrency
+stall, never reproduced. `--workers` isn't recorded in the report header, so
+put it in the `--note`.
+
 ## Next
 
 - [ ] **The catalogue misses codes printed with an attached colour suffix.**
-      `labels/pipeline.py:26` passes the raw read to `resolve()`, and
+      Will be fixed for bare catalogue rows by chain step 4, which passes
+      `style_code` to `resolve()` instead of the raw read. Compound keys still
+      miss until ADR-0003's index (see *Catalogue: frozen*); `matched_key`
+      replaces `matched_art` in step 3. Original note: `labels/pipeline.py:27`
+      passes the raw read to `resolve()`, and
       `catalogue.normalise()` strips only spacing and case, so a correct read
       of `5215M226/2525` resolves `miss` while `5215M226` resolves `exact`. The
       decoder already strips the suffix (`labels/art_number.py:125`); the
@@ -121,7 +199,7 @@ Neither blocks nor is blocked by the sequence above.
       it on every correct read. The eval is unaffected (it scores against the
       manifest, not the catalogue). Fix in `catalogue.py` with a test on the
       synthetic-catalogue pattern so it runs in CI; decide whether
-      `matched_art` should carry the suffix.
+      `matched_key` should carry the suffix.
 
 - [ ] **Preprocessing experiment, for the six remaining misses.** The prompt
       change fixed most of what looked like a resolution problem (see Known
@@ -130,7 +208,9 @@ Neither blocks nor is blocked by the sequence above.
       with no crop and no resize, so nothing here is measured or controlled.
       Test order: re-shoot those labels at full resolution (free, no code),
       then try cropping to the label region before the call. Confirm the API's
-      own downscale threshold while you're in there.
+      own downscale threshold while you're in there. Orientation is covered
+      separately by chain step 6 (rotation from 2D codes), so this item is
+      about crop and resolution only.
 
 - [ ] **Run the `needs_review` gate invariants in CI.** CI has no catalogue,
       so both gate tests skip there: corrections forcing review
@@ -142,7 +222,8 @@ Neither blocks nor is blocked by the sequence above.
       add new tests on that pattern alongside the real-catalogue ones, not
       instead of them.
 
-- [ ] **Decoder unit tests for `labels/art_number.py`** — no pytest coverage,
+- [ ] **Decoder unit tests for `labels/art_number.py`.** The split's tests come
+      with chain step 4; the rest of this item stands. No pytest coverage,
       needs no catalogue, so they run in full in CI. Write the
       uncontroversial half now: format-family detection, the `len(s) >= 8`
       truncation guard, the `/181` colour-code strip, the `222` flag, the
@@ -151,7 +232,10 @@ Neither blocks nor is blocked by the sequence above.
       expected value.
 
 - [ ] **`ArtNumberReading`'s docstring still says "framed on the ART number
-      tag"** (`labels/schemas.py`). Unlike a function docstring, it reaches
+      tag"** (`labels/schemas.py`). **The fingerprint fix is needed before
+      chain step 7, run 1:** runs 2–4 add output fields, which change only the
+      schema, so without it their report headers would show an unchanged
+      prompt. Unlike a function docstring, it reaches
       the model: pydantic puts it in the output schema sent with every call.
       So updating it to match the whole-label prompt is a behaviour change —
       make it on its own and measure it. Related gap: the eval's `prompt`
@@ -175,13 +259,17 @@ Neither blocks nor is blocked by the sequence above.
       tests that only cover it (`test_brand_falls_back_to_the_printed_brand`,
       `TestFieldMapping` in `tests/test_pipeline.py`, and in its section 4
       `test_art_read_falls_back_to_the_details_photo` and
-      `test_two_photos_only_the_art_photo_is_read`).
+      `test_two_photos_only_the_art_photo_is_read`). Run 4 of ADR-0001's
+      rollout moves size, brand and colour into the single ART call; if it
+      passes, the details read and this plumbing can go.
 
 - [ ] **Brand can come out empty unflagged.** With the details read off,
       `decoded.brand or det.brand_printed` has no fallback. A clear read with a
       known season but a brand key missing from `BRAND`, plus a catalogue miss,
       gives `brand=None` and `needs_review=False`. A `brand-unknown` flag would
-      fix it — a `needs_review` product decision.
+      fix it — a `needs_review` product decision. Run 4's `brand_printed`
+      cross-check covers part of this, but only where brand text is printed:
+      back tags carry none.
 
 - [ ] **CLI error handling.** `main.py:36` calls `extract()` bare, so any API
       failure prints a ~40-line traceback instead of a message. The web path
@@ -234,7 +322,7 @@ Neither blocks nor is blocked by the sequence above.
 - **The eval set measures a narrower surface than "OCR".** As of 2026-10-08:
   `si_numeric` and `cp_modern` only, no `si_alpha`; five negatives, all
   Certilogo-only labels. The set is lopsided: one garment (`741563051`) is 6
-  of 27 positives and four more have 4 rows each, so headline rates are
+  of 28 positives and four more have 4 rows each, so headline rates are
   weighted towards a few garments. Judge on the *per photo* table, and expect
   wins and losses to cluster by garment. Unlike the archived set, the
   positives are out-of-sample for the current prompt, and they are a single
@@ -250,7 +338,11 @@ Neither blocks nor is blocked by the sequence above.
 - **Auto-accept clean reads, or human review every listing?** Decides what
   "better OCR" means: if a human checks each listing, overconfidence is mildly
   interesting; if clean reads auto-publish, it's the only metric worth driving
-  down. Answer before spending eval runs.
+  down. Answer before spending eval runs. Now chain step 9; until then the
+  guardrails and ADR-0004 assume clean reads may auto-publish.
+- **Is size mandatory for a listing?** Decides whether an uncertain size
+  blocks publishing or is just dropped. Needed before run 4 of ADR-0001's
+  rollout.
 - **What fraction of real listings miss the catalogue?** Decides how much the
   decoder carries — on a hit the product name supplies the season, on a miss the
   decoder is the only source.
@@ -303,6 +395,10 @@ every count below straight from the report's *per photo* table: its `missed`,
     `clear`, wrong, and no ambiguous characters flagged.
 - The second guardrail assumes clean reads may be auto-accepted (see Open
   questions). Revisit it if every listing gets human review.
+- **For the contract v2 runs** (chain step 7), this rule still decides
+  `missed` and the guardrails. ADR-0001 adds wrong-and-unflagged, counted per
+  garment-side, as the primary metric; its thresholds are set from run 0.
+  Photo numbers in this section refer to the archived set.
 
 **Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos
 01, 05, 07, 11, 13, 14, 15, 16, eight different garments — and 0 losses
@@ -317,6 +413,37 @@ C.P. photos*), run the previous and current baselines on them and check the
 gain holds.
 
 ## Current baseline
+
+**2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
+(contract v1).** It stops being the comparison point once chain step 5
+records the replay under the new scorer; it stays as the record of contract
+v1.
+
+- Report: `evals/results/20261008T154722Z-anthropic_claude-sonnet-5.json`
+  (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
+- Code: tag `eval-baseline-2026-10-08` → `6cede38`, `dirty: False`; prompt
+  fingerprint `4fc3298aa412`.
+- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; only notes have
+  changed since. `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
+  positive (28 photos of 10 garments) and 15 negative.
+
+| rate | value |
+|---|---|
+| missed | 25.0% |
+| exact, positives | 46.4% (39 of 84) |
+| overconfident | 28.6% |
+| clear but wrong | 38.1% |
+| flagged but correct | 0% |
+| fabricated on no-code photos | 0% |
+| fabricated and declared clear | 0% |
+| wrong and unflagged (replay through decoder, catalogue and gate; not in the report) | 21% |
+
+The largest failure was neighbouring codes joined onto the ART number and
+declared `clear` (ADR-0001, *Evidence*). 31 of 33 photos returned the same
+read on all three repeats; one upside-down photo returned three different
+invented codes.
+
+### Previous baselines (archived set)
 
 **2026-09-25 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`.**
 
@@ -375,7 +502,8 @@ labelled `partial`.
 | 2026-09-25 | `743c2fc3525c68b5271c4773a5584c0d` | Ground truth re-checked by eye. Now 18 positives + 4 negatives. The old negative renamed `si_details_photo_04.JPG` → `si_details_photo_01.JPG`; three new negatives `si_details_photo_02`–`04` (Certilogo crops); the three old care-label photos added as positives `si_art_number_photo_16`–`18` (same garments as photos 03, 01, 02). `si_certilogo_01.png` removed: it carries an ART number but is too hard to read. |
 | 2026-09-25 | `cb321369b2b7bd1e3b27eac7a6e9ff74` | `si_details_photo_02`–`04` renamed `.JPG` → `.png` to match their real format; the extension sets the media type sent to the model. No expected value changed. Archived 2026-10-08 as `evals/archive/manifest.csv`. |
 | 2026-10-08 | `4f298e4ceb31d67d8d7c8180a332a50a` | New eval set: 27 positives + 5 negatives, 10 garments, none shared with the archived set; first C.P. photos (2 `cp_modern` garments, 1 new negative) and `_rotated` variants. The four Certilogo negatives carried over byte for byte. Not run: 13 paths did not match the files on disk. |
-| 2026-10-08 | `02cfa7cb2065ae27e6944b62731651bc` | Paths fixed to match files on disk (13 rows: zero-padding, `.JPG` case, space in `cp_art_number_photo_2 rotated.jpg`). `5215M226` → `5215M226/2525` on both photo-7 rows: the suffix is printed attached with a slash, per the `evals/README.md` rule; checked by eye. `si_art_number_photo_14_rotated.jpg` re-saved as a real 270° rotation; it had been byte-identical to the original. Expected values of photos 1, 4, 5, 9, 10, 14 and both C.P. positives re-checked by eye. **Current.** |
+| 2026-10-08 | `02cfa7cb2065ae27e6944b62731651bc` | Paths fixed to match files on disk (13 rows: zero-padding, `.JPG` case, space in `cp_art_number_photo_2 rotated.jpg`). `5215M226` → `5215M226/2525` on both photo-7 rows: the suffix is printed attached with a slash, per the `evals/README.md` rule; checked by eye. `si_art_number_photo_14_rotated.jpg` re-saved as a real 270° rotation; it had been byte-identical to the original. Expected values of photos 1, 4, 5, 9, 10, 14 and both C.P. positives re-checked by eye. Baseline `eval-baseline-2026-10-08` ran on this. |
+| 2026-10-09 | `1a83e41cb8059ab1b2624a683818a487` | Notes only: `back of label` added to photos 5 and 19, both of which show the back "Art." tag (checked by eye). No photo or expected value changed, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs, so `--baseline` will report it as changed. **Current.** |
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.
