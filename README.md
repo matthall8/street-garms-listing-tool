@@ -10,7 +10,7 @@ Pre-launch, one developer, no users.
 
 ## The problem
 
-Each listing starts with the ART number, the style code on the label. It is often
+Each listing starts with the ART number, the product code on the label. It is often
 faded or garment-dyed, and often printed with no caption among importer text,
 phone numbers and dates. Reading it by eye and then identifying the product and
 season is slow, and one misread character can point to a different garment.

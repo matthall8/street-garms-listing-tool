@@ -32,7 +32,7 @@ a miss.
 
 ### What counts as the ART number
 
-`expected_art_number` is the style code as printed, **plus its colour suffix**
+`expected_art_number` is the ART number as printed, **plus its colour suffix**
 if one is printed attached to it. In the catalogue that is a slash followed by
 2–4 digits or a single letter (`581540846/181`), or a hyphen followed by a
 single letter. Leave out:
