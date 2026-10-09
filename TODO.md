@@ -229,10 +229,14 @@ put it in the `--note`.
       (`tests/test_pipeline.py:88-89`) and misses not flagging
       (`tests/test_pipeline.py:92`), along with `TestResolveCorrected` and
       `TestCorrectionSafety`. A green CI run says nothing about the gate.
-      `TestResolveAmbiguous` (`tests/test_resolve.py:140-162`) already
+      `TestResolveAmbiguous` (`tests/test_resolve.py:131-167`) already
       monkeypatches `labels.catalogue.load_catalogue` with a synthetic dict;
       add new tests on that pattern alongside the real-catalogue ones, not
-      instead of them.
+      instead of them. Put the invented codes in `tests/synthetic.py` (the
+      location CLAUDE.md's private-data rule allows), built by hand from the
+      decoder tables, never derived from the catalogue. Also add the two gate
+      clauses with no test of their own: a catalogue `ambiguous` result, and
+      `year is None` on a recognised format with no flags.
 
 - [ ] **Decoder unit tests for `labels/art_number.py`.** The split's tests come
       with chain step 4; the rest of this item stands. No pytest coverage,
