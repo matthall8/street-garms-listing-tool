@@ -124,8 +124,11 @@ manifest md5. Never quote a catalogue product name.
 2. Before opening a PR, run the code-reviewer subagent. Fix or note each
    finding; if anything changed, re-run it so the report matches HEAD.
 3. Write the PR body from `.github/pull_request_template.md` into
-   `docs/pr-body.md` (gitignored), including the reviewer's report. Then
-   stop and ask me to read it: the PR is public.
+   `docs/pr-body.md` (gitignored), including the reviewer's report. Count
+   both privacy patterns from the reviewer's Privacy check in the body
+   (`git grep --no-index -o -P … -- docs/pr-body.md | wc -l`) and in the
+   title (`perl`); both must be 0. Then stop and ask me to read it: the
+   PR is public.
 4. After I approve: `git push -u origin <branch>`, then
    `gh pr create --base main --title "<title>" --body-file docs/pr-body.md`.
 5. Never merge. I merge after reading the diff and the CI result.
