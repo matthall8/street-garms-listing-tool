@@ -102,10 +102,18 @@ and 153 pass with it.
   working rules: commit before an eval run, change one variable per run, and never
   weaken a test or edit ground truth to pass. `TODO.md` holds current state.
 - **`.claude/agents/code-reviewer.md`** is a reviewer subagent, instructed not to
-  edit files. It checks the branch diff against `CLAUDE.md` and flags changes to
-  tracked eval files. Ground truth is gitignored, so it never appears in a diff;
-  edits to it are caught only by a manifest md5 recorded by hand in `TODO.md`.
-  Running the reviewer before merging is a working rule, not something enforced.
+  edit, commit or push. It reviews the branch against `main`, `CLAUDE.md` and the
+  ADRs, and runs the test suite locally, where the private catalogue is present.
+  It counts code-shaped tokens and photo filenames in each changed file and in the
+  commit messages, reporting counts and never values. Ground truth is gitignored,
+  so it never appears in a diff; the reviewer hashes the manifest and compares it
+  with the md5 ledger kept by hand in `TODO.md`. A verdict of Ready to merge
+  requires a clean tree, so the report matches the commit it describes.
+- **Pull requests** follow `CLAUDE.md`: one topic per branch, the reviewer before
+  the PR opens, and a body written from `.github/pull_request_template.md` that
+  includes the reviewer's report and is read by the maintainer before it is
+  published. Agents never merge. These are working rules; enforcement (a GitHub
+  ruleset on `main`, agent permission rules) is being added separately.
 - **CI** (`.github/workflows/tests.yml`) runs `pytest -rs` on pushes and PRs to `main`,
   with no catalogue or API key, so it is currently the 111-pass, 42-skip run.
 
