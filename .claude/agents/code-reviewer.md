@@ -53,8 +53,8 @@ General (always required):
 This project:
 - **Privacy** (always required). Follow CLAUDE.md's private-data rules.
   Compare counts only, and always pipe through `wc -l` so no value is
-  printed. This applies to the Grep tool too: for these patterns use only
-  its `count` or `files_with_matches` output modes, never `content`. Two
+  printed. Don't use the Grep tool for these patterns: its `count` mode
+  counts lines, not occurrences, and `content` mode prints values. Two
   patterns, both with `-P`:
 
   - code-shaped tokens: `\b(?=(?:[A-Z]*[0-9]){4})[0-9A-Z]{8,12}\b`
@@ -83,8 +83,9 @@ This project:
   Commit messages (`git grep` can't read stdin, so use `perl`):
 
   `git log main..HEAD --format=%B | perl -ne 'print "$&\n" while /<code pattern>/g' | wc -l`
+  `git log main..HEAD --format=%B | perl -ne 'print "$&\n" while /<image pattern>/gi' | wc -l`
 
-  It must be 0; anything else is a Must fix.
+  Both must be 0; anything else is a Must fix.
 
   Catalogue product names can't be matched by pattern. Read the changed
   docs and flag any quoted garment name from the catalogue (for example, a
