@@ -58,7 +58,8 @@ This project:
   patterns, both with `-P`:
 
   - code-shaped tokens: `\b(?=(?:[A-Z]*[0-9]){4})[0-9A-Z]{8,12}\b`
-  - image filenames, with `-i`: `\.(jpe?g|png|heic|heif|webp)\b`
+  - image filenames: `(?i)\.(jpe?g|png|heic|heif|webp)\b` (case-insensitive
+    in the pattern itself, so no `-i` flag is needed)
 
   For each changed file and each pattern, count occurrences (not lines) on
   `main` and in the changed version:
@@ -83,7 +84,7 @@ This project:
   Commit messages (`git grep` can't read stdin, so use `perl`):
 
   `git log main..HEAD --format=%B | perl -ne 'print "$&\n" while /<code pattern>/g' | wc -l`
-  `git log main..HEAD --format=%B | perl -ne 'print "$&\n" while /<image pattern>/gi' | wc -l`
+  `git log main..HEAD --format=%B | perl -ne 'print "$&\n" while /<image pattern>/g' | wc -l`
 
   Both must be 0; anything else is a Must fix.
 
