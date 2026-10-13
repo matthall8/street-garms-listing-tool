@@ -169,7 +169,7 @@ Neither blocks nor is blocked by the sequence above.
       after, since the manifest fingerprint changes.
 
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
-      season, not the decoder.** `labels/pipeline.py:33-35` takes year/season
+      season, not the decoder.** `labels/pipeline.py:32-34` takes year/season
       from the decoder even on an exact hit, so a listing ships with its title
       and its season field disagreeing — `03CMOW026A` shows "A/W 15 Soft Shell
       Goggle" beside AW 2017, with `needs_review` False. Roughly 3% of catalogue
@@ -201,11 +201,11 @@ put it in the `--note`.
       Will be fixed for bare catalogue rows by chain step 4, which passes
       `style_code` to `resolve()` instead of the raw read. Compound keys still
       miss until ADR-0003's index (see *Catalogue: frozen*); `matched_key`
-      replaces `matched_art` in step 3. Original note: `labels/pipeline.py:27`
+      replaces `matched_art` in step 3. Original note: `labels/pipeline.py:26`
       passes the raw read to `resolve()`, and
       `catalogue.normalise()` strips only spacing and case, so a correct read
       of `5215M226/2525` resolves `miss` while `5215M226` resolves `exact`. The
-      decoder already strips the suffix (`labels/art_number.py:125`); the
+      decoder already strips the suffix (`labels/art_number.py:124`); the
       catalogue side doesn't. Misses don't flag, so nothing surfaces it: the
       listing just loses its product name. Photo 7 in the 2026-10-08 set hits
       it on every correct read. The eval is unaffected (it scores against the
@@ -229,7 +229,7 @@ put it in the `--note`.
       (`tests/test_pipeline.py:88-89`) and misses not flagging
       (`tests/test_pipeline.py:92`), along with `TestResolveCorrected` and
       `TestCorrectionSafety`. A green CI run says nothing about the gate.
-      `TestResolveAmbiguous` (`tests/test_resolve.py:131-167`) already
+      `TestResolveAmbiguous` (`tests/test_resolve.py:129-165`) already
       monkeypatches `labels.catalogue.load_catalogue` with a synthetic dict;
       add new tests on that pattern alongside the real-catalogue ones, not
       instead of them. Put the invented codes in `tests/synthetic.py` (the
