@@ -20,4 +20,6 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements.txt
+      - run: ruff check --output-format=github .
       - run: python -m pytest -rs
+        if: ${{ !cancelled() }}  # report tests even when lint fails
