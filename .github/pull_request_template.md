@@ -2,9 +2,9 @@
 <!-- 1–2 sentences. Link the TODO step or ADR if there is one. -->
 
 ## Review
-**Verdict:** Ready to merge · HEAD `<sha>` · tests <passed>/<failed>/<skipped>
-**Findings:** None
-<!-- Or one line per Must fix / Should fix: problem → fixed in <sha>,
+**Verdict:** <verdict> · HEAD `<sha>` · tests <p>/<f>/<s>, exit <code>
+**Findings:** <None, or one line each>
+<!-- One line per Must fix / Should fix: problem → fixed in <sha>,
 or why not. -->
 
 <details><summary>Full reviewer report</summary>
@@ -16,15 +16,15 @@ merges. -->
 </details>
 
 ## Eval
-None
+<None, or the block below>
 <!-- If anything sent to the model changed (prompts, user message,
-schemas, model string, MODEL_SETTINGS), replace "None" with:
+schemas, model string, MODEL_SETTINGS), use this block:
 Baseline <tag> → this run <tag> (fingerprint, manifest md5, dirty: False)
 Wrong-and-unflagged, per garment-side: <before> → <after>
 Decision rule: pass / fail, wins–losses -->
 
 ## Gate impact
-None <!-- or what changed in needs_review, and the test that covers it -->
+<None, or what changed and the covering test>
 
 ## Checks
 - [ ] README, TODO.md and CLAUDE.md still accurate

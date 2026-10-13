@@ -129,7 +129,8 @@ manifest md5. Never quote a catalogue product name.
    (`git grep --no-index -o -P … -- docs/pr-body.md | wc -l`) and in the
    title (`perl`); both must be 0. The image pattern carries `(?i)`, so it
    needs no flag. In the PR body, report privacy results as pass/fail
-   only, with no counts, line numbers or locations. Then stop and ask me
+   only, with no counts, line numbers or locations. Before asking me to
+   read the body, check no <…> placeholders remain. Then stop and ask me
    to read it: the PR is public.
 4. After I approve: `git push -u origin <branch>`, then
    `gh pr create --base main --title "<title>" --body-file docs/pr-body.md`.
