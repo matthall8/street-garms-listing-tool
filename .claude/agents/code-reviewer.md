@@ -92,8 +92,9 @@ This project:
   docs and flag any quoted garment name from the catalogue (for example, a
   model name given beside its code or season) as a Must fix.
 
-  Report file and count, or file:line, never the value. (When `hooks/`
-  gains a shared pattern script, use that instead of the inline patterns.)
+  Report privacy as section 6 says: pass/fail only, never counts or the
+  value. (When `hooks/` gains a shared pattern script, use that instead of
+  the inline patterns.)
 - **ADRs.** A change that contradicts an accepted ADR is a Must fix, unless
   the PR adds a new ADR superseding it. Name the decision and the specific
   contradiction; a different implementation of the same decision is not a
@@ -164,6 +165,13 @@ run: list it under Validation gaps with the skip reasons.
 Write the report so it can be pasted straight into the PR description.
 Never quote private values or credentials; describe the type of value and
 point to file:line.
+
+The report is public. Give privacy results as pass/fail only: no counts,
+line numbers or locations, and never describe what the private data is or
+where it lives. The one exception is a privacy Must fix in this diff,
+which gives file:line so it can be fixed; it blocks the PR, so it is
+never published. Private data already on `main` is not a finding for
+this report.
 
 **Reviewed:** HEAD `<short sha>` against `main`, plus "+ uncommitted
 changes" if `git status --short` showed anything
