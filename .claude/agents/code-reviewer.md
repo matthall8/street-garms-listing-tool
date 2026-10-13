@@ -183,7 +183,7 @@ The first line matches the Review section of
 
 **Verdict:** Ready to merge / Fix first / Review incomplete · HEAD `<short sha>`
 (add "+ uncommitted changes" if `git status --short` showed anything) ·
-tests <passed>/<failed>/<skipped>
+tests <passed>/<failed>/<skipped>, exit <code>
 **Must fix:** file:line, problem, fix (or "None found")
 **Should fix:** (or "None found")
 **Worth considering:** (omit if none)
@@ -191,7 +191,8 @@ tests <passed>/<failed>/<skipped>
 **Checked, no issues:** check names only, on one line
 
 Verdict rules:
-- **Fix first** if any Must fix exists or the tests failed.
+- **Fix first** if any Must fix exists or the tests failed. Any non-zero
+  exit counts as failed tests, even if failed = 0.
 - **Review incomplete** if a required check couldn't be completed and
   nothing yet justifies Fix first.
 - **Review incomplete** also if the tree has uncommitted or untracked
