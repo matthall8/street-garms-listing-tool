@@ -35,7 +35,8 @@ meet. Nothing imports `app/` or `main.py`.
 |---|---|
 | install | `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` |
 | tests | `.venv/bin/python -m pytest` — offline, no API key |
-| CI | `.github/workflows/tests.yml` — `pytest -rs` on push/PR to main, no catalogue, no key |
+| lint | `.venv/bin/ruff check .` — rules in `pyproject.toml` |
+| CI | `.github/workflows/tests.yml` — `ruff check` and `pytest -rs` on push/PR to main, no catalogue, no key |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/flask --app app run` |
 | decoder score | `.venv/bin/python tests/report_art_number.py` |
@@ -45,7 +46,7 @@ meet. Nothing imports `app/` or `main.py`.
 ## Domain invariants
 
 **`needs_review` is the gate between a bad read and a published listing**
-(`labels/pipeline.py:50-56`). Any new field in `Extraction` must explicitly be
+(`labels/pipeline.py:49-55`). Any new field in `Extraction` must explicitly be
 considered for this gate. Changing what flags is a product decision, not a
 refactor.
 

@@ -2,10 +2,10 @@
 Look up an ART number in Street Garms' own catalogue.
 """
 
+from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
-from typing import Optional, Literal
-from dataclasses import dataclass, field
+from typing import Literal
 
 import pandas as pd
 
@@ -22,12 +22,12 @@ CONFUSIONS = {
 @dataclass
 class Resolution:
     status: Literal["exact", "corrected", "ambiguous", "miss", "no_art_number"]
-    row: Optional[dict] = None           
-    matched_art: Optional[str] = None   
+    row: dict | None = None           
+    matched_art: str | None = None   
     candidates: list[dict] = field(default_factory=list)   
 
     @property
-    def product_name(self) -> Optional[str]:
+    def product_name(self) -> str | None:
         return (self.row or {}).get("Product Name") or None
 
     @property
@@ -49,7 +49,7 @@ def load_catalogue(path: Path = ART_CSV_PATH) -> dict[str, dict]:
         if (key := normalise(row.get("ART")))
     }
 
-def normalise(art_number: Optional[str]) -> str:
+def normalise(art_number: str | None) -> str:
     """Strip spacing and case. Leading zeros are kept."""
     return "".join((art_number or "").split()).upper()
 
@@ -63,7 +63,7 @@ def variants(art_number: str) -> list[str]:
     return candidates
 
 
-def art_lookup(art_number: Optional[str]) -> Optional[dict]:
+def art_lookup(art_number: str | None) -> dict | None:
     """Exact match on the ART number. None if absent or if there is no catalogue.
 
     Returns the whole row — Brand and Type are wanted for the listing too.
@@ -71,7 +71,7 @@ def art_lookup(art_number: Optional[str]) -> Optional[dict]:
     return load_catalogue().get(normalise(art_number))
 
 
-def product_name(art_number: Optional[str]) -> Optional[str]:
+def product_name(art_number: str | None) -> str | None:
     """Just the product name, for callers that want only the title."""
     row = art_lookup(art_number)
     return (row or {}).get("Product Name") or None

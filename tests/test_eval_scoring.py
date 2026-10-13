@@ -115,7 +115,7 @@ def per_photo(photos: dict, expected: dict | None = None) -> tuple[dict, dict]:
     ).evaluate_sync(task, repeat=repeat, max_concurrency=1)
 
     [table] = [a for a in report.analyses if a.title == "per photo"]
-    rows = {row[0]: dict(zip(table.columns, row)) for row in table.rows}
+    rows = {row[0]: dict(zip(table.columns, row, strict=True)) for row in table.rows}
     scalars = {a.title: a.value for a in report.analyses if a.title != "per photo"}
     return rows, scalars
 

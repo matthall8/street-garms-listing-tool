@@ -1,0 +1,10 @@
+[tool.ruff]
+target-version = "py313"   # matches CI
+src = [".", "tests"]        # so imports of tests/ modules sort as first-party
+
+[tool.ruff.lint]
+# Listed explicitly: ruff's default set changes between releases.
+# E4, E7, E9, F: real errors such as unused imports and undefined names.
+# I: import order. B: likely bugs (bugbear). Not style. Add more rule sets
+# later, one per PR.
+select = ["E4", "E7", "E9", "F", "I", "B"]

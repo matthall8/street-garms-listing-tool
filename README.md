@@ -87,6 +87,7 @@ cp .env.example .env                                # add ANTHROPIC_API_KEY
 .venv/bin/python main.py <label.jpg>                  # CLI, prints JSON
 .venv/bin/flask --app app run                       # web upload form
 .venv/bin/python -m pytest                          # offline, no API key
+.venv/bin/ruff check .                              # lint, rules in pyproject.toml
 .venv/bin/python tests/report_art_number.py         # decoder score, needs catalogue
 .venv/bin/python tests/eval_transcription.py --model test --no-save   # harness, no API calls
 .venv/bin/python tests/eval_transcription.py --repeat 3 --workers 1 --note "..."  # as baseline
@@ -114,8 +115,8 @@ and 153 pass with it.
   includes the reviewer's report and is read by the maintainer before it is
   published. Agents never merge. These are working rules; enforcement (a GitHub
   ruleset on `main`, agent permission rules) is being added separately.
-- **CI** (`.github/workflows/tests.yml`) runs `pytest -rs` on pushes and PRs to `main`,
-  with no catalogue or API key, so it is currently the 111-pass, 42-skip run.
+- **CI** (`.github/workflows/tests.yml`) runs `ruff check` and `pytest -rs` on pushes and PRs
+  to `main`, with no catalogue or API key, so it is currently the 111-pass, 42-skip run.
 
 ## Known limitations
 

@@ -2,19 +2,18 @@
 
 import mimetypes
 from pathlib import Path
-from typing import Optional
 
 from labels.art_number import parse
+from labels.catalogue import resolve
 from labels.schemas import Extraction
 from labels.transcribe import transcribe
-from labels.catalogue import resolve
 
 Photo = tuple[bytes, str]  # (image_bytes, media_type)
 
 
 def extract_bytes(
-    art: Optional[Photo] = None,
-    details: Optional[Photo] = None,
+    art: Photo | None = None,
+    details: Photo | None = None,
     source: str = "",
 ) -> Extraction:
     """Full pipeline over raw image bytes — the form web uploads arrive in.
@@ -62,7 +61,7 @@ def _photo(path: Path) -> Photo:
     return path.read_bytes(), media_type
 
 
-def extract(art_image: Path, details_image: Optional[Path] = None) -> Extraction:
+def extract(art_image: Path, details_image: Path | None = None) -> Extraction:
     """Full pipeline over files on disk."""
     sources = [str(art_image)] + ([str(details_image)] if details_image else [])
     return extract_bytes(

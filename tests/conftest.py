@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from labels.catalogue import load_catalogue  # noqa: E402
+from labels.catalogue import load_catalogue
 
 
 @pytest.fixture(scope="session")

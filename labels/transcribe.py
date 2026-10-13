@@ -10,7 +10,6 @@ the ART number depends on it.
 """
 
 from functools import cache
-from typing import Optional
 
 from pydantic_ai import Agent, BinaryContent, ModelSettings
 
@@ -170,8 +169,8 @@ def transcribe_details(
 
 
 def transcribe(
-    art: Optional[tuple[bytes, str]] = None,
-    details: Optional[tuple[bytes, str]] = None,
+    art: tuple[bytes, str] | None = None,
+    details: tuple[bytes, str] | None = None,
 ) -> LabelReading:
     """Read the ART number from whichever photo the caller supplied.
 

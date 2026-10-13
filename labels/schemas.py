@@ -1,7 +1,7 @@
 """Data shapes shared by the CLI and the web layer."""
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -23,7 +23,7 @@ class AmbiguousCharacter(BaseModel):
 class ArtNumberReading(BaseModel):
     """The ART number, read from a photo framed on the ART number tag."""
 
-    art_number_raw: Optional[str] = Field(
+    art_number_raw: str | None = Field(
         None,
         description=(
             "Verbatim ART number as physically printed. "
@@ -64,7 +64,7 @@ class SizeMarking(BaseModel):
 class LabelDetails(BaseModel):
     """Everything other than the ART number, read from the care label photo."""
 
-    brand_printed: Optional[str] = Field(
+    brand_printed: str | None = Field(
         None,
         description="Brand name exactly as physically printed, if visible.",
     )
@@ -75,17 +75,17 @@ class LabelDetails(BaseModel):
         "sizing system shown.",
     )
 
-    composition: Optional[str] = Field(
+    composition: str | None = Field(
         None,
         description="Composition/fibre information exactly as physically printed.",
     )
 
-    made_in: Optional[str] = Field(
+    made_in: str | None = Field(
         None,
         description="Country-of-origin text exactly as physically printed.",
     )
 
-    clg_number: Optional[str] = Field(
+    clg_number: str | None = Field(
         None,
         description=(
             "Printed Certilogo/CLG number exactly as physically visible. "
@@ -93,7 +93,7 @@ class LabelDetails(BaseModel):
         ),
     )
 
-    garment_colour_observed: Optional[str] = Field(
+    garment_colour_observed: str | None = Field(
         None,
         description=(
             "OBSERVATION, NOT TRANSCRIPTION. The apparent colour of the garment "
@@ -103,7 +103,7 @@ class LabelDetails(BaseModel):
         ),
     )
 
-    notes: Optional[str] = Field(
+    notes: str | None = Field(
         None,
         description=(
             "Objective visual observations only. "
@@ -127,21 +127,21 @@ class Extraction:
     """A LabelReading joined with downstream product interpretation."""
 
     source_image: str
-    art_number_raw: Optional[str]
+    art_number_raw: str | None
     decoded: str
-    product_name: Optional[str]
-    year: Optional[int]
-    season: Optional[str]
-    brand: Optional[str]
-    garment: Optional[str]
-    size: Optional[str]
-    composition: Optional[str]
-    made_in: Optional[str]
-    certilogo: Optional[str]
-    colour_observed: Optional[str]
+    product_name: str | None
+    year: int | None
+    season: str | None
+    brand: str | None
+    garment: str | None
+    size: str | None
+    composition: str | None
+    made_in: str | None
+    certilogo: str | None
+    colour_observed: str | None
     legibility: str
     all_reads: list
     flags: list
     catalogue_match: str
-    matched_art: Optional[str]
+    matched_art: str | None
     needs_review: bool
