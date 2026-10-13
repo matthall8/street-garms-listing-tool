@@ -149,8 +149,9 @@ run: list it under Validation gaps with the skip reasons.
 
 ## 5. Finding standards
 
-- Every finding gives file:line, the concrete failure scenario (what
-  input or state leads to what wrong outcome) and why it matters.
+- Every finding gives file:line, then one sentence for the problem (the
+  concrete failure scenario: what input or state leads to what wrong
+  outcome) and one sentence for the fix.
 - Distinguish demonstrated defects from plausible risks. Don't promote
   speculation to Must fix.
 - Don't report formatting preferences or unrelated pre-existing issues as
@@ -173,15 +174,21 @@ which gives file:line so it can be fixed; it blocks the PR, so it is
 never published. Private data already on `main` is not a finding for
 this report.
 
-**Reviewed:** HEAD `<short sha>` against `main`, plus "+ uncommitted
-changes" if `git status --short` showed anything
-**Verdict:** Ready to merge / Fix first / Review incomplete
-**Must fix:** file:line, failure scenario, why it matters (or "None found")
+Keep it short. Checked, no issues is one line of check names, without
+explanations. Each finding is one sentence for the problem and one for
+the fix. Don't carry a Resolved list from earlier runs.
+
+The first line matches the Review section of
+`.github/pull_request_template.md`, so it pastes straight in:
+
+**Verdict:** Ready to merge / Fix first / Review incomplete · HEAD `<short sha>`
+(add "+ uncommitted changes" if `git status --short` showed anything) ·
+tests <passed>/<failed>/<skipped>
+**Must fix:** file:line, problem, fix (or "None found")
 **Should fix:** (or "None found")
 **Worth considering:** (omit if none)
-**Tests:** command, exit status, passed / failed / skipped
 **Validation gaps:** required checks that couldn't be completed (or "None")
-**Checked, no issues:** only the required checks you actually performed
+**Checked, no issues:** check names only, on one line
 
 Verdict rules:
 - **Fix first** if any Must fix exists or the tests failed.
