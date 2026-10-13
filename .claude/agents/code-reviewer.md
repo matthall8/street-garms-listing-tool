@@ -138,7 +138,11 @@ This project:
 Run the check commands CI runs (read `.github/workflows/tests.yml`; run its
 checks, not its install steps). Today that is:
 
+`.venv/bin/ruff check .`
+
 `.venv/bin/python -m pytest -rs`
+
+A ruff finding fails CI, so it is a Must fix.
 
 Don't add `-q`: `pytest.ini` already does, and doubling it hides the counts.
 Report the exit status and the passed, failed and skipped counts.
