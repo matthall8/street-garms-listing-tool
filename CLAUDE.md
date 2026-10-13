@@ -130,8 +130,9 @@ manifest md5. Never quote a catalogue product name.
    title (`perl`); both must be 0. The image pattern carries `(?i)`, so it
    needs no flag. In the PR body, report privacy results as pass/fail
    only, with no counts, line numbers or locations. Before asking me to
-   read the body, check no <…> placeholders remain. Then stop and ask me
-   to read it: the PR is public.
+   read the body, delete the template's HTML comments, then check no <…>
+   placeholders remain outside the `<details>`/`<summary>` tags. Then stop
+   and ask me to read it: the PR is public.
 4. After I approve: `git push -u origin <branch>`, then
    `gh pr create --base main --title "<title>" --body-file docs/pr-body.md`.
 5. Never merge. I merge after reading the diff and the CI result.
