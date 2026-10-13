@@ -9,7 +9,7 @@ would have no effect.
 
 import pytest
 
-import labels.pipeline as pipeline
+from labels import pipeline
 from labels.pipeline import extract_bytes
 from labels.schemas import (
     AmbiguousCharacter,

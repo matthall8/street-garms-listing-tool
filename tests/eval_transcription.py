@@ -27,22 +27,26 @@ import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import partial
 from mimetypes import guess_type
 from pathlib import Path
-from typing import Optional
 
 from pydantic import ValidationError
 from pydantic_evals import Case, Dataset
-from pydantic_evals.evaluators import Evaluator, EvaluatorContext, ReportEvaluator, ReportEvaluatorContext
+from pydantic_evals.evaluators import (
+    Evaluator,
+    EvaluatorContext,
+    ReportEvaluator,
+    ReportEvaluatorContext,
+)
 from pydantic_evals.reporting import EvaluationReport, EvaluationReportAdapter
 from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from labels.schemas import ArtNumberReading  # noqa: E402
-from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art  # noqa: E402
+from labels.schemas import ArtNumberReading
+from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art
 
 EVALS = Path(__file__).parent.parent / "evals"
 MANIFEST = EVALS / "manifest.csv"
@@ -66,7 +70,7 @@ def levenshtein(a: str, b: str) -> int:
     return prev[-1]
 
 
-def normalise(s: Optional[str]) -> str:
+def normalise(s: str | None) -> str:
     """Compare codes ignoring spacing and case, which are not the interesting errors."""
     return "".join((s or "").split()).upper()
 
@@ -275,13 +279,13 @@ def run_metadata(args: argparse.Namespace) -> dict:
 
 def save(report, model) -> Path:
     RESULTS.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     path = RESULTS / f"{stamp}-{model.replace(':', '_').replace('/', '_')}.json"
     path.write_bytes(EvaluationReportAdapter.dump_json(report, indent=2))
     return path
 
 
-def load_baseline(path: Path) -> Optional[EvaluationReport]:
+def load_baseline(path: Path) -> EvaluationReport | None:
     """A report saved by an earlier run, to diff this one against.
 
     Prints why and returns None if the file is missing or isn't a saved report.

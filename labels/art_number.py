@@ -12,9 +12,8 @@ Four format families were found in the catalogue:
   D. CP modern         14CMOS045A      -> ~2017 onward
 """
 
-from dataclasses import dataclass
-from typing import Optional
 import re
+from dataclasses import dataclass
 
 # ---------------------------------------------------------------------------
 # A. Season table for the SI numeric counter.
@@ -100,11 +99,11 @@ FAKE_MARKER = "222"  # commonly reported on counterfeit SI wash labels
 @dataclass
 class Art:
     raw: str
-    format: Optional[str] = None
-    year: Optional[int] = None
-    season: Optional[str] = None
-    brand: Optional[str] = None
-    garment: Optional[str] = None
+    format: str | None = None
+    year: int | None = None
+    season: str | None = None
+    brand: str | None = None
+    garment: str | None = None
     flags: tuple = ()
 
     @property

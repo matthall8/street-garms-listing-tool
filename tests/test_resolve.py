@@ -10,9 +10,7 @@ import pytest
 
 from labels.catalogue import (
     CONFUSIONS,
-    Resolution,
     art_lookup,
-    normalise,
     resolve,
     variants,
 )
