@@ -1,32 +1,35 @@
 ## What and why
-<!-- One or two sentences. Link the TODO step or ADR if there is one. -->
+<!-- 1–2 sentences. Link the TODO step or ADR if there is one. -->
 
 ## Review
-<!-- Paste the code-reviewer report. The PR body is PUBLIC: check the
-report for private values before pasting. If anything was fixed after the
-review, re-run the reviewer and paste the final report, so the SHA matches
-what merges. -->
+**Verdict:** <verdict> · HEAD `<sha>` · tests <p>/<f>/<s>, exit <code>
+**Findings:** <None, or one line each>
+<!-- One line per Must fix / Should fix: problem → fixed in <sha>,
+or why not. -->
 
-**Resolved:**
-<!-- How each Must fix / Should fix was handled: fixed in <sha>, or why not. -->
--
+<details><summary>Full reviewer report</summary>
+
+<!-- Paste the final report. The PR body is PUBLIC: check it for private
+values first. Re-run the reviewer after any fix so the SHA matches what
+merges. -->
+
+</details>
 
 ## Eval
-<!-- "None" unless anything sent to the model changed (prompts, user
-message, schemas, model string, MODEL_SETTINGS). -->
-- Baseline: <tag>
-- This run: <tag>, prompt fingerprint, manifest md5, `dirty: False`
-- Wrong-and-unflagged (ADR-0001 primary metric), per garment-side:
-- Decision rule: pass / fail, wins–losses
+<None, or the block below>
+<!-- If anything sent to the model changed (prompts, user message,
+schemas, model string, MODEL_SETTINGS), use this block:
+Baseline <tag> → this run <tag> (fingerprint, manifest md5, dirty: False)
+Wrong-and-unflagged, per garment-side: <before> → <after>
+Decision rule: pass / fail, wins–losses -->
 
 ## Gate impact
-<!-- "None", or what changed in needs_review and which test covers it. -->
+<None, or what changed and the covering test>
 
 ## Checks
 - [ ] README, TODO.md and CLAUDE.md still accurate
-- [ ] No new code-shaped literals outside CLAUDE.md's allowlist; no photo
-      filenames, Certilogo codes or catalogue product names in the diff,
-      docs or commit messages
+- [ ] Privacy: no new code-shaped literals outside the allowlist; no photo
+      filenames, Certilogo codes or product names in the diff, docs or commits
 
 ## Not in this PR
-<!-- Follow-ups noticed but deliberately left out. -->
+<!-- Follow-ups deliberately left out, one line each. -->
