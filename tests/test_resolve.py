@@ -24,7 +24,7 @@ class TestVariants:
 
     def test_substitutes_only_one_character_at_a_time(self):
         for v in variants("50184868"):
-            differences = sum(a != b for a, b in zip(v, "50184868"))
+            differences = sum(a != b for a, b in zip(v, "50184868", strict=True))
             assert differences == 1
 
     def test_finds_the_known_neighbour(self):
@@ -178,7 +178,7 @@ class TestCorrectionSafety:
         recovered = wrong = ambiguous = missed = exact = 0
         wrong_examples = []
 
-        for code, row in catalogue.items():
+        for code in catalogue:
             for misread in corrupt(code):
                 r = resolve(misread)
                 if r.status == "exact":

@@ -206,7 +206,7 @@ class PerPhotoCounts(ReportEvaluator):
             positive = normalise(expected[photo]) != NO_ART_NUMBER
             kind = "positive" if positive else "negative"
 
-            def count(test):
+            def count(test, reads=reads):
                 return sum(1 for r in reads if test(r))
 
             rows.append([
