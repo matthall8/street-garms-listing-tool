@@ -1,5 +1,6 @@
 [tool.ruff]
 target-version = "py313"   # matches CI
+src = [".", "tests"]        # so imports of tests/ modules sort as first-party
 
 [tool.ruff.lint]
 # Listed explicitly: ruff's default set changes between releases.

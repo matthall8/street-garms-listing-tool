@@ -12,8 +12,10 @@ evals rejects a None metric and discards the WHOLE case result, including
 
 from types import SimpleNamespace
 
-import eval_transcription
 import pytest
+from pydantic_evals import Case, Dataset
+
+import eval_transcription
 from eval_transcription import (
     NO_ART_NUMBER,
     ConfidenceRates,
@@ -23,8 +25,6 @@ from eval_transcription import (
     load_manifest,
     normalise,
 )
-from pydantic_evals import Case, Dataset
-
 from labels.schemas import AmbiguousCharacter, ArtNumberReading
 
 
