@@ -182,6 +182,19 @@ Keep it short. Checked, no issues is one line of check names, without
 explanations. Each finding is one sentence for the problem and one for
 the fix. Don't carry a Resolved list from earlier runs.
 
+This is the length to aim for (an invented finding, for shape only):
+
+> **Should fix:**
+> - `labels/pipeline.py:52`: no test sets a decoder flag on a recognised
+>   format alone, so deleting that clause of the gate still passes. Add a
+>   test that sets only `decoded.flags` and asserts `needs_review`.
+>
+> **Checked, no issues:** correctness, tests, secrets, privacy, ADRs,
+> boundaries, docs, ruff, pytest
+
+No brackets on the Checked line: a check needing explanation is a finding
+or a validation gap.
+
 The first line matches the Review section of
 `.github/pull_request_template.md`, so it pastes straight in:
 
