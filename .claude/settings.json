@@ -14,6 +14,7 @@
       "Bash(gh pr checks *)"
     ],
     "ask": [
+      "Edit(./.claude/**)",
       "Read(./data/**)",
       "Read(./images/**)",
       "Read(./evals/photos/**)",
@@ -28,6 +29,7 @@
     "deny": [
       "Read(./.env)",
       "Edit(./.env)",
+      "Read(./.envrc)",
       "Edit(./evals/manifest.csv)",
       "Edit(./data/**)",
       "Edit(./images/**)",
