@@ -94,8 +94,8 @@ cp .env.example .env                                # add ANTHROPIC_API_KEY
 ```
 
 The catalogue, eval photos and manifest are private and gitignored. Tests that need
-the catalogue skip rather than fail: currently 111 pass and 42 skip on a fresh clone,
-and 153 pass with it.
+the catalogue skip rather than fail: currently 125 pass and 41 skip on a fresh clone,
+and 166 pass with it.
 
 ## How AI coding agents are used
 
@@ -113,10 +113,19 @@ and 153 pass with it.
 - **Pull requests** follow `CLAUDE.md`: one topic per branch, the reviewer before
   the PR opens, and a body written from `.github/pull_request_template.md` that
   includes the reviewer's report and is read by the maintainer before it is
-  published. Agents never merge. These are working rules; enforcement (a GitHub
-  ruleset on `main`, agent permission rules) is being added separately.
+  published. Agents never merge.
+- **Enforcement.** A GitHub ruleset on `main` is the hard limit: no direct or
+  force pushes, no deletion, and every change arrives by PR with a green CI
+  run. `.claude/settings.json` (tracked, so changes are reviewed) adds agent
+  limits on top: it denies reading `.env`, editing ground truth, photos or
+  results, `gh pr merge`, and the common forms of pushing or force-pushing
+  to `main`; it asks before any other push and before reading private data.
+  Hooks run pytest when an agent ends its turn and `ruff check` after each
+  Python edit, and hand any failure back to it. These rules match command
+  patterns, and Read rules don't cover shell commands, so the private-data
+  rules in `CLAUDE.md` remain instructions as well.
 - **CI** (`.github/workflows/tests.yml`) runs `ruff check` and `pytest -rs` on pushes and PRs
-  to `main`, with no catalogue or API key, so it is currently the 111-pass, 42-skip run.
+  to `main`, with no catalogue or API key, so it is currently the 125-pass, 41-skip run.
 
 ## Known limitations
 
