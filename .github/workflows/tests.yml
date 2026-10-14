@@ -18,7 +18,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
-      - run: uv sync --locked  # fails if uv.lock is out of date
+      - run: uv sync --locked --no-group explore  # fails if uv.lock is out of date
       - run: uv run ruff check --output-format=github .
       - run: uv run python -m pytest -rs
         if: ${{ !cancelled() }}  # report tests even when lint fails

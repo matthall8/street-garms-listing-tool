@@ -16,14 +16,17 @@ dev = [
     "pytest==9.1.1",
     "ruff==0.17.0",
 ]
-# Notebooks and barcode scanning. Not installed by default:
-# uv sync --group explore
+# Notebooks and barcode scanning. Not needed by the app, tests or CI.
 explore = [
     "notebook==7.6.2",
     "opencv-python==5.0.0.93",
     "pyzbar==0.1.9",
     "zbar-py==1.0.4",
 ]
+
+[tool.uv]
+# A plain `uv sync` keeps the notebooks; CI passes --no-group explore.
+default-groups = ["dev", "explore"]
 
 [tool.ruff]
 target-version = "py313"   # matches CI
