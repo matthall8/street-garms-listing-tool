@@ -2,6 +2,8 @@
 # Stop hook: don't let an agent end its turn while the tests fail.
 # Exit 2 sends the failure back to the agent. On the follow-up stop
 # (stop_hook_active) it exits 0, so a failure it can't fix doesn't loop.
+# Without jq the loop guard can't work, so the hook does nothing.
+command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat)
 [ "$(printf '%s' "$input" | jq -r '.stop_hook_active // false')" = "true" ] && exit 0
 cd "$CLAUDE_PROJECT_DIR" || exit 0

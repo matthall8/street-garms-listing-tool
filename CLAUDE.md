@@ -121,7 +121,8 @@ row number plus manifest md5. Never quote a catalogue product name.
 - Branches, review and PRs follow *Pull requests* below.
 - `.claude/settings.json` enforces some of these rules: deny and ask
   permissions, pytest at the end of each turn, `ruff check` after each Python
-  edit. A denied call is a rule, not an obstacle: don't route around it; ask.
+  edit (the hooks need `jq`, built into macOS; without it they do nothing).
+  A denied call is a rule, not an obstacle: don't route around it; ask.
 
 ## Pull requests
 

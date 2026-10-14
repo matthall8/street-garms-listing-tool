@@ -1,6 +1,7 @@
 #!/bin/sh
 # PostToolUse hook: lint each Python file in this repo straight after an
-# agent edits it. Exit 2 shows the findings to the agent.
+# agent edits it. Exit 2 shows the findings to the agent. Needs jq.
+command -v jq >/dev/null 2>&1 || exit 0
 f=$(jq -r '.tool_input.file_path // empty')
 case "$f" in "$CLAUDE_PROJECT_DIR"/*.py) ;; *) exit 0 ;; esac
 [ -x "$CLAUDE_PROJECT_DIR/.venv/bin/ruff" ] || exit 0
