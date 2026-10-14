@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python -m pytest)",
+      "Bash(.venv/bin/python -m pytest *)",
+      "Bash(.venv/bin/ruff check *)",
+      "Bash(.venv/bin/python tests/report_art_number.py)",
+      "Bash(.venv/bin/python tests/eval_transcription.py --model test --no-save)",
+      "Bash(git check-ignore *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr checks *)"
+    ],
+    "ask": [
+      "Read(./data/**)",
+      "Read(./images/**)",
+      "Read(./evals/photos/**)",
+      "Read(./evals/archive/**)",
+      "Read(./evals/results/**)",
+      "Read(./evals/manifest.csv)",
+      "Bash(git push *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr edit *)",
+      "Bash(gh api *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Edit(./.env)",
+      "Edit(./evals/manifest.csv)",
+      "Edit(./data/**)",
+      "Edit(./images/**)",
+      "Edit(./evals/photos/**)",
+      "Edit(./evals/archive/**)",
+      "Edit(./evals/results/**)",
+      "Bash(gh pr merge)",
+      "Bash(gh pr merge *)",
+      "Bash(git push origin main)",
+      "Bash(git push origin main *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)"
+    ]
+  }
+}
