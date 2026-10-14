@@ -33,7 +33,7 @@ meet. Nothing imports `app/` or `main.py`.
 
 | | |
 |---|---|
-| install | `uv sync` — creates `.venv` from `uv.lock`, dev and explore groups included |
+| install | `uv sync` — creates `.venv` from `uv.lock` with the dev group; add `--group explore` for the notebooks, or a plain `uv sync` removes them |
 | add a dependency | `uv add <pkg>==<version>` (`--group dev` for tools); commit `uv.lock` with it |
 | tests | `.venv/bin/python -m pytest` — offline, no API key |
 | lint | `.venv/bin/ruff check .` — rules in `pyproject.toml` |

@@ -1327,7 +1327,6 @@ wheels = [
 name = "listing-tool"
 version = "0.0.1"
 source = { virtual = "." }
-default-groups = ["dev", "explore"]
 dependencies = [
     { name = "flask" },
     { name = "pandas" },
