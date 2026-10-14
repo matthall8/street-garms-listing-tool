@@ -33,10 +33,11 @@ meet. Nothing imports `app/` or `main.py`.
 
 | | |
 |---|---|
-| install | `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` |
+| install | `uv sync` — creates `.venv` from `uv.lock`, dev and explore groups included |
+| add a dependency | `uv add <pkg>==<version>` (`--group dev` for tools); commit `uv.lock` with it |
 | tests | `.venv/bin/python -m pytest` — offline, no API key |
 | lint | `.venv/bin/ruff check .` — rules in `pyproject.toml` |
-| CI | `.github/workflows/tests.yml` — `ruff check` and `pytest -rs` on push/PR to main, no catalogue, no key |
+| CI | `.github/workflows/tests.yml` — `uv sync --locked`, `ruff check` and `pytest -rs` on push/PR to main, no catalogue, no key |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/flask --app app run` |
 | decoder score | `.venv/bin/python tests/report_art_number.py` |
