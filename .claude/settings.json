@@ -40,5 +40,31 @@
       "Bash(git push --force *)",
       "Bash(git push -f *)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-tests.sh",
+            "timeout": 120,
+            "statusMessage": "Running tests"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/ruff-edited.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
   }
 }
