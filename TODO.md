@@ -98,7 +98,7 @@ gitignored, so this file is their only audit trail.
       - Per-field merge in `pipeline.py` with a `source` for each value; a
         disagreement with the vision read becomes a review reason.
         Synthetic-code tests (`zxing-cpp` can write codes as well as read
-        them); `zxing-cpp` and `pillow` in `requirements.txt`. Write ADR-0002.
+        them); `zxing-cpp` and `pillow` added with `uv add`. Write ADR-0002.
       - The vision path must be complete when the stage returns nothing. The
         eval scores it with the stage off and reports the 2D results
         separately.
@@ -187,9 +187,12 @@ the 2026-10-09 TODO update.
 
 ### Eval run procedure
 
-`--repeat 3 --workers 1` on a clean tree. Save the manifest's photo hashes and
-`pip freeze` beside the report, and record the manifest md5 before and after
-any edit. Hash only the manifest's photos, not the whole folder:
+`--repeat 3 --workers 1` on a clean tree. Run `uv sync --locked` first, so
+the environment is the tagged commit's `uv.lock`. Save the manifest's photo
+hashes and `uv pip freeze` (`.pip-freeze.txt`) beside the report: the
+freeze shows the sync was run. Baselines from before `uv.lock` existed are
+rebuilt from their own saved `.pip-freeze.txt`. Record the manifest md5
+before and after any edit. Hash only the manifest's photos, not the whole folder:
 `tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`.
 Serial running is a precaution against a suspected pydantic-ai concurrency
 stall, never reproduced. `--workers` isn't recorded in the report header, so
