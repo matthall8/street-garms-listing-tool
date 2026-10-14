@@ -113,8 +113,14 @@ and 153 pass with it.
 - **Pull requests** follow `CLAUDE.md`: one topic per branch, the reviewer before
   the PR opens, and a body written from `.github/pull_request_template.md` that
   includes the reviewer's report and is read by the maintainer before it is
-  published. Agents never merge. These are working rules; enforcement (a GitHub
-  ruleset on `main`, agent permission rules) is being added separately.
+  published. Agents never merge.
+- **Enforcement.** A GitHub ruleset on `main` requires a PR and a green CI run.
+  `.claude/settings.json` (tracked, so changes are reviewed) denies agents
+  reading `.env`, editing ground truth, photos or results, merging PRs and
+  pushing to `main`, and asks before they read private data. Hooks run pytest
+  when an agent ends its turn and `ruff check` after each Python edit, and
+  hand any failure back to it. Read rules don't cover shell commands, so the
+  private-data rules in `CLAUDE.md` remain instructions as well.
 - **CI** (`.github/workflows/tests.yml`) runs `ruff check` and `pytest -rs` on pushes and PRs
   to `main`, with no catalogue or API key, so it is currently the 111-pass, 42-skip run.
 
