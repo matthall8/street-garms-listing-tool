@@ -108,3 +108,48 @@ class TestImportGraph:
             )
         ]
         assert not bad, "CLAUDE.md, Flow: nothing imports app/ or main.py.\n" + "\n".join(bad)
+
+
+def _agent_calls(path: Path) -> list[ast.Call]:
+    """Every Agent(...) or <module>.Agent(...) call in the file."""
+    return [
+        node
+        for node in ast.walk(ast.parse(path.read_text(), filename=str(path)))
+        if isinstance(node, ast.Call)
+        and (
+            (isinstance(node.func, ast.Name) and node.func.id == "Agent")
+            or (isinstance(node.func, ast.Attribute) and node.func.attr == "Agent")
+        )
+    ]
+
+
+class TestSharedTimeout:
+    """CLAUDE.md, Engineering constraints: all model calls use the shared 60s
+    timeout. Read from source, not by building the agents, so CI needs no key."""
+
+    def test_model_settings_timeout_is_60(self):
+        from labels.transcribe import MODEL_SETTINGS
+
+        assert MODEL_SETTINGS.get("timeout") == 60, (
+            "CLAUDE.md, Engineering constraints: all model calls use the shared "
+            f"60s timeout, but MODEL_SETTINGS is {MODEL_SETTINGS!r}."
+        )
+
+    def test_every_agent_passes_model_settings(self):
+        path = _source("labels/transcribe.py")
+        calls = _agent_calls(path)
+        assert calls, "no Agent(...) call found in labels/transcribe.py: update this test"
+        bad = [
+            f"labels/transcribe.py:{call.lineno} Agent(...) without model_settings=MODEL_SETTINGS"
+            for call in calls
+            if not any(
+                kw.arg == "model_settings"
+                and isinstance(kw.value, ast.Name)
+                and kw.value.id == "MODEL_SETTINGS"
+                for kw in call.keywords
+            )
+        ]
+        assert not bad, (
+            "CLAUDE.md, Engineering constraints: all model calls use the shared "
+            "60s timeout (MODEL_SETTINGS).\n" + "\n".join(bad)
+        )
