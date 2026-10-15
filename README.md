@@ -94,8 +94,8 @@ cp .env.example .env                                # add ANTHROPIC_API_KEY
 ```
 
 The catalogue, eval photos and manifest are private and gitignored. Tests that need
-the catalogue skip rather than fail: currently 125 pass and 41 skip on a fresh clone,
-and 166 pass with it.
+the catalogue skip rather than fail: currently 133 pass and 41 skip on a fresh clone,
+and 174 pass with it.
 
 ## How AI coding agents are used
 
@@ -125,7 +125,7 @@ and 166 pass with it.
   patterns, and Read rules don't cover shell commands, so the private-data
   rules in `CLAUDE.md` remain instructions as well.
 - **CI** (`.github/workflows/tests.yml`) runs `ruff check` and `pytest -rs` on pushes and PRs
-  to `main`, with no catalogue or API key, so it is currently the 125-pass, 41-skip run.
+  to `main`, with no catalogue or API key, so it is currently the 133-pass, 41-skip run.
 
 ## Known limitations
 

@@ -27,7 +27,9 @@ main.py  /  app/routes.py
 
 `schemas.py` is shared vocabulary and imports nothing of ours. `art_number.py`
 and `catalogue.py` don't know about each other — `pipeline.py` is where they
-meet. Nothing imports `app/` or `main.py`.
+meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
+`transcribe.py` imports an API client, are enforced by
+`tests/test_boundaries.py::TestImportGraph`.
 
 ## Commands
 
@@ -94,7 +96,8 @@ row number plus manifest md5. Never quote a catalogue product name.
   it. It applies per HTTP attempt, so retries multiply it. When changing how a
   model call is made (agent construction, model settings, the client), set the
   Anthropic client's retries and the agent's output retries explicitly; don't
-  rely on library defaults.
+  rely on library defaults. `tests/test_boundaries.py::TestSharedTimeout`
+  checks the 60s value and that every `Agent(...)` passes `MODEL_SETTINGS`.
 - Agents are built lazily and `@cache`d. Importing the module must not require
   an API key.
 - `Extraction` stays JSON-serialisable and `all_reads` stays plain dicts
