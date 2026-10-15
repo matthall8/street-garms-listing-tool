@@ -11,9 +11,12 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCES = sorted([*(ROOT / "labels").glob("*.py"), *(ROOT / "app").glob("*.py"), ROOT / "main.py"])
+SOURCES = sorted([*(ROOT / "labels").rglob("*.py"), *(ROOT / "app").rglob("*.py"), ROOT / "main.py"])
 
-API_CLIENTS = {"pydantic_ai", "anthropic", "openai", "httpx", "requests", "urllib.request"}
+API_CLIENTS = {
+    "pydantic_ai", "anthropic", "openai", "httpx", "requests", "urllib.request",
+    "urllib3", "http.client", "aiohttp",
+}
 
 
 def _module(path: Path) -> str:
