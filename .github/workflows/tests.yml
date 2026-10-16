@@ -20,5 +20,7 @@ jobs:
           enable-cache: true
       - run: uv sync --locked  # fails if uv.lock is out of date
       - run: uv run --locked ruff check --output-format=github .
+      - run: uv run --locked pyright
+        if: ${{ !cancelled() }}  # report types even when lint fails
       - run: uv run --locked python -m pytest -rs
         if: ${{ !cancelled() }}  # report tests even when lint fails
