@@ -159,8 +159,8 @@ Neither blocks nor is blocked by the sequence above.
       Keep Now, Next and Open questions here; move baselines and the md5
       ledger to `evals/BASELINES.md` and the decision rule to an ADR. Refer to
       photos by manifest `id` (row number plus md5 until it exists). The
-      code-reviewer counts code-shaped tokens and flags increases, so this
-      file doesn't block reviews meanwhile.
+      privacy hook flags only values a change adds, so editing this file
+      doesn't block meanwhile.
 
 - [ ] **Widen format coverage in the eval set.** Partly done 2026-10-08:
       `cp_modern` (2 garments, 3 positive rows) and a trailing colour code
