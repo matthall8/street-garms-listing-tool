@@ -1,8 +1,11 @@
-"""hooks/check_private.py, run as git runs it, against synthetic data.
+"""hooks/check_private.py against synthetic data.
 
-Every test builds a throwaway git repo under tmp_path with an invented
-catalogue and manifest from tests/synthetic.py, and passes their paths on the
-command line. Nothing here reads the real private data, so this runs in CI.
+Every test gets a throwaway git repo with an invented catalogue and manifest
+from tests/synthetic.py, and passes their paths on the command line. Nothing
+here reads the real private data, so this runs in CI.
+
+Most tests call the script's `main` in-process, for speed. The crash path and
+the installed git hooks run as subprocesses, as git runs them.
 """
 
 import hashlib
@@ -11,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -24,40 +28,64 @@ SCRIPT = ROOT / "hooks" / "check_private.py"
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
 
 # No inherited GIT_* state (as inside a hook) and no user or system config.
-ENV = {
-    **{k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
-    "GIT_CONFIG_GLOBAL": os.devnull,
-    "GIT_CONFIG_NOSYSTEM": "1",
-}
+CLEAN_GIT = {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
 GIT_IDENTITY = ["-c", "user.name=test", "-c", "user.email=test@example.com"]
+
+
+def load_script():
+    spec = importlib.util.spec_from_file_location("check_private", SCRIPT)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["check_private"] = module  # dataclasses look the module up
+    spec.loader.exec_module(module)
+    return module
+
+
+check_private = load_script()
 
 
 def ledger(md5: str) -> str:
     return f"| date | md5 | what changed |\n|---|---|---|\n| 2026-01-01 | `{md5}` | synthetic |\n"
 
 
+@dataclass
+class Result:
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+def git_env() -> dict[str, str]:
+    return {**{k: v for k, v in os.environ.items() if not k.startswith("GIT_")}, **CLEAN_GIT}
+
+
 class Repo:
-    def __init__(self, tmp_path: Path):
-        self.path = tmp_path / "repo"
-        self.path.mkdir()
-        private = tmp_path / "private"
-        private.mkdir()
-        self.catalogue = private / "catalogue.csv"
-        self.manifest = private / "manifest.csv"
-        self.catalogue.write_text(
+    def __init__(self, base: Path, monkeypatch=None, capsys=None):
+        self.monkeypatch, self.capsys = monkeypatch, capsys
+        self.path = base / "repo"
+        self.catalogue = base / "private" / "catalogue.csv"
+        self.manifest = base / "private" / "manifest.csv"
+
+    @classmethod
+    def create(cls, base: Path) -> "Repo":
+        repo = cls(base)
+        repo.path.mkdir()
+        repo.catalogue.parent.mkdir()
+        repo.catalogue.write_text(
             "ART,Brand,Type,Product Name\n"
             f"{s.KEY},Brand,Jacket,{s.NAME}\n"
             f"{s.OTHER_KEY},Brand,Shirt,{s.SHORT_NAME}\n"
             f"{s.COMPOUND_KEY},Brand,Shirt,\n"
         )
-        self.manifest.write_text(
+        repo.manifest.write_text(
             "photo,expected_art_number,note\n"
             f"{s.PHOTO},{s.EXPECTED_CODE},clear\n"
             f"{s.NEGATIVE_PHOTO},NONE,not_visible\n"
         )
-        self.git("init", "-q", "-b", "main")
-        self.write("TODO.md", ledger(self.manifest_md5()))
-        self.commit("start")
+        repo.git("init", "-q", "-b", "main")
+        repo.write("TODO.md", ledger(repo.manifest_md5()))
+        repo.commit("start")
+        return repo
 
     def manifest_md5(self) -> str:
         return hashlib.md5(self.manifest.read_bytes()).hexdigest()
@@ -65,7 +93,7 @@ class Repo:
     def git(self, *args: str) -> str:
         result = subprocess.run(
             ["git", *GIT_IDENTITY, *args],
-            cwd=self.path, env=ENV, capture_output=True, text=True,
+            cwd=self.path, env=git_env(), capture_output=True, text=True,
         )
         assert result.returncode == 0, result.stderr
         return result.stdout
@@ -84,21 +112,54 @@ class Repo:
         self.git("add", "-A")
         self.git("-c", f"core.hooksPath={os.devnull}", "commit", "-q", "-m", message)
 
-    def check(self, *args: str, catalogue=None, manifest=None) -> subprocess.CompletedProcess:
-        return subprocess.run(
-            [
-                sys.executable, SCRIPT,
-                "--catalogue", catalogue or self.catalogue,
-                "--manifest", manifest or self.manifest,
-                *args,
-            ],
-            cwd=self.path, env=ENV, capture_output=True, text=True,
+    def argv(self, args, catalogue, manifest) -> list[str]:
+        return [
+            "--catalogue", str(catalogue or self.catalogue),
+            "--manifest", str(manifest or self.manifest),
+            *args,
+        ]
+
+    def check(self, *args: str, catalogue=None, manifest=None) -> Result:
+        """main() in-process, from inside the repo."""
+        mp, capsys = self.monkeypatch, self.capsys
+        assert mp and capsys
+        mp.chdir(self.path)
+        mp.setattr(sys, "argv", ["check_private.py", *self.argv(args, catalogue, manifest)])
+        capsys.readouterr()
+        code = check_private.main()
+        out = capsys.readouterr()
+        return Result(code, out.out, out.err)
+
+    def check_subprocess(self, *args: str) -> Result:
+        """The script as git runs it: its own process, its own output."""
+        result = subprocess.run(
+            [sys.executable, SCRIPT, *self.argv(args, None, None)],
+            cwd=self.path, env=git_env(), capture_output=True, text=True,
         )
+        return Result(result.returncode, result.stdout, result.stderr)
+
+
+@pytest.fixture(scope="session")
+def template(tmp_path_factory) -> Path:
+    """One repo built once; each test gets a copy, which is much faster than
+    git init plus a first commit."""
+    base = tmp_path_factory.mktemp("template")
+    mp = pytest.MonkeyPatch()
+    for k in [k for k in os.environ if k.startswith("GIT_")]:
+        mp.delenv(k)
+    Repo.create(base)
+    mp.undo()
+    return base
 
 
 @pytest.fixture
-def repo(tmp_path) -> Repo:
-    return Repo(tmp_path)
+def repo(template, tmp_path, monkeypatch, capsys) -> Repo:
+    for k in [k for k in os.environ if k.startswith("GIT_")]:
+        monkeypatch.delenv(k)
+    for k, v in CLEAN_GIT.items():
+        monkeypatch.setenv(k, v)
+    shutil.copytree(template, tmp_path, dirs_exist_ok=True, symlinks=True)
+    return Repo(tmp_path, monkeypatch, capsys)
 
 
 def blocked(result, kind: str, where: str) -> bool:
@@ -312,7 +373,7 @@ class TestDataFiles:
         # name, invented here to look like a code.
         repo.manifest.write_text(f"photo,{s.UNKNOWN_COLUMN}\n{s.PHOTO},{s.KEY}\n")
         repo.stage("notes.md", f"see {s.NAME} and {s.EXPECTED_CODE}\n")
-        result = repo.check()
+        result = repo.check_subprocess()
         assert result.returncode == 1
         assert result.stderr.strip() == "check_private: blocked by an internal error (KeyError)"
         assert result.stdout == ""
@@ -350,14 +411,18 @@ class TestWrappers:
 
     @pytest.fixture
     def hooked(self, repo):
-        shutil.copytree(ROOT / "hooks", repo.path / "hooks")
-        repo.commit("add hooks")
+        # Linked, not copied: macOS vets each new executable on first run,
+        # which costs more than the commit.
+        (repo.path / "hooks").symlink_to(ROOT / "hooks")
+        if (ROOT / ".venv").exists():  # the wrappers prefer it, as in a real clone
+            (repo.path / ".venv").symlink_to(ROOT / ".venv")
+        repo.write(".git/info/exclude", "hooks\n.venv\n")
         return repo
 
     def commit(self, repo, message: str):
         return subprocess.run(
             ["git", *GIT_IDENTITY, "-c", "core.hooksPath=hooks", "commit", "-q", "-m", message],
-            cwd=repo.path, env=ENV, capture_output=True, text=True,
+            cwd=repo.path, env=git_env(), capture_output=True, text=True,
         )
 
     def test_pre_commit_blocks(self, hooked):
@@ -378,19 +443,10 @@ class TestWrappers:
         assert self.commit(hooked, "docs: notes").returncode == 0
 
 
-def load_script():
-    spec = importlib.util.spec_from_file_location("check_private", SCRIPT)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["check_private"] = module  # dataclasses look the module up
-    spec.loader.exec_module(module)
-    return module
-
-
 @pytest.mark.parametrize(
     "value",
     [None, "", "  ", "abc", " a b c ", "a\tb\nc", "a b", "0012 34", "x-y/z",
      s.COMPOUND_PRINTED, s.KEY.lower()],
 )
 def test_normalise_matches_the_catalogue(value):
-    assert load_script().normalise(value) == normalise(value)
+    assert check_private.normalise(value) == normalise(value)
