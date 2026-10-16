@@ -84,6 +84,7 @@ tested. All 4 no-code photos are Certilogo-type (one care label, three crops), a
 ```bash
 uv sync                                             # needs uv; creates .venv from uv.lock
 cp .env.example .env                                # add ANTHROPIC_API_KEY
+git config core.hooksPath hooks                     # privacy hooks, once per clone
 .venv/bin/python main.py <label.jpg>                  # CLI, prints JSON
 .venv/bin/flask --app app run                       # web upload form
 .venv/bin/python -m pytest                          # offline, no API key
