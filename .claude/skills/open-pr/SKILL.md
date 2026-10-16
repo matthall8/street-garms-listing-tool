@@ -48,7 +48,9 @@ HEAD`, and not an ancestor of `main`); otherwise replace it with an empty
 ledger for this branch.
 
 Run the code-reviewer subagent against `main`. If it reports a Must fix
-or Should fix not already in the ledger, stop. List each in one sentence,
+or Should fix not already handled, stop. A `noted` ledger entry handles a
+finding; a `fix` entry doesn't if this report still lists the problem, so
+ask me again about it. List each in one sentence,
 with file:line, ask me whether to fix or note it, and don't fix anything
 yourself. Write my answer to the ledger before doing anything else:
 - **Fix:** I change the branch; then start again from step 1.
@@ -109,7 +111,13 @@ quotes: titles often contain backticks or `$`, which the shell would
 run or expand.
 Then check each commit on its own, so a value added in one commit and
 removed in a later one is still caught (one command, must print nothing):
-`for c in $(git rev-list main..HEAD); do .venv/bin/python hooks/check_private.py --range "$c~1...$c" >/dev/null 2>&1 || echo "$c"; done`
+`for c in $(git rev-list main..HEAD); do out=$(.venv/bin/python hooks/check_private.py --range "$c~1...$c" 2>&1) || echo "$c"; case "$out" in *skipped*) echo "skipped";; esac; done`
+- Any of the three printing "skipped" means the catalogue or manifest is
+  missing, so the real-value checks didn't run: stop and tell me. That's
+  a failed check, never a pass.
+- A SHA printed by the loop is a privacy Must fix in that commit: handle
+  it as step 3 says (never noted, never in the ledger or body; I rewrite
+  the commit).
 Report privacy as pass/fail only. Then record the body's checksum
 (`md5 -q docs/pr-body.md`) and HEAD (`git rev-parse --short HEAD`).
 
