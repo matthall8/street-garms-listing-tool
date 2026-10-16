@@ -277,7 +277,7 @@ def exempt_lines(source: str | None, region: str) -> set[int] | None:
     return set()
 
 
-def git(*args: str, input: bytes | None = None, ok: tuple[int, ...] = (0,)) -> str:
+def git_bytes(*args: str, input: bytes | None = None, ok: tuple[int, ...] = (0,)) -> bytes:
     result = subprocess.run(
         ["git", "-c", "core.quotePath=false", *args],
         input=input,
@@ -285,13 +285,45 @@ def git(*args: str, input: bytes | None = None, ok: tuple[int, ...] = (0,)) -> s
     )
     if result.returncode not in ok:
         raise RuntimeError("git failed")
-    return result.stdout.decode("utf-8", errors="replace")
+    return result.stdout
 
 
-def git_show(rev: str, path: str) -> str | None:
-    """A file as committed at `rev` (":" for the index), or None if absent."""
-    result = subprocess.run(["git", "show", f"{rev}{path}"], capture_output=True)
-    return result.stdout.decode("utf-8", errors="replace") if result.returncode == 0 else None
+def git(*args: str, input: bytes | None = None, ok: tuple[int, ...] = (0,)) -> str:
+    return git_bytes(*args, input=input, ok=ok).decode("utf-8", errors="replace")
+
+
+def read_blobs(rev: str, paths: list[str]) -> dict[str, str | None]:
+    """Files as committed at `rev` (":" for the index), None where absent,
+    from one git process."""
+    out = git_bytes("cat-file", "--batch", input="".join(f"{rev}{p}\n" for p in paths).encode())
+    blobs: dict[str, str | None] = {}
+    pos = 0
+    for path in paths:
+        end = out.index(b"\n", pos)
+        header = out[pos:end].split()
+        pos = end + 1
+        blobs[path] = None
+        if len(header) == 3:  # <sha> <type> <size>, then the content
+            size = int(header[2])
+            if header[1] == b"blob":
+                blobs[path] = out[pos:pos + size].decode("utf-8", errors="replace")
+            pos += size + 1
+    return blobs
+
+
+def changed_paths(diff: str) -> list[str]:
+    """Paths added, copied, modified, renamed (the new name) or retyped, from
+    the `--raw` lines that lead the diff. Binary files have no hunks, so this
+    is the only place a staged photo shows up."""
+    paths = []
+    for line in diff.split("\n"):
+        if line.startswith("diff --git "):
+            break
+        if line.startswith(":"):
+            meta, *names = line.split("\t")
+            if names and meta.split()[-1][0] in "ACMRT":
+                paths.append(unquote(names[-1]))
+    return paths
 
 
 def load_allowlist(text: str | None) -> set[str]:
@@ -357,9 +389,9 @@ def run(argv: list[str]) -> int:
     parser.add_argument("--manifest", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
-    root = Path(git("rev-parse", "--show-toplevel").strip())
-    catalogue = args.catalogue or root / "data" / "art-number.csv"
-    manifest = args.manifest or root / "evals" / "manifest.csv"
+    root = None if args.catalogue and args.manifest else Path(git("rev-parse", "--show-toplevel").strip())
+    catalogue = args.catalogue or Path(root or ".") / "data" / "art-number.csv"
+    manifest = args.manifest or Path(root or ".") / "evals" / "manifest.csv"
 
     private = Private()
     if catalogue.exists():
@@ -385,8 +417,12 @@ def run(argv: list[str]) -> int:
         rev = ":"
         diff_args = ["--cached"]
 
+    blobs = read_blobs(rev, [ALLOWLIST, *LEDGER_FILES])
+
     def show(path: str) -> str | None:
-        return git_show(rev, path)
+        if path not in blobs:
+            blobs.update(read_blobs(rev, [path]))
+        return blobs[path]
 
     allowed = load_allowlist(show(ALLOWLIST))
     findings: set[tuple[str, str, int]] = set()
@@ -406,20 +442,25 @@ def run(argv: list[str]) -> int:
             "commit message", change, lambda t: pattern_hits(t, lambda _: False), allowed
         )
     else:
-        listing = (
-            git("ls-tree", "-r", "--name-only", "-z", tip)
-            if args.range
-            else git("ls-files", "-z")
-        )
-        tracked_paths = set(filter(None, listing.split("\0")))
+        tracked_paths: set[str] = set()
+        listed = False
 
         def tracked(name: str) -> bool:
+            nonlocal listed
+            if not listed:  # only once an image filename turns up
+                listing = (
+                    git("ls-tree", "-r", "--name-only", "-z", tip)
+                    if args.range
+                    else git("ls-files", "-z")
+                )
+                tracked_paths.update(filter(None, listing.split("\0")))
+                listed = True
             name = name.removeprefix("./")
             return name in tracked_paths or any(p.endswith("/" + name) for p in tracked_paths)
 
         diff = git(
-            "diff", *diff_args, "--no-color", "--no-ext-diff", "--no-textconv",
-            "--find-renames", "-U0", "--src-prefix=a/", "--dst-prefix=b/",
+            "diff", *diff_args, "--raw", "--patch", "--no-color", "--no-ext-diff",
+            "--no-textconv", "--find-renames", "-U0", "--src-prefix=a/", "--dst-prefix=b/",
         )
         for path, change in parse_diff(diff).items():
             findings |= net_findings(path, change, scan_private, allowed)
@@ -432,10 +473,7 @@ def run(argv: list[str]) -> int:
                 path, change, lambda t: pattern_hits(t, tracked), allowed, skip or ()
             )
 
-        names = git(
-            "diff", *diff_args, "--name-only", "-z", "--diff-filter=ACMR", "--find-renames"
-        )
-        paths = [p for p in names.split("\0") if p]
+        paths = changed_paths(diff)
         for path in paths:
             findings |= {(k, path, 0) for k, v in scan_private(path) if digest(v) not in allowed}
         if paths:
