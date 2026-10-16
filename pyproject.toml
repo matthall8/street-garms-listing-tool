@@ -29,7 +29,7 @@ explore = [
 [tool.pyright]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"
-include = ["labels", "app", "tests", "main.py"]
+include = ["labels", "app", "tests", "hooks", "main.py"]
 venvPath = "."
 venv = ".venv"
 
