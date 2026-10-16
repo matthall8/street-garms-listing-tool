@@ -8,6 +8,8 @@ exist (CI never can). Standard library only, so it runs before `uv sync`.
     check_private.py                      the staged diff (pre-commit)
     check_private.py --commit-msg FILE    a commit message (commit-msg)
     check_private.py --range main...HEAD  committed changes and their messages
+    check_private.py --file PATH          any text file, every line (a PR body)
+    check_private.py --text STRING        a string, every line (a PR title)
 
 Each finding prints as "private value (<type>) in <file>:<line>", never the
 value itself; line 0 means the file's path. Any finding, or any error, exits 1.
@@ -385,6 +387,8 @@ def run(argv: list[str]) -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--commit-msg", metavar="FILE", type=Path)
     mode.add_argument("--range", metavar="A...B")
+    mode.add_argument("--file", metavar="PATH", type=Path)
+    mode.add_argument("--text", metavar="STRING")
     parser.add_argument("--catalogue", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--manifest", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
@@ -431,15 +435,25 @@ def run(argv: list[str]) -> int:
     def scan_private(text: str) -> list[tuple[str, str]]:
         return private_hits(text, private, lengths)
 
-    if args.commit_msg:
-        comment = git("config", "--get", "core.commentChar", ok=(0, 1)).strip() or "#"
-        if comment == "auto":
-            comment = "#"
-        text = args.commit_msg.read_text(encoding="utf-8", errors="replace")
-        change = FileChange(added=message_lines(text, comment))
-        findings |= net_findings("commit message", change, scan_private, allowed)
+    if args.commit_msg or args.file or args.text is not None:
+        # Text with nothing to net against, so every line counts as added. No
+        # tracked-image exception: a message, PR body or title holds no
+        # filenames at all.
+        if args.commit_msg:
+            comment = git("config", "--get", "core.commentChar", ok=(0, 1)).strip() or "#"
+            if comment == "auto":
+                comment = "#"
+            text = args.commit_msg.read_text(encoding="utf-8", errors="replace")
+            label, lines = "commit message", message_lines(text, comment)
+        elif args.file:
+            text = args.file.read_text(encoding="utf-8", errors="replace")
+            label, lines = str(args.file), list(enumerate(text.splitlines(), 1))
+        else:
+            label, lines = "text", list(enumerate(args.text.splitlines(), 1))
+        change = FileChange(added=lines)
+        findings |= net_findings(label, change, scan_private, allowed)
         findings |= net_findings(
-            "commit message", change, lambda t: pattern_hits(t, lambda _: False), allowed
+            label, change, lambda t: pattern_hits(t, lambda _: False), allowed
         )
     else:
         tracked_paths: set[str] = set()

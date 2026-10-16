@@ -325,6 +325,21 @@ class TestCommitMessage:
         assert self.message(repo, text).returncode == 0
 
 
+
+class TestFileAndText:
+    """For a PR body and title: every line counts, `#` lines included."""
+
+    def test_file_checks_every_line(self, repo):
+        body = repo.write("pr-body.md", f"## Review\n# {s.KEY}\nclean\n")
+        assert blocked(repo.check("--file", str(body)), "catalogue_key", f"{body}:2")
+        body.write_text("## Review\nclean\n")
+        assert repo.check("--file", str(body)).returncode == 0
+
+    def test_text_is_checked(self, repo):
+        assert blocked(repo.check("--text", f"feat: the {s.NAME}"), "product_name", "text:1")
+        assert repo.check("--text", "feat: block private values").returncode == 0
+
+
 class TestRange:
     def test_committed_key_blocks(self, repo):
         repo.git("switch", "-q", "-c", "topic")
