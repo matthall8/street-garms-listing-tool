@@ -383,6 +383,14 @@ def message_lines(text: str, comment: str) -> tuple[list[tuple[int, str]], list[
     return lines, [(n, line) for n, line in lines if not line.startswith(comment)]
 
 
+def private_file(roots: list[Path], name: str) -> Path:
+    """The gitignored file in this worktree or, from a linked worktree, in the
+    main one, which is the only place it exists. The main worktree is the
+    parent of the common git dir; in a submodule that parent holds no data
+    file, so the lookup misses and the check skips, as with no file at all."""
+    return next((root / name for root in roots if (root / name).exists()), roots[0] / name)
+
+
 def run(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Block a commit that adds a private value.")
     mode = parser.add_mutually_exclusive_group()
@@ -394,9 +402,14 @@ def run(argv: list[str]) -> int:
     parser.add_argument("--manifest", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
-    root = None if args.catalogue and args.manifest else Path(git("rev-parse", "--show-toplevel").strip())
-    catalogue = args.catalogue or Path(root or ".") / "data" / "art-number.csv"
-    manifest = args.manifest or Path(root or ".") / "evals" / "manifest.csv"
+    roots = [Path(".")]
+    if not (args.catalogue and args.manifest):
+        top, common = git(
+            "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"
+        ).splitlines()
+        roots = [Path(top), Path(common).parent]
+    catalogue = args.catalogue or private_file(roots, "data/art-number.csv")
+    manifest = args.manifest or private_file(roots, "evals/manifest.csv")
 
     private = Private()
     if catalogue.exists():

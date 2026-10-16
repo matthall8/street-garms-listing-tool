@@ -393,6 +393,17 @@ class TestDataFiles:
         assert result.returncode == 0
         assert "manifest and md5 checks skipped" in result.stderr
 
+    def test_linked_worktree_with_no_data_anywhere_skips(self, repo, tmp_path, monkeypatch, capsys):
+        linked = tmp_path / "linked"
+        repo.git("worktree", "add", "-q", "-b", "topic", str(linked))
+        monkeypatch.chdir(linked)
+        monkeypatch.setattr(sys, "argv", ["check_private.py"])
+        capsys.readouterr()
+        assert check_private.main() == 0
+        err = capsys.readouterr().err
+        assert "catalogue checks skipped" in err
+        assert "manifest and md5 checks skipped" in err
+
     def test_catalogue_missing_a_column_blocks(self, repo):
         repo.catalogue.write_text(f"Brand,Product Name\nBrand,{s.NAME}\n")
         assert internal_error(repo.check())
@@ -479,6 +490,24 @@ class TestWrappers:
     def test_clean_commit_passes(self, hooked):
         hooked.stage("notes.md", "nothing\n")
         assert self.commit(hooked, "docs: notes").returncode == 0
+
+    def test_linked_worktree_reads_the_main_worktrees_data(self, hooked, tmp_path):
+        # The private files sit gitignored in the main worktree only, as in a
+        # real clone; an agent's worktree has none of its own.
+        shutil.copy(hooked.catalogue, hooked.write("data/art-number.csv", ""))
+        shutil.copy(hooked.manifest, hooked.write("evals/manifest.csv", ""))
+        hooked.write(".git/info/exclude", "hooks\n.venv\ndata/\nevals/manifest.csv\n")
+        linked = Repo(tmp_path / "linked")
+        hooked.git("worktree", "add", "-q", "-b", "topic", str(linked.path))
+        (linked.path / "hooks").symlink_to(ROOT / "hooks")
+        if (ROOT / ".venv").exists():
+            (linked.path / ".venv").symlink_to(ROOT / ".venv")
+        # Not code-shaped, so only the catalogue check could catch it.
+        linked.stage("notes.md", f"see {s.COMPOUND_PRINTED}\n")
+        result = self.commit(linked, "docs: notes")
+        assert result.returncode != 0
+        assert "private value (catalogue_key) in notes.md:1" in result.stderr
+        assert "skipped" not in result.stderr
 
 
 @pytest.mark.parametrize(
