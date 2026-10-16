@@ -11,7 +11,7 @@ evals rejects a None metric and discards the WHOLE case result, including
 """
 
 from types import SimpleNamespace
-from typing import Literal, cast
+from typing import cast
 
 import pytest
 from pydantic_evals import Case, Dataset
@@ -28,12 +28,10 @@ from eval_transcription import (
     load_manifest,
     normalise,
 )
-from labels.schemas import AmbiguousCharacter, ArtNumberReading
-
-Legible = Literal["clear", "partial", "illegible", "not_visible"]
+from labels.schemas import AmbiguousCharacter, ArtLegibility, ArtNumberReading
 
 
-def ctx(expected, raw, legible: Legible = "clear") -> EvaluatorContext:
+def ctx(expected, raw, legible: ArtLegibility = "clear") -> EvaluatorContext:
     """Stand-in for EvaluatorContext. evaluate() reads only these two attributes.
 
     A rename upstream would leave these tests green while the harness broke, so
@@ -46,7 +44,7 @@ def ctx(expected, raw, legible: Legible = "clear") -> EvaluatorContext:
     ))
 
 
-def score(expected, raw, legible: Legible = "clear") -> dict:
+def score(expected, raw, legible: ArtLegibility = "clear") -> dict:
     return CorrectArtNumber().evaluate(ctx(expected, raw, legible))
 
 

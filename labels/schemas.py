@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+ArtLegibility = Literal["clear", "partial", "illegible", "not_visible"]
+
 
 class AmbiguousCharacter(BaseModel):
     """A character that has two visually plausible readings."""
@@ -32,7 +34,7 @@ class ArtNumberReading(BaseModel):
         ),
     )
 
-    art_legible: Literal["clear", "partial", "illegible", "not_visible"] = Field(
+    art_legible: ArtLegibility = Field(
         description=(
             "'clear' if every character was read confidently. "
             "'partial' if some characters are uncertain. "

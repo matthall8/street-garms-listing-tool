@@ -7,21 +7,18 @@ transcribe`, which binds the name at import time, so patching the source module
 would have no effect.
 """
 
-from typing import Literal
-
 import pytest
 
 from labels import pipeline
 from labels.pipeline import extract_bytes
 from labels.schemas import (
     AmbiguousCharacter,
+    ArtLegibility,
     ArtNumberReading,
     LabelDetails,
     LabelReading,
     SizeMarking,
 )
-
-Legible = Literal["clear", "partial", "illegible", "not_visible"]
 
 PHOTO = (b"not-really-an-image", "image/png")
 
@@ -33,7 +30,7 @@ def run(monkeypatch):
     Returns a callable: run(code, legibility=..., **detail_fields) -> Extraction
     """
 
-    def _run(code=None, legibility: Legible = "clear", ambiguous=(), **details):
+    def _run(code=None, legibility: ArtLegibility = "clear", ambiguous=(), **details):
         reading = LabelReading(
             art=ArtNumberReading(
                 art_number_raw=code,
