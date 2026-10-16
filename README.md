@@ -84,6 +84,7 @@ tested. All 4 no-code photos are Certilogo-type (one care label, three crops), a
 ```bash
 uv sync                                             # needs uv; creates .venv from uv.lock
 cp .env.example .env                                # add ANTHROPIC_API_KEY
+git config core.hooksPath hooks                     # privacy hooks, once per clone
 .venv/bin/python main.py <label.jpg>                  # CLI, prints JSON
 .venv/bin/flask --app app run                       # web upload form
 .venv/bin/python -m pytest                          # offline, no API key
@@ -95,8 +96,8 @@ cp .env.example .env                                # add ANTHROPIC_API_KEY
 ```
 
 The catalogue, eval photos and manifest are private and gitignored. Tests that need
-the catalogue skip rather than fail: currently 133 pass and 41 skip on a fresh clone,
-and 174 pass with it.
+the catalogue skip rather than fail: currently 202 pass and 41 skip on a fresh clone,
+and 243 pass with it.
 
 ## How AI coding agents are used
 
@@ -106,8 +107,8 @@ and 174 pass with it.
 - **`.claude/agents/code-reviewer.md`** is a reviewer subagent, instructed not to
   edit, commit or push. It reviews the branch against `main`, `CLAUDE.md` and the
   ADRs, and runs the test suite locally, where the private catalogue is present.
-  It counts code-shaped tokens and photo filenames in each changed file and in the
-  commit messages, and reports privacy as pass/fail only, never counts or values. Ground truth is gitignored,
+  It runs the privacy hooks' check over the branch and its commit messages, and
+  reports privacy as pass/fail only, never counts or values. Ground truth is gitignored,
   so it never appears in a diff; the reviewer hashes the manifest and compares it
   with the md5 ledger kept by hand in `TODO.md`. A verdict of Ready to merge
   requires a clean tree, so the report matches the commit it describes.
@@ -125,8 +126,25 @@ and 174 pass with it.
   Python edit, and hand any failure back to it. These rules match command
   patterns, and Read rules don't cover shell commands, so the private-data
   rules in `CLAUDE.md` remain instructions as well.
+- **Privacy hooks** (`hooks/`, installed with `git config core.hooksPath hooks`)
+  check every commit locally against the real private values, which CI never
+  sees: catalogue keys and product names, manifest photo filenames and expected
+  codes, plus the reviewer's code-shaped and image-filename patterns. A value
+  blocks when a file's added lines hold it more often than its removed lines,
+  so a swapped code blocks too. Findings print as type plus `file:line`, never
+  the value; any error blocks the commit. `hooks/allowed.sha256` holds hashes
+  of the values allowed to appear anyway (format examples, placeholder image
+  names), never the values; a hash of a short code can be reversed by brute
+  force, so only non-private values belong there. The pre-commit hook also
+  blocks a manifest whose md5 isn't the last row of the ledger. Agents are
+  denied `git commit --no-verify`/`-n` and changing `core.hooksPath`, and are
+  asked before editing `hooks/`. These are pattern matches, not a guarantee:
+  `--no-verify` placed where a pattern doesn't expect it, `chmod -x` or an edit
+  through Bash gets past them, so the code-reviewer flags every change under
+  `hooks/` or to these settings for the maintainer, and runs the same check
+  over the branch.
 - **CI** (`.github/workflows/tests.yml`) runs `ruff check`, `pyright` and `pytest -rs` on pushes and PRs
-  to `main`, with no catalogue or API key, so it is currently the 133-pass, 41-skip run.
+  to `main`, with no catalogue or API key, so it is currently the 202-pass, 41-skip run.
 
 ## Known limitations
 

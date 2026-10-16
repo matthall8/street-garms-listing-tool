@@ -16,6 +16,7 @@
     ],
     "ask": [
       "Edit(./.claude/**)",
+      "Edit(./hooks/**)",
       "Read(./data/**)",
       "Read(./images/**)",
       "Read(./evals/photos/**)",
@@ -45,7 +46,22 @@
       "Bash(git push origin HEAD:main)",
       "Bash(git push --force *)",
       "Bash(git push --force-with-lease *)",
-      "Bash(git push -f *)"
+      "Bash(git push -f *)",
+      "Bash(git commit --no-verify*)",
+      "Bash(git commit * --no-verify*)",
+      "Bash(git commit -n*)",
+      "Bash(git config core.hooksPath *)",
+      "Bash(git config --unset core.hooksPath*)",
+      "Bash(git config --unset-all core.hooksPath*)",
+      "Bash(git config --local core.hooksPath *)",
+      "Bash(git config --global core.hooksPath *)",
+      "Bash(git config --local --unset core.hooksPath*)",
+      "Bash(git config --global --unset core.hooksPath*)",
+      "Bash(git config set core.hooksPath *)",
+      "Bash(git config set --local core.hooksPath *)",
+      "Bash(git config set --global core.hooksPath *)",
+      "Bash(git config unset core.hooksPath*)",
+      "Bash(git -c core.hooksPath*)"
     ]
   },
   "hooks": {

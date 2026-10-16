@@ -1,7 +1,7 @@
 """Score the art number decoder against the catalogue.
 
 The catalogue's "Product Name" column carries a human-confirmed season, e.g.
-"A/W 02 Raso Gommato". That is the ground truth. No network, no API key.
+a name starting "A/W 99". That is the ground truth. No network, no API key.
 
     python tests/test_art_number.py
 """

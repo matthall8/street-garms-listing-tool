@@ -26,6 +26,13 @@ evals/
 | `expected_art_number` | the code as printed, hand-checked by eye — or `NONE` |
 | `note` | free text, kept with the case in the saved report |
 
+**Adding a column:** first commit its classification in `MANIFEST_COLUMNS`
+(`hooks/check_private.py`), private for identifiers such as codes and
+filenames, public for free text and categorical values, then edit the
+manifest. The privacy hook blocks every commit while the manifest has a
+column it can't classify. `id`, `expected_line` and `expected_style` are
+already classified.
+
 Expected values are compared ignoring spacing and case, so `05CMSH022A 004275A`
 and `05cmsh022a004275a` both count as correct. Every other difference counts as
 a miss.
