@@ -148,12 +148,14 @@ the PR. (The skill numbers its own steps separately.)
 3. Write the PR body from `.github/pull_request_template.md` into
    `docs/pr-body.md` (gitignored), including the reviewer's report. Run
    `hooks/check_private.py --file docs/pr-body.md` and
-   `hooks/check_private.py --text "<title>"`; both must exit 0. In the PR
-   body, report privacy results as pass/fail
-   only, with no counts, line numbers or locations. Before asking me to
-   read the body, delete the template's HTML comments, then check no <…>
-   placeholders remain outside the `<details>`/`<summary>` tags. Then stop
-   and ask me to read it: the PR is public.
+   `hooks/check_private.py --text '<title>'`; both must exit 0. Quote the
+   title with single quotes (a `'` inside becomes `'\''`), never double:
+   titles often contain backticks or `$`. In the PR body, report privacy
+   results as pass/fail only, with no counts, line numbers or locations.
+   Before asking me to read the body, delete the template's HTML comments,
+   then check no <…> placeholders remain outside the
+   `<details>`/`<summary>` tags. Then stop and ask me to read it: the PR is
+   public.
 4. After I approve: `git push -u origin <branch>`, then
    `gh pr create --base main --title "<title>" --body-file docs/pr-body.md`.
 5. Never merge. I merge after reading the diff and the CI result.
