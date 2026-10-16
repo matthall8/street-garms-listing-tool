@@ -129,7 +129,7 @@ image, leave it null.
 """
 
 @cache
-def get_art_agent(model: str = ART_MODEL) -> Agent:
+def get_art_agent(model: str = ART_MODEL) -> Agent[None, ArtNumberReading]:
     """Build on first use, so importing this module needs no API key.
 
     Cached per model so the eval harness can compare models in one run.
@@ -141,7 +141,7 @@ def get_art_agent(model: str = ART_MODEL) -> Agent:
 
 
 @cache
-def get_details_agent(model: str = DETAILS_MODEL) -> Agent:
+def get_details_agent(model: str = DETAILS_MODEL) -> Agent[None, LabelDetails]:
     return Agent(model,
                  system_prompt=DETAILS_PROMPT,
                  model_settings=MODEL_SETTINGS,
