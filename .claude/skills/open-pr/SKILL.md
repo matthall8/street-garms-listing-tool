@@ -109,16 +109,21 @@ Wherever the title goes into a shell command (here and in step 6), put
 it in single quotes, writing any `'` in it as `'\''`. Never use double
 quotes: titles often contain backticks or `$`, which the shell would
 run or expand.
+Check the branch as a whole, which includes the manifest md5 against the
+ledger at HEAD; it must exit 0:
+`.venv/bin/python hooks/check_private.py --range main...HEAD`
 Then check each commit on its own, so a value added in one commit and
-removed in a later one is still caught (one command, must print nothing):
-`for c in $(git rev-list main..HEAD); do out=$(.venv/bin/python hooks/check_private.py --range "$c~1...$c" 2>&1); rc=$?; case "$out" in *skipped*) echo "skipped $c";; esac; case "$out" in *"private value ("*) echo "private $c";; *) [ "$rc" -eq 0 ] || echo "error $c";; esac; done`
-- **skipped** (from any of the three checks): the catalogue or manifest
+removed in a later one is still caught. The md5 lines (`manifest …`) are
+dropped here: today's manifest only has to match the ledger at HEAD, not
+at every earlier commit. One command, must print nothing:
+`for c in $(git rev-list main..HEAD); do rest=$(.venv/bin/python hooks/check_private.py --range "$c~1...$c" 2>&1 | grep -v '^manifest '); case "$rest" in *skipped*) echo "skipped $c";; *"private value ("*) echo "private $c";; ?*) echo "error $c";; esac; done`
+- **skipped** (from any of these checks): the catalogue or manifest
   is missing, so the real-value checks didn't run. Stop and tell me.
   That's a failed check, never a pass.
 - **private <sha>:** a privacy Must fix in that commit. Handle it as step
   3 says: never noted, never in the ledger or body; I rewrite the commit.
-- **error <sha>:** the check failed for another reason (an md5 ledger
-  mismatch, or an internal error). That's not evidence of private data,
+- **error <sha>:** the check failed for another reason, such as an
+  internal error. That's not evidence of private data,
   so don't ask for a rewrite: stop, and show me that commit's check output
   (it never contains a value).
 Report privacy as pass/fail only. Then record the body's checksum
