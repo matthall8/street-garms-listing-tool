@@ -229,9 +229,9 @@ put it in the `--note`.
 
 - [ ] **Run the `needs_review` gate invariants in CI.** CI has no catalogue,
       so both gate tests skip there: corrections forcing review
-      (`tests/test_pipeline.py:88-89`) and misses not flagging
-      (`tests/test_pipeline.py:92`), along with `TestResolveCorrected` and
-      `TestCorrectionSafety`. A green CI run says nothing about the gate.
+      (`TestNeedsReview::test_correction_flags_even_when_everything_else_is_clean`)
+      and misses not flagging (`TestNeedsReview::test_catalogue_miss_does_not_flag`),
+      along with `TestResolveCorrected` and `TestCorrectionSafety`. A green CI run says nothing about the gate.
       `TestResolveAmbiguous` (`tests/test_resolve.py:129-165`) already
       monkeypatches `labels.catalogue.load_catalogue` with a synthetic dict;
       add new tests on that pattern alongside the real-catalogue ones, not

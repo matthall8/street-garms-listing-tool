@@ -13,6 +13,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pyright==1.1.414",
     "pytest==9.1.1",
     "ruff==0.17.0",
 ]
@@ -24,6 +25,13 @@ explore = [
     "pyzbar==0.1.9",
     "zbar-py==1.0.4",
 ]
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+include = ["labels", "app", "tests", "main.py"]
+venvPath = "."
+venv = ".venv"
 
 [tool.ruff]
 target-version = "py313"   # matches CI

@@ -13,6 +13,7 @@ from labels import pipeline
 from labels.pipeline import extract_bytes
 from labels.schemas import (
     AmbiguousCharacter,
+    ArtLegibility,
     ArtNumberReading,
     LabelDetails,
     LabelReading,
@@ -29,7 +30,7 @@ def run(monkeypatch):
     Returns a callable: run(code, legibility=..., **detail_fields) -> Extraction
     """
 
-    def _run(code=None, legibility="clear", ambiguous=(), **details):
+    def _run(code=None, legibility: ArtLegibility = "clear", ambiguous=(), **details):
         reading = LabelReading(
             art=ArtNumberReading(
                 art_number_raw=code,

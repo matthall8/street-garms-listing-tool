@@ -11,9 +11,12 @@ evals rejects a None metric and discards the WHOLE case result, including
 """
 
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 from pydantic_evals import Case, Dataset
+from pydantic_evals.evaluators import EvaluatorContext
+from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 import eval_transcription
 from eval_transcription import (
@@ -25,22 +28,23 @@ from eval_transcription import (
     load_manifest,
     normalise,
 )
-from labels.schemas import AmbiguousCharacter, ArtNumberReading
+from labels.schemas import AmbiguousCharacter, ArtLegibility, ArtNumberReading
 
 
-def ctx(expected, raw, legible="clear"):
+def ctx(expected, raw, legible: ArtLegibility = "clear") -> EvaluatorContext:
     """Stand-in for EvaluatorContext. evaluate() reads only these two attributes.
 
     A rename upstream would leave these tests green while the harness broke, so
     the end-to-end wiring is covered by `rates()` below instead.
     """
-    return SimpleNamespace(
+    # Deliberate test fake, not a real EvaluatorContext: keep the cast.
+    return cast(EvaluatorContext, SimpleNamespace(
         expected_output=expected,
         output=ArtNumberReading(art_number_raw=raw, art_legible=legible),
-    )
+    ))
 
 
-def score(expected, raw, legible="clear") -> dict:
+def score(expected, raw, legible: ArtLegibility = "clear") -> dict:
     return CorrectArtNumber().evaluate(ctx(expected, raw, legible))
 
 
@@ -55,6 +59,15 @@ def reading(spec) -> ArtNumberReading:
             for p in range(ambiguous_count)
         ],
     )
+
+
+def scalars_of(analyses) -> dict:
+    """title -> value for report analyses that must all be scalars."""
+    out = {}
+    for a in analyses:
+        assert isinstance(a, ScalarResult), f"{a.title!r} is not a scalar"
+        out[a.title] = a.value
+    return out
 
 
 def rates(*specs) -> dict:
@@ -76,7 +89,7 @@ def rates(*specs) -> dict:
         evaluators=[CorrectArtNumber()],
         report_evaluators=[ConfidenceRates()],
     ).evaluate_sync(lambda n: readings[n])
-    return {r.title: r.value for r in report.analyses}
+    return scalars_of(report.analyses)
 
 
 def per_photo(photos: dict, expected: dict | None = None) -> tuple[dict, dict]:
@@ -115,8 +128,9 @@ def per_photo(photos: dict, expected: dict | None = None) -> tuple[dict, dict]:
     ).evaluate_sync(task, repeat=repeat, max_concurrency=1)
 
     [table] = [a for a in report.analyses if a.title == "per photo"]
+    assert isinstance(table, TableResult)
     rows = {row[0]: dict(zip(table.columns, row, strict=True)) for row in table.rows}
-    scalars = {a.title: a.value for a in report.analyses if a.title != "per photo"}
+    scalars = scalars_of(a for a in report.analyses if a.title != "per photo")
     return rows, scalars
 
 
@@ -491,7 +505,9 @@ class TestLoadManifest:
 
     def test_note_is_carried_into_case_metadata(self, tmp_path, monkeypatch):
         self.write(tmp_path, monkeypatch, "a.jpg,123456789,faded garment dyed\n")
-        assert load_manifest()[0].metadata["note"] == "faded garment dyed"
+        metadata = load_manifest()[0].metadata
+        assert metadata is not None
+        assert metadata["note"] == "faded garment dyed"
 
 
 class TestSentinelSafety:

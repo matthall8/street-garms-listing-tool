@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+ArtLegibility = Literal["clear", "partial", "illegible", "not_visible"]
+
 
 class AmbiguousCharacter(BaseModel):
     """A character that has two visually plausible readings."""
@@ -24,7 +26,7 @@ class ArtNumberReading(BaseModel):
     """The ART number, read from a photo framed on the ART number tag."""
 
     art_number_raw: str | None = Field(
-        None,
+        default=None,
         description=(
             "Verbatim ART number as physically printed. "
             "Preserve leading zeros, spaces, slashes and letters. "
@@ -32,7 +34,7 @@ class ArtNumberReading(BaseModel):
         ),
     )
 
-    art_legible: Literal["clear", "partial", "illegible", "not_visible"] = Field(
+    art_legible: ArtLegibility = Field(
         description=(
             "'clear' if every character was read confidently. "
             "'partial' if some characters are uncertain. "
@@ -65,7 +67,7 @@ class LabelDetails(BaseModel):
     """Everything other than the ART number, read from the care label photo."""
 
     brand_printed: str | None = Field(
-        None,
+        default=None,
         description="Brand name exactly as physically printed, if visible.",
     )
 
@@ -76,17 +78,17 @@ class LabelDetails(BaseModel):
     )
 
     composition: str | None = Field(
-        None,
+        default=None,
         description="Composition/fibre information exactly as physically printed.",
     )
 
     made_in: str | None = Field(
-        None,
+        default=None,
         description="Country-of-origin text exactly as physically printed.",
     )
 
     clg_number: str | None = Field(
-        None,
+        default=None,
         description=(
             "Printed Certilogo/CLG number exactly as physically visible. "
             "Do not derive it from the QR code."
@@ -94,7 +96,7 @@ class LabelDetails(BaseModel):
     )
 
     garment_colour_observed: str | None = Field(
-        None,
+        default=None,
         description=(
             "OBSERVATION, NOT TRANSCRIPTION. The apparent colour of the garment "
             "fabric visible around the label, in plain words such as 'olive green' "
@@ -104,7 +106,7 @@ class LabelDetails(BaseModel):
     )
 
     notes: str | None = Field(
-        None,
+        default=None,
         description=(
             "Objective visual observations only. "
             "Do not include authenticity judgments or inferred product information."

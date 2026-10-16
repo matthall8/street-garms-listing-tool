@@ -68,6 +68,7 @@ class TestArtLookup:
 
     def test_returns_the_whole_row(self, a_code):
         row = art_lookup(a_code)
+        assert row is not None
         assert {"ART", "Brand", "Type", "Product Name"} <= set(row)
 
 
