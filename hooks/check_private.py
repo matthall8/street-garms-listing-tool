@@ -370,16 +370,17 @@ def check_md5(manifest: Path, show: Callable[[str], str | None]) -> str | None:
     return "manifest exists but no md5 ledger was found: add a ledger row"
 
 
-def message_lines(text: str, comment: str) -> list[tuple[int, str]]:
-    """The message as git will keep it: up to the `commit -v` scissors line,
-    without comment lines."""
+def message_lines(text: str, comment: str) -> tuple[list[tuple[int, str]], list[tuple[int, str]]]:
+    """The message up to the `commit -v` scissors line: every line, and the
+    lines that aren't comments. Without an editor (`-m`, `-F`) git keeps
+    comment lines, so the real-value checks read every line; the patterns
+    skip comments, where git's own status text would trip them."""
     lines = []
     for n, line in enumerate(text.splitlines(), 1):
         if line.startswith(f"{comment} ") and ">8" in line:
             break
-        if not line.startswith(comment):
-            lines.append((n, line))
-    return lines
+        lines.append((n, line))
+    return lines, [(n, line) for n, line in lines if not line.startswith(comment)]
 
 
 def run(argv: list[str]) -> int:
@@ -444,16 +445,18 @@ def run(argv: list[str]) -> int:
             if comment == "auto":
                 comment = "#"
             text = args.commit_msg.read_text(encoding="utf-8", errors="replace")
-            label, lines = "commit message", message_lines(text, comment)
+            label = "commit message"
+            lines, pattern_lines = message_lines(text, comment)
         elif args.file:
             text = args.file.read_text(encoding="utf-8", errors="replace")
             label, lines = str(args.file), list(enumerate(text.splitlines(), 1))
+            pattern_lines = lines
         else:
             label, lines = "text", list(enumerate(args.text.splitlines(), 1))
-        change = FileChange(added=lines)
-        findings |= net_findings(label, change, scan_private, allowed)
+            pattern_lines = lines
+        findings |= net_findings(label, FileChange(added=lines), scan_private, allowed)
         findings |= net_findings(
-            label, change, lambda t: pattern_hits(t, lambda _: False), allowed
+            label, FileChange(added=pattern_lines), lambda t: pattern_hits(t, lambda _: False), allowed
         )
     else:
         tracked_paths: set[str] = set()

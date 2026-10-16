@@ -315,15 +315,19 @@ class TestCommitMessage:
     def test_clean_message_passes(self, repo):
         assert self.message(repo, "fix: a clean message\n").returncode == 0
 
-    def test_comment_and_verbose_diff_are_ignored(self, repo):
+    def test_patterns_skip_comments_and_verbose_diff_is_ignored(self, repo):
         text = (
             "fix: a clean message\n"
-            f"# {s.KEY}\n"
+            f"# {s.CODE_SHAPED}\n"
             "# ------------------------ >8 ------------------------\n"
             f"+see {s.KEY}\n"
         )
         assert self.message(repo, text).returncode == 0
 
+    def test_key_in_a_comment_line_blocks(self, repo):
+        # As `git commit -m` writes it: no editor, so git keeps `#` lines.
+        text = f"fix: a clean message\n\n# see {s.KEY}\n"
+        assert blocked(self.message(repo, text), "catalogue_key", "commit message:3")
 
 
 class TestFileAndText:
