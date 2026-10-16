@@ -115,7 +115,8 @@ and 243 pass with it.
 - **Pull requests** follow `CLAUDE.md`: one topic per branch, the reviewer before
   the PR opens, and a body written from `.github/pull_request_template.md` that
   includes the reviewer's report and is read by the maintainer before it is
-  published. Agents never merge.
+  published. `/open-pr` (`.claude/skills/open-pr/SKILL.md`) runs that flow and
+  stops before pushing. Agents never merge.
 - **Enforcement.** A GitHub ruleset on `main` is the hard limit: no direct or
   force pushes, no deletion, and every change arrives by PR with a green CI
   run. `.claude/settings.json` (tracked, so changes are reviewed) adds agent
