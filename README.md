@@ -88,6 +88,7 @@ cp .env.example .env                                # add ANTHROPIC_API_KEY
 .venv/bin/flask --app app run                       # web upload form
 .venv/bin/python -m pytest                          # offline, no API key
 .venv/bin/ruff check .                              # lint, rules in pyproject.toml
+.venv/bin/pyright                                   # types, basic mode
 .venv/bin/python tests/report_art_number.py         # decoder score, needs catalogue
 .venv/bin/python tests/eval_transcription.py --model test --no-save   # harness, no API calls
 .venv/bin/python tests/eval_transcription.py --repeat 3 --workers 1 --note "..."  # as baseline
@@ -124,7 +125,7 @@ and 174 pass with it.
   Python edit, and hand any failure back to it. These rules match command
   patterns, and Read rules don't cover shell commands, so the private-data
   rules in `CLAUDE.md` remain instructions as well.
-- **CI** (`.github/workflows/tests.yml`) runs `ruff check` and `pytest -rs` on pushes and PRs
+- **CI** (`.github/workflows/tests.yml`) runs `ruff check`, `pyright` and `pytest -rs` on pushes and PRs
   to `main`, with no catalogue or API key, so it is currently the 133-pass, 41-skip run.
 
 ## Known limitations

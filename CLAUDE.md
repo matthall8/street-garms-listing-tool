@@ -39,7 +39,8 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | add a dependency | `uv add <pkg>==<version>` (`--group dev` for tools); commit `uv.lock` with it |
 | tests | `.venv/bin/python -m pytest` — offline, no API key |
 | lint | `.venv/bin/ruff check .` — rules in `pyproject.toml` |
-| CI | `.github/workflows/tests.yml` — `uv sync --locked`, `ruff check` and `pytest -rs` on push/PR to main, no catalogue, no key |
+| types | `.venv/bin/pyright` — basic mode, config in `pyproject.toml` |
+| CI | `.github/workflows/tests.yml` — `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs` on push/PR to main, no catalogue, no key |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/flask --app app run` |
 | decoder score | `.venv/bin/python tests/report_art_number.py` |
