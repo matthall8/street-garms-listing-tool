@@ -391,6 +391,53 @@ class TestRange:
         assert result.returncode == 1
         assert "private value (catalogue_key) in commit " in result.stdout
 
+    # The passing tests below commit, then stage a change so the index no
+    # longer agrees with the tip: a pass means range mode read the tip.
+
+    def test_allowlist_is_read_from_the_tip(self, repo):
+        repo.git("switch", "-q", "-c", "topic")
+        digest = hashlib.sha256(normalise(s.KEY).encode()).hexdigest()
+        repo.write("hooks/allowed.sha256", f"{digest}\n")
+        repo.write("notes.md", f"see {s.KEY}\n")
+        repo.commit("docs: notes")
+        repo.git("rm", "-q", "hooks/allowed.sha256")
+        assert repo.check("--range", "main...HEAD").returncode == 0
+
+    def test_art_prompt_region_is_read_from_the_tip(self, repo):
+        repo.git("switch", "-q", "-c", "topic")
+        repo.write("labels/transcribe.py", f'ART_PROMPT = """\nlike {s.CODE_SHAPED}\n"""\n')
+        repo.commit("feat: prompt")
+        repo.git("rm", "-q", "labels/transcribe.py")
+        assert repo.check("--range", "main...HEAD").returncode == 0
+
+    def test_tracked_images_are_listed_from_the_tip(self, repo):
+        repo.write(f"assets/{s.IMAGE}", "not really an image\n")
+        repo.commit("add asset")
+        repo.git("switch", "-q", "-c", "topic")
+        repo.write("notes.md", f"see assets/{s.IMAGE}\n")
+        repo.commit("docs: notes")
+        repo.git("rm", "-q", f"assets/{s.IMAGE}")
+        assert repo.check("--range", "main...HEAD").returncode == 0
+
+    def test_md5_mismatch_blocks(self, repo):
+        repo.git("switch", "-q", "-c", "topic")
+        repo.write("notes.md", "nothing\n")
+        repo.commit("docs: notes")
+        with repo.manifest.open("a") as f:
+            f.write("zz_another,NONE,\n")
+        result = repo.check("--range", "main...HEAD")
+        assert result.returncode == 1
+        assert "unrecorded ground-truth edit needs a ledger row" in result.stdout
+
+    def test_ledger_is_read_from_the_tip(self, repo):
+        repo.git("switch", "-q", "-c", "topic")
+        with repo.manifest.open("a") as f:
+            f.write("zz_another,NONE,\n")
+        repo.write("TODO.md", ledger(repo.manifest_md5()))
+        repo.commit("docs: ledger row")
+        repo.git("rm", "-q", "TODO.md")
+        assert repo.check("--range", "main...HEAD").returncode == 0
+
 
 class TestDataFiles:
     def test_missing_catalogue_skips(self, repo, tmp_path):
