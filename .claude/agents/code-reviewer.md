@@ -58,11 +58,12 @@ This project:
 
   It checks every committed change and commit message on the branch
   against the real catalogue keys, product names of three or more words,
-  manifest photo filenames and expected codes, and two patterns (the same
-  ones CLAUDE.md's PR-body check counts):
+  manifest photo filenames and expected codes, and two patterns:
 
   - code-shaped tokens: `\b(?=(?:[A-Z]*[0-9]){4})[0-9A-Z]{8,12}\b`
-  - image filenames: `(?i)\.(jpe?g|png|heic|heif|webp)\b`
+  - image filenames: a name ending in a letter, digit or underscore, then
+    `.jpg`, `.jpeg`, `.png`, `.heic`, `.heif` or `.webp` (any case). A
+    bare extension such as `.jpg` or `*.png` doesn't count.
 
   It applies the allowed locations from CLAUDE.md, the hashes in
   `hooks/allowed.sha256` and the tracked-file exception for images, and
