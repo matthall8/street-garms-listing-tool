@@ -142,11 +142,10 @@ row number plus manifest md5. Never quote a catalogue product name.
 2. Before opening a PR, run the code-reviewer subagent. Fix or note each
    finding; if anything changed, re-run it so the report matches HEAD.
 3. Write the PR body from `.github/pull_request_template.md` into
-   `docs/pr-body.md` (gitignored), including the reviewer's report. Count
-   both privacy patterns from the reviewer's Privacy check in the body
-   (`git grep --no-index -o -P … -- docs/pr-body.md | wc -l`) and in the
-   title (`perl`); both must be 0. The image pattern carries `(?i)`, so it
-   needs no flag. In the PR body, report privacy results as pass/fail
+   `docs/pr-body.md` (gitignored), including the reviewer's report. Run
+   `hooks/check_private.py --file docs/pr-body.md` and
+   `hooks/check_private.py --text "<title>"`; both must exit 0. In the PR
+   body, report privacy results as pass/fail
    only, with no counts, line numbers or locations. Before asking me to
    read the body, delete the template's HTML comments, then check no <…>
    placeholders remain outside the `<details>`/`<summary>` tags. Then stop
