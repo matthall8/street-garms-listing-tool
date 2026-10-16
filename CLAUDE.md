@@ -43,6 +43,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | CI | `.github/workflows/tests.yml` — `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs` on push/PR to main, no catalogue, no key |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/flask --app app run` |
+| privacy check | `.venv/bin/python hooks/check_private.py --range main...HEAD` — what the commit hooks run, over a branch; needs the private data to be complete |
 | decoder score | `.venv/bin/python tests/report_art_number.py` |
 | eval, offline | `.venv/bin/python tests/eval_transcription.py --model test --no-save` |
 | eval, real | `.venv/bin/python tests/eval_transcription.py --repeat 3 --note "..."` |
@@ -81,7 +82,8 @@ changing the product semantics.
 
 **Private data never enters git** (`.gitignore:229-238`). Catalogue, photos,
 manifest, results — photos can carry live Certilogo codes. Never commit them,
-never paste a code into a commit message or issue.
+never paste a code into a commit message or issue. The `hooks/` pre-commit and
+commit-msg hooks check this against the real values locally; never bypass them.
 
 Code-shaped literals are allowed only in: the format examples in `ART_PROMPT`
 and the `labels/art_number.py` docstring (and those same examples where docs

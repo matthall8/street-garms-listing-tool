@@ -107,8 +107,8 @@ and 174 pass with it.
 - **`.claude/agents/code-reviewer.md`** is a reviewer subagent, instructed not to
   edit, commit or push. It reviews the branch against `main`, `CLAUDE.md` and the
   ADRs, and runs the test suite locally, where the private catalogue is present.
-  It counts code-shaped tokens and photo filenames in each changed file and in the
-  commit messages, and reports privacy as pass/fail only, never counts or values. Ground truth is gitignored,
+  It runs the privacy hooks' check over the branch and its commit messages, and
+  reports privacy as pass/fail only, never counts or values. Ground truth is gitignored,
   so it never appears in a diff; the reviewer hashes the manifest and compares it
   with the md5 ledger kept by hand in `TODO.md`. A verdict of Ready to merge
   requires a clean tree, so the report matches the commit it describes.
