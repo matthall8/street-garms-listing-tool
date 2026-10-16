@@ -33,6 +33,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ALLOWLIST = "hooks/allowed.sha256"
+LEDGER_FILES = ("evals/BASELINES.md", "TODO.md")
+LEDGER_HEADER = re.compile(r"^\|\s*date\s*\|\s*md5\s*\|")
+MD5 = re.compile(r"\b[0-9a-f]{32}\b")
 
 # The reviewer's two patterns. Code-shaped is ASCII, as `git grep -P` is.
 CODE_SHAPED = re.compile(r"\b(?=(?:[A-Z]*[0-9]){4})[0-9A-Z]{8,12}\b", re.ASCII)
@@ -303,6 +306,36 @@ def load_allowlist(text: str | None) -> set[str]:
     return allowed
 
 
+def last_ledger_md5(text: str) -> str | None:
+    last = None
+    in_table = False
+    for line in text.splitlines():
+        if LEDGER_HEADER.match(line):
+            in_table = True
+        elif in_table:
+            if not line.startswith("|"):
+                break
+            cells = line.split("|")
+            if len(cells) > 2 and (m := MD5.search(cells[2])):
+                last = m.group(0)
+    return last
+
+
+def check_md5(manifest: Path, show: Callable[[str], str | None]) -> str | None:
+    """None if the manifest's md5 is the ledger's last row, else the problem."""
+    actual = hashlib.md5(manifest.read_bytes()).hexdigest()
+    for name in LEDGER_FILES:
+        text = show(name)
+        if text is not None and any(LEDGER_HEADER.match(line) for line in text.splitlines()):
+            if last_ledger_md5(text) == actual:
+                return None
+            return (
+                f"manifest md5 does not match the last md5 ledger row in {name}: "
+                "an unrecorded ground-truth edit needs a ledger row"
+            )
+    return "manifest exists but no md5 ledger was found: add a ledger row"
+
+
 def message_lines(text: str, comment: str) -> list[tuple[int, str]]:
     """The message as git will keep it: up to the `commit -v` scissors line,
     without comment lines."""
@@ -336,7 +369,7 @@ def run(argv: list[str]) -> int:
     if manifest.exists():
         load_manifest(manifest, private)
     else:
-        print("check_private: no manifest; manifest checks skipped", file=sys.stderr)
+        print("check_private: no manifest; manifest and md5 checks skipped", file=sys.stderr)
     lengths = private.lengths()
 
     if args.range:
@@ -424,6 +457,9 @@ def run(argv: list[str]) -> int:
                 findings |= net_findings(
                     label, change, lambda t: pattern_hits(t, lambda _: False), allowed
                 )
+
+        if manifest.exists() and (problem := check_md5(manifest, show)):
+            problems.append(problem)
 
     # A value that is private is reported once, as private.
     located = {(f, n) for t, f, n in findings if t not in ("code_shaped", "image_filename")}
