@@ -198,6 +198,14 @@ class TestCatalogueKeys:
         repo.stage("notes.md", f"- [x] check {s.KEY}\n")
         assert repo.check().returncode == 0
 
+    def test_editing_a_key_line_in_a_renamed_file_passes(self, repo):
+        filler = "".join(f"line {i}\n" for i in range(10))  # enough for git to see a rename
+        repo.write("a.md", f"{filler}- [ ] check {s.KEY}\n")
+        repo.commit("add")
+        repo.git("mv", "a.md", "b.md")
+        repo.stage("b.md", f"{filler}- [x] check {s.KEY}\n")
+        assert repo.check().returncode == 0
+
     def test_key_moved_to_another_file_blocks(self, repo):
         repo.write("a.md", f"see {s.KEY}\n")
         repo.commit("add")
@@ -281,6 +289,17 @@ class TestPatterns:
             f'ART_PROMPT = """\nplain\n"""\nOTHER = "{s.CODE_SHAPED}"\n',
         )
         assert blocked(repo.check(), "code_shaped", "labels/transcribe.py:4")
+
+    def test_code_shaped_token_in_art_number_docstring_passes(self, repo):
+        repo.stage("labels/art_number.py", f'"""Formats.\n\nlike {s.CODE_SHAPED}\n"""\n')
+        assert repo.check().returncode == 0
+
+    def test_code_shaped_token_after_art_number_docstring_blocks(self, repo):
+        repo.stage(
+            "labels/art_number.py",
+            f'"""Formats."""\n\nOTHER = "{s.CODE_SHAPED}"\n',
+        )
+        assert blocked(repo.check(), "code_shaped", "labels/art_number.py:3")
 
     def test_code_shaped_token_in_synthetic_passes(self, repo):
         repo.stage("tests/synthetic.py", f'X = "{s.CODE_SHAPED}"\n')
