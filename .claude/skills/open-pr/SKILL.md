@@ -39,9 +39,17 @@ report it with the skip reasons.
 ## 3. Review
 
 Run the code-reviewer subagent against `main`. If it reports a Must fix
-or Should fix, stop. List each in one sentence, with file:line, and don't
-fix anything. I decide what gets fixed. If anything changes afterwards,
-start again from step 1.
+or Should fix, stop. List each in one sentence, with file:line, ask me
+whether to fix or note it, and don't fix anything yourself:
+- **Fix:** I change the branch; then start again from step 1.
+- **Note:** carry on. The body records it as "problem → noted: <my
+  reason>". A Must fix can only be noted if I say so explicitly.
+
+Earlier runs: if `docs/pr-body.md` exists and the SHA in its Verdict line
+is on this branch but not on `main` (`git merge-base --is-ancestor <sha>
+HEAD`, and not an ancestor of `main`), carry its Findings lines forward,
+so fixes and notes from earlier sessions aren't lost. Otherwise start
+fresh.
 
 ## 4. Body
 
@@ -50,8 +58,8 @@ every section short; the whole body should fit on one screen with the
 `<details>` block collapsed.
 - **What and why:** 1–2 sentences.
 - **Review:** the report's Verdict line, unchanged. Findings: one line
-  per item from any run on this branch, as "problem → fixed in <sha>",
-  or "None". If the verdict is not Ready to merge, say why in one line
+  per item from this run and any carried forward (step 3), as
+  "problem → fixed in <sha>" or "problem → noted: <reason>", or "None". If the verdict is not Ready to merge, say why in one line
   per gap, and what evidence covers it (e.g. a commit message).
 - **Full reviewer report** inside `<details>`, as the reviewer wrote it.
   No Resolved list from earlier runs.
