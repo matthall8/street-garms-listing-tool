@@ -126,6 +126,9 @@ row number plus manifest md5. Never quote a catalogue product name.
   (path: `TODO.md`).
 - Never weaken, skip or delete a test, and never alter eval ground truth, to
   make a result pass. `evals/manifest.csv` is hand-checked by eye.
+- Adding a manifest column: commit its classification in `MANIFEST_COLUMNS`
+  (`hooks/check_private.py`) first, then edit the manifest. An unclassified
+  column makes the privacy hook block every commit.
 - Record the measured effect alongside the change.
 - Branches, review and PRs follow *Pull requests* below.
 - `.claude/settings.json` enforces some of these rules: deny and ask
