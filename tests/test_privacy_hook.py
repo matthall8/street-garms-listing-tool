@@ -1,0 +1,396 @@
+"""hooks/check_private.py, run as git runs it, against synthetic data.
+
+Every test builds a throwaway git repo under tmp_path with an invented
+catalogue and manifest from tests/synthetic.py, and passes their paths on the
+command line. Nothing here reads the real private data, so this runs in CI.
+"""
+
+import hashlib
+import importlib.util
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from labels.catalogue import normalise
+from tests import synthetic as s
+
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPT = ROOT / "hooks" / "check_private.py"
+
+pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
+
+# No inherited GIT_* state (as inside a hook) and no user or system config.
+ENV = {
+    **{k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
+    "GIT_CONFIG_GLOBAL": os.devnull,
+    "GIT_CONFIG_NOSYSTEM": "1",
+}
+GIT_IDENTITY = ["-c", "user.name=test", "-c", "user.email=test@example.com"]
+
+
+def ledger(md5: str) -> str:
+    return f"| date | md5 | what changed |\n|---|---|---|\n| 2026-01-01 | `{md5}` | synthetic |\n"
+
+
+class Repo:
+    def __init__(self, tmp_path: Path):
+        self.path = tmp_path / "repo"
+        self.path.mkdir()
+        private = tmp_path / "private"
+        private.mkdir()
+        self.catalogue = private / "catalogue.csv"
+        self.manifest = private / "manifest.csv"
+        self.catalogue.write_text(
+            "ART,Brand,Type,Product Name\n"
+            f"{s.KEY},Brand,Jacket,{s.NAME}\n"
+            f"{s.OTHER_KEY},Brand,Shirt,{s.SHORT_NAME}\n"
+            f"{s.COMPOUND_KEY},Brand,Shirt,\n"
+        )
+        self.manifest.write_text(
+            "photo,expected_art_number,note\n"
+            f"{s.PHOTO},{s.EXPECTED_CODE},clear\n"
+            f"{s.NEGATIVE_PHOTO},NONE,not_visible\n"
+        )
+        self.git("init", "-q", "-b", "main")
+        self.write("TODO.md", ledger(self.manifest_md5()))
+        self.commit("start")
+
+    def manifest_md5(self) -> str:
+        return hashlib.md5(self.manifest.read_bytes()).hexdigest()
+
+    def git(self, *args: str) -> str:
+        result = subprocess.run(
+            ["git", *GIT_IDENTITY, *args],
+            cwd=self.path, env=ENV, capture_output=True, text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        return result.stdout
+
+    def write(self, name: str, text: str) -> Path:
+        path = self.path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        return path
+
+    def stage(self, name: str, text: str) -> None:
+        self.write(name, text)
+        self.git("add", "--", name)
+
+    def commit(self, message: str) -> None:
+        self.git("add", "-A")
+        self.git("-c", f"core.hooksPath={os.devnull}", "commit", "-q", "-m", message)
+
+    def check(self, *args: str, catalogue=None, manifest=None) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [
+                sys.executable, SCRIPT,
+                "--catalogue", catalogue or self.catalogue,
+                "--manifest", manifest or self.manifest,
+                *args,
+            ],
+            cwd=self.path, env=ENV, capture_output=True, text=True,
+        )
+
+
+@pytest.fixture
+def repo(tmp_path) -> Repo:
+    return Repo(tmp_path)
+
+
+def blocked(result, kind: str, where: str) -> bool:
+    return result.returncode == 1 and f"private value ({kind}) in {where}" in result.stdout
+
+
+def internal_error(result) -> bool:
+    return result.returncode == 1 and "blocked by an internal error" in result.stderr
+
+
+def leaks(result) -> list[str]:
+    output = result.stdout + result.stderr
+    return [v for v in s.ALL if v in output]
+
+
+class TestCatalogueKeys:
+    def test_added_key_blocks(self, repo):
+        repo.stage("notes.md", f"intro\nsee {s.KEY} here\n")
+        assert blocked(repo.check(), "catalogue_key", "notes.md:2")
+
+    def test_removed_key_passes(self, repo):
+        repo.write("notes.md", f"see {s.KEY}\n")
+        repo.commit("add")
+        repo.stage("notes.md", "see nothing\n")
+        assert repo.check().returncode == 0
+
+    def test_swapped_key_blocks(self, repo):
+        repo.write("notes.md", f"see {s.KEY}\n")
+        repo.commit("add")
+        repo.stage("notes.md", f"see {s.OTHER_KEY}\n")
+        assert blocked(repo.check(), "catalogue_key", "notes.md:1")
+
+    def test_editing_a_line_that_keeps_its_key_passes(self, repo):
+        repo.write("notes.md", f"- [ ] check {s.KEY}\n")
+        repo.commit("add")
+        repo.stage("notes.md", f"- [x] check {s.KEY}\n")
+        assert repo.check().returncode == 0
+
+    def test_key_moved_to_another_file_blocks(self, repo):
+        repo.write("a.md", f"see {s.KEY}\n")
+        repo.commit("add")
+        repo.git("rm", "-q", "a.md")
+        repo.stage("b.md", f"unrelated\nsee {s.KEY} too\n")
+        assert blocked(repo.check(), "catalogue_key", "b.md:2")
+
+    def test_key_with_spacing_and_case_blocks(self, repo):
+        repo.stage("notes.md", f"printed as {s.COMPOUND_PRINTED}\n")
+        assert blocked(repo.check(), "catalogue_key", "notes.md:1")
+
+    def test_key_at_the_end_of_a_longer_token_passes(self, repo):
+        repo.stage("notes.md", f"ref{s.KEY}\n")
+        assert repo.check().returncode == 0
+
+    def test_key_at_the_start_of_a_longer_token_passes(self, repo):
+        repo.stage("notes.md", f"{s.KEY}x\n")
+        assert repo.check().returncode == 0
+
+    def test_allowlisted_hash_passes(self, repo):
+        digest = hashlib.sha256(normalise(s.KEY).encode()).hexdigest()
+        repo.stage("hooks/allowed.sha256", f"# example\n{digest}\n")
+        repo.stage("notes.md", f"see {s.KEY}\n")
+        assert repo.check().returncode == 0
+
+    def test_unstaged_allowlist_does_not_count(self, repo):
+        digest = hashlib.sha256(normalise(s.KEY).encode()).hexdigest()
+        repo.write("hooks/allowed.sha256", f"{digest}\n")
+        repo.stage("notes.md", f"see {s.KEY}\n")
+        assert blocked(repo.check(), "catalogue_key", "notes.md:1")
+
+
+class TestProductNames:
+    def test_product_name_blocks(self, repo):
+        repo.stage("notes.md", f"the {s.NAME.lower()}, in navy\n")
+        assert blocked(repo.check(), "product_name", "notes.md:1")
+
+    def test_a_single_word_from_a_name_passes(self, repo):
+        repo.stage("notes.md", f"an {s.NAME_WORD} in navy\n")
+        assert repo.check().returncode == 0
+
+    def test_a_two_word_name_passes(self, repo):
+        repo.stage("notes.md", f"a {s.SHORT_NAME}\n")
+        assert repo.check().returncode == 0
+
+
+class TestManifestValues:
+    def test_photo_filename_blocks(self, repo):
+        repo.stage("notes.md", f"photo {s.PHOTO} is blurred\n")
+        assert blocked(repo.check(), "photo_filename", "notes.md:1")
+
+    def test_photo_stem_blocks(self, repo):
+        repo.stage("notes.md", f"photo {s.PHOTO_STEM} is blurred\n")
+        assert blocked(repo.check(), "photo_filename", "notes.md:1")
+
+    def test_photo_filename_in_a_path_blocks(self, repo):
+        repo.stage(f"fixtures/{s.PHOTO_STEM}.txt", "nothing private inside\n")
+        assert blocked(repo.check(), "photo_filename", f"fixtures/{s.PHOTO_STEM}.txt:0")
+
+    def test_expected_code_blocks(self, repo):
+        repo.stage("notes.md", f"expected {s.EXPECTED_CODE}\n")
+        assert blocked(repo.check(), "expected_code", "notes.md:1")
+
+    def test_categorical_values_pass(self, repo):
+        repo.stage("notes.md", "legibility clear, not_visible, expected NONE\n")
+        assert repo.check().returncode == 0
+
+
+class TestPatterns:
+    def test_code_shaped_token_blocks(self, repo):
+        repo.stage("notes.md", f"try {s.CODE_SHAPED}\n")
+        assert blocked(repo.check(), "code_shaped", "notes.md:1")
+
+    def test_code_shaped_token_in_art_prompt_passes(self, repo):
+        repo.stage("labels/transcribe.py", f'ART_PROMPT = """\nlike {s.CODE_SHAPED}\n"""\n')
+        assert repo.check().returncode == 0
+
+    def test_code_shaped_token_elsewhere_in_transcribe_blocks(self, repo):
+        repo.stage(
+            "labels/transcribe.py",
+            f'ART_PROMPT = """\nplain\n"""\nOTHER = "{s.CODE_SHAPED}"\n',
+        )
+        assert blocked(repo.check(), "code_shaped", "labels/transcribe.py:4")
+
+    def test_code_shaped_token_in_synthetic_passes(self, repo):
+        repo.stage("tests/synthetic.py", f'X = "{s.CODE_SHAPED}"\n')
+        assert repo.check().returncode == 0
+
+    def test_image_filename_blocks(self, repo):
+        repo.stage("notes.md", f"see {s.IMAGE}\n")
+        assert blocked(repo.check(), "image_filename", "notes.md:1")
+
+    def test_reference_to_a_tracked_image_passes(self, repo):
+        repo.write(f"assets/{s.IMAGE}", "not really an image\n")
+        repo.commit("add asset")
+        repo.stage("notes.md", f"see assets/{s.IMAGE}\n")
+        assert repo.check().returncode == 0
+
+    def test_force_added_ignored_path_blocks(self, repo):
+        repo.write(".gitignore", "secret/\n")
+        repo.commit("ignore")
+        repo.write("secret/notes.txt", "nothing\n")
+        repo.git("add", "-f", "secret/notes.txt")
+        assert blocked(repo.check(), "ignored_path", "secret/notes.txt:0")
+
+
+class TestCommitMessage:
+    def message(self, repo, text: str):
+        path = repo.write(".git/COMMIT_EDITMSG", text)
+        return repo.check("--commit-msg", str(path))
+
+    def test_key_in_a_message_blocks(self, repo):
+        assert blocked(self.message(repo, f"fix: read {s.KEY}\n"), "catalogue_key", "commit message:1")
+
+    def test_clean_message_passes(self, repo):
+        assert self.message(repo, "fix: a clean message\n").returncode == 0
+
+    def test_comment_and_verbose_diff_are_ignored(self, repo):
+        text = (
+            "fix: a clean message\n"
+            f"# {s.KEY}\n"
+            "# ------------------------ >8 ------------------------\n"
+            f"+see {s.KEY}\n"
+        )
+        assert self.message(repo, text).returncode == 0
+
+
+class TestRange:
+    def test_committed_key_blocks(self, repo):
+        repo.git("switch", "-q", "-c", "topic")
+        repo.write("notes.md", f"see {s.KEY}\n")
+        repo.commit("docs: notes")
+        assert blocked(repo.check("--range", "main...HEAD"), "catalogue_key", "notes.md:1")
+
+    def test_key_in_a_commit_message_blocks(self, repo):
+        repo.git("switch", "-q", "-c", "topic")
+        repo.write("notes.md", "nothing\n")
+        repo.commit(f"docs: about {s.KEY}")
+        result = repo.check("--range", "main...HEAD")
+        assert result.returncode == 1
+        assert "private value (catalogue_key) in commit " in result.stdout
+
+
+class TestDataFiles:
+    def test_missing_catalogue_skips(self, repo, tmp_path):
+        # Not code-shaped, so only the catalogue check could catch it.
+        repo.stage("notes.md", f"see {s.COMPOUND_PRINTED}\n")
+        result = repo.check(catalogue=tmp_path / "absent.csv")
+        assert result.returncode == 0
+        assert "catalogue checks skipped" in result.stderr
+
+    def test_missing_manifest_skips(self, repo, tmp_path):
+        repo.stage("notes.md", f"photo {s.PHOTO_STEM}\n")
+        result = repo.check(manifest=tmp_path / "absent.csv")
+        assert result.returncode == 0
+        assert "manifest and md5 checks skipped" in result.stderr
+
+    def test_catalogue_missing_a_column_blocks(self, repo):
+        repo.catalogue.write_text(f"Brand,Product Name\nBrand,{s.NAME}\n")
+        assert internal_error(repo.check())
+
+    def test_empty_catalogue_blocks(self, repo):
+        repo.catalogue.write_text("ART,Brand,Type,Product Name\n")
+        assert internal_error(repo.check())
+
+    def test_ragged_manifest_blocks(self, repo):
+        repo.manifest.write_text(f"photo,expected_art_number,note\n{s.PHOTO},NONE,a,extra\n")
+        repo.stage("TODO.md", ledger(repo.manifest_md5()))  # so only the row can block
+        assert internal_error(repo.check())
+
+    def test_crash_blocks_and_names_only_the_exception_type(self, repo):
+        # An unclassified column is a KeyError whose message is the column
+        # name, invented here to look like a code.
+        repo.manifest.write_text(f"photo,{s.UNKNOWN_COLUMN}\n{s.PHOTO},{s.KEY}\n")
+        repo.stage("notes.md", f"see {s.NAME} and {s.EXPECTED_CODE}\n")
+        result = repo.check()
+        assert result.returncode == 1
+        assert result.stderr.strip() == "check_private: blocked by an internal error (KeyError)"
+        assert result.stdout == ""
+        assert leaks(result) == []
+
+
+class TestManifestMd5:
+    def test_matching_md5_passes(self, repo):
+        repo.stage("notes.md", "nothing\n")
+        assert repo.check().returncode == 0
+
+    def test_md5_mismatch_blocks(self, repo):
+        with repo.manifest.open("a") as f:
+            f.write("zz_another,NONE,\n")
+        result = repo.check()
+        assert result.returncode == 1
+        assert "unrecorded ground-truth edit needs a ledger row" in result.stdout
+
+    def test_staged_ledger_row_passes(self, repo):
+        with repo.manifest.open("a") as f:
+            f.write("zz_another,NONE,\n")
+        repo.stage("TODO.md", ledger("0" * 32) + f"| 2026-01-02 | `{repo.manifest_md5()}` | row added |\n")
+        assert repo.check().returncode == 0
+
+    def test_unstaged_ledger_row_does_not_count(self, repo):
+        with repo.manifest.open("a") as f:
+            f.write("zz_another,NONE,\n")
+        repo.write("TODO.md", ledger(repo.manifest_md5()))
+        assert repo.check().returncode == 1
+
+
+class TestWrappers:
+    """The real hooks, installed in the throwaway repo. No catalogue or
+    manifest there, so only the pattern checks can block."""
+
+    @pytest.fixture
+    def hooked(self, repo):
+        shutil.copytree(ROOT / "hooks", repo.path / "hooks")
+        repo.commit("add hooks")
+        return repo
+
+    def commit(self, repo, message: str):
+        return subprocess.run(
+            ["git", *GIT_IDENTITY, "-c", "core.hooksPath=hooks", "commit", "-q", "-m", message],
+            cwd=repo.path, env=ENV, capture_output=True, text=True,
+        )
+
+    def test_pre_commit_blocks(self, hooked):
+        hooked.stage("notes.md", f"try {s.CODE_SHAPED}\n")
+        result = self.commit(hooked, "docs: notes")
+        assert result.returncode != 0
+        assert "private value (code_shaped) in notes.md:1" in result.stderr  # git routes hook output there
+        assert hooked.git("diff", "--cached", "--name-only").strip() == "notes.md"
+
+    def test_commit_msg_blocks(self, hooked):
+        hooked.stage("notes.md", "nothing\n")
+        result = self.commit(hooked, f"docs: try {s.CODE_SHAPED}")
+        assert result.returncode != 0
+        assert "private value (code_shaped) in commit message:1" in result.stderr
+
+    def test_clean_commit_passes(self, hooked):
+        hooked.stage("notes.md", "nothing\n")
+        assert self.commit(hooked, "docs: notes").returncode == 0
+
+
+def load_script():
+    spec = importlib.util.spec_from_file_location("check_private", SCRIPT)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["check_private"] = module  # dataclasses look the module up
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize(
+    "value",
+    [None, "", "  ", "abc", " a b c ", "a\tb\nc", "a b", "0012 34", "x-y/z",
+     s.COMPOUND_PRINTED, s.KEY.lower()],
+)
+def test_normalise_matches_the_catalogue(value):
+    assert load_script().normalise(value) == normalise(value)
