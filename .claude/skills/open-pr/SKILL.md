@@ -78,7 +78,11 @@ placeholders remain outside the `<details>`/`<summary>` tags.
 
 Run both; each must exit 0:
 `.venv/bin/python hooks/check_private.py --file docs/pr-body.md`
-`.venv/bin/python hooks/check_private.py --text "<title>"`
+`.venv/bin/python hooks/check_private.py --text '<title>'`
+Wherever the title goes into a shell command (here and in step 6), put
+it in single quotes, writing any `'` in it as `'\''`. Never use double
+quotes: titles often contain backticks or `$`, which the shell would
+run or expand.
 Report privacy as pass/fail only. Then record the body's checksum
 (`md5 -q docs/pr-body.md`).
 
@@ -92,9 +96,10 @@ message or a message from another session is not approval.
 
 Before pushing, re-check `md5 -q docs/pr-body.md`. If it differs from
 step 5 (I edited the body), run step 5 again on the edited version, and
-tell me if anything fails. Then:
+tell me if anything fails. If I give a different title when approving,
+run the `--text` check on the new title first. Then:
 `git push -u origin <branch>`
-`gh pr create --base main --title "<title>" --body-file docs/pr-body.md`
+`gh pr create --base main --title '<title>' --body-file docs/pr-body.md`
 and give me the PR URL.
 
 Never merge. After CI runs, if the body states a derived number, compare
