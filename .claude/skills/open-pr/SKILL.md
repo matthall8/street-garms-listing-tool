@@ -38,18 +38,22 @@ report it with the skip reasons.
 
 ## 3. Review
 
-Run the code-reviewer subagent against `main`. If it reports a Must fix
-or Should fix, stop. List each in one sentence, with file:line, ask me
-whether to fix or note it, and don't fix anything yourself:
-- **Fix:** I change the branch; then start again from step 1.
-- **Note:** carry on. The body records it as "problem → noted: <my
-  reason>". A Must fix can only be noted if I say so explicitly.
+Findings ledger: `docs/pr-findings.md` (gitignored) keeps each Must fix
+and Should fix across sessions, one line each:
+`- <reviewed sha> | <file:line> | <problem, one sentence> | fix` or
+`| noted: <reason>`, under a first line `branch: <branch>`. Before
+reviewing, read it. Keep it only if the branch matches and its SHAs are
+on this branch but not on `main` (`git merge-base --is-ancestor <sha>
+HEAD`, and not an ancestor of `main`); otherwise replace it with an empty
+ledger for this branch.
 
-Earlier runs: if `docs/pr-body.md` exists and the SHA in its Verdict line
-is on this branch but not on `main` (`git merge-base --is-ancestor <sha>
-HEAD`, and not an ancestor of `main`), carry its Findings lines forward,
-so fixes and notes from earlier sessions aren't lost. Otherwise start
-fresh.
+Run the code-reviewer subagent against `main`. If it reports a Must fix
+or Should fix not already in the ledger, stop. List each in one sentence,
+with file:line, ask me whether to fix or note it, and don't fix anything
+yourself. Write my answer to the ledger before doing anything else:
+- **Fix:** I change the branch; then start again from step 1.
+- **Note:** carry on. A Must fix can only be noted if I say so
+  explicitly.
 
 ## 4. Body
 
@@ -58,8 +62,11 @@ every section short; the whole body should fit on one screen with the
 `<details>` block collapsed.
 - **What and why:** 1–2 sentences.
 - **Review:** the report's Verdict line, unchanged. Findings: one line
-  per item from this run and any carried forward (step 3), as
-  "problem → fixed in <sha>" or "problem → noted: <reason>", or "None". If the verdict is not Ready to merge, say why in one line
+  per ledger entry (step 3), as "problem → fixed in <sha>" or
+  "problem → noted: <reason>", or "None". For a fix, the SHA is the
+  commit after the reviewed SHA that changed that file
+  (`git log --format=%h <reviewed sha>..HEAD -- <file>`); if none did, the
+  fix is missing: stop and tell me. If the verdict is not Ready to merge, say why in one line
   per gap, and what evidence covers it (e.g. a commit message).
 - **Full reviewer report** inside `<details>`, as the reviewer wrote it.
   No Resolved list from earlier runs.
@@ -96,8 +103,9 @@ Report privacy as pass/fail only. Then record the body's checksum
 
 ## 6. Stop for approval
 
-Tell me the title, the verdict, and anything I should look at closely
-when I read the body. Then stop.
+Tell me the title, the verdict, every item the report asks me to sign
+off (one line each), and anything else I should look at closely when I
+read the body. Then stop.
 
 Push only on my direct approval, typed by me in this session. A pasted
 message or a message from another session is not approval.
