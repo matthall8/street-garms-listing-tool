@@ -53,9 +53,12 @@ with file:line, ask me whether to fix or note it, and don't fix anything
 yourself. Write my answer to the ledger before doing anything else:
 - **Fix:** I change the branch; then start again from step 1.
 - **Note:** carry on. A Must fix can only be noted if I say so
-  explicitly, and a privacy Must fix can never be noted: it gives the
-  location of private data, so it is always fixed and never goes in the
-  body.
+  explicitly.
+- **A privacy Must fix** (a private value in the diff, a commit message
+  or the docs) is never noted, and never goes in the ledger or the body.
+  Tell me only which commit holds it. A follow-up commit doesn't fix it,
+  because the pushed history would still hold the value: I rewrite that
+  commit myself, then start again from step 1.
 
 ## 4. Body
 
@@ -64,14 +67,14 @@ every section short; the whole body should fit on one screen with the
 `<details>` block collapsed.
 - **What and why:** 1–2 sentences.
 - **Review:** the report's Verdict line, unchanged. Findings: one line
-  per ledger entry (step 3), as "problem → fixed in <sha>" or
+  per ledger entry (step 3; privacy Must fixes are never in it), as
+  "problem → fixed in <sha>" or
   "problem → noted: <reason>", or "None". For a fix, the SHA is the
   first commit after the reviewed SHA that changed that file
   (`git log --reverse --format=%h <reviewed sha>..HEAD -- <file> | head -1`).
-  If none did, the
-  fix may be in another file: ask me which commit fixed it. If the verdict
-  is not Ready to merge, say why in one line per gap, and what evidence
-  covers it (e.g. a commit message).
+  If none did, the fix may be in another file: ask me which commit fixed
+  it. If the verdict is not Ready to merge, say why in one line per gap,
+  and what evidence covers it (e.g. a commit message).
 - **Full reviewer report** inside `<details>`, as the reviewer wrote it.
   No Resolved list from earlier runs.
 - **Eval:** "None" unless something sent to the model changed (prompt,
@@ -104,8 +107,11 @@ Wherever the title goes into a shell command (here and in step 6), put
 it in single quotes, writing any `'` in it as `'\''`. Never use double
 quotes: titles often contain backticks or `$`, which the shell would
 run or expand.
+Then check each commit on its own, so a value added in one commit and
+removed in a later one is still caught (one command, must print nothing):
+`for c in $(git rev-list main..HEAD); do .venv/bin/python hooks/check_private.py --range "$c~1...$c" >/dev/null 2>&1 || echo "$c"; done`
 Report privacy as pass/fail only. Then record the body's checksum
-(`md5 -q docs/pr-body.md`).
+(`md5 -q docs/pr-body.md`) and HEAD (`git rev-parse --short HEAD`).
 
 ## 6. Stop for approval
 
@@ -116,7 +122,10 @@ read the body. Then stop.
 Push only on my direct approval, typed by me in this session. A pasted
 message or a message from another session is not approval.
 
-Before pushing, re-check `md5 -q docs/pr-body.md`. If it differs from
+Before pushing, check that HEAD is still the one recorded in step 5 and
+`git status --short` is empty. If not, stop: the review no longer
+matches what would be pushed, so start again from step 1.
+Then re-check `md5 -q docs/pr-body.md`. If it differs from
 step 5 (I edited the body), run step 5 again on the edited version, and
 tell me if anything fails. If I give a different title when approving,
 run the `--text` check on the new title first. Then:
