@@ -138,20 +138,26 @@ row number plus manifest md5. Never quote a catalogue product name.
 
 ## Pull requests
 
+`/open-pr <title>` (`.claude/skills/open-pr/SKILL.md`) runs steps 2–4 below:
+it stops for my approval before the push in step 4, then pushes and opens
+the PR. (The skill numbers its own steps separately.)
+
 1. One topic per branch. Never commit to `main`.
 2. Before opening a PR, run the code-reviewer subagent. Fix or note each
    finding; if anything changed, re-run it so the report matches HEAD.
 3. Write the PR body from `.github/pull_request_template.md` into
    `docs/pr-body.md` (gitignored), including the reviewer's report. Run
    `hooks/check_private.py --file docs/pr-body.md` and
-   `hooks/check_private.py --text "<title>"`; both must exit 0. In the PR
-   body, report privacy results as pass/fail
-   only, with no counts, line numbers or locations. Before asking me to
-   read the body, delete the template's HTML comments, then check no <…>
-   placeholders remain outside the `<details>`/`<summary>` tags. Then stop
-   and ask me to read it: the PR is public.
+   `hooks/check_private.py --text '<title>'`; both must exit 0. Quote the
+   title with single quotes (a `'` inside becomes `'\''`), never double:
+   titles often contain backticks or `$`. In the PR body, report privacy
+   results as pass/fail only, with no counts, line numbers or locations.
+   Before asking me to read the body, delete the template's HTML comments,
+   then check no <…> placeholders remain outside the
+   `<details>`/`<summary>` tags. Then stop and ask me to read it: the PR is
+   public.
 4. After I approve: `git push -u origin <branch>`, then
-   `gh pr create --base main --title "<title>" --body-file docs/pr-body.md`.
+   `gh pr create --base main --title '<title>' --body-file docs/pr-body.md`.
 5. Never merge. I merge after reading the diff and the CI result.
 
 ## Where to look
