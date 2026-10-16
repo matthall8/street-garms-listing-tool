@@ -362,6 +362,19 @@ class TestFileAndText:
         assert blocked(repo.check("--text", f"feat: the {s.NAME}"), "product_name", "text:1")
         assert repo.check("--text", "feat: block private values").returncode == 0
 
+    @pytest.mark.parametrize(
+        "args",
+        [["--txt", f"feat: the {s.NAME}"], ["--text", "clean", s.KEY]],
+        ids=["mistyped flag", "stray argument"],
+    )
+    def test_bad_arguments_print_no_value(self, repo, capsys, args):
+        with pytest.raises(SystemExit) as exit_:
+            repo.check(*args)
+        out = capsys.readouterr()
+        assert exit_.value.code == 1
+        assert out.err == "check_private: bad arguments; see --help\n"
+        assert leaks(Result(1, out.out, out.err)) == []
+
 
 class TestRange:
     def test_committed_key_blocks(self, repo):

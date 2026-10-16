@@ -13,7 +13,8 @@ exist (CI never can). Standard library only, so it runs before `uv sync`.
 
 Each finding prints as "private value (<type>) in <file>:<line>", never the
 value itself; line 0 means the file's path. Any finding, or any error, exits 1.
-An error prints only its exception type: its message could hold a value.
+An error prints only its exception type, and bad arguments only a fixed line:
+either message could hold a value.
 
 A value is flagged per file, when the added lines hold it more often than the
 removed lines. Editing a line that already carries a value passes; a new value,
@@ -33,6 +34,7 @@ from collections import Counter
 from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NoReturn
 
 ALLOWLIST = "hooks/allowed.sha256"
 LEDGER_FILES = ("evals/BASELINES.md", "TODO.md")
@@ -391,8 +393,16 @@ def private_file(roots: list[Path], name: str) -> Path:
     return next((root / name for root in roots if (root / name).exists()), roots[0] / name)
 
 
+class Parser(argparse.ArgumentParser):
+    """argparse quotes a bad argument back, and that argument could be the
+    value being checked (a mistyped `--text`). Say only that it was bad."""
+
+    def error(self, message: str) -> NoReturn:
+        self.exit(1, "check_private: bad arguments; see --help\n")
+
+
 def run(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description="Block a commit that adds a private value.")
+    parser = Parser(description="Block a commit that adds a private value.")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--commit-msg", metavar="FILE", type=Path)
     mode.add_argument("--range", metavar="A...B")
