@@ -138,8 +138,9 @@ row number plus manifest md5. Never quote a catalogue product name.
 
 ## Pull requests
 
-`/open-pr <title>` (`.claude/skills/open-pr/SKILL.md`) runs steps 2–3 and
-stops for approval before step 4.
+`/open-pr <title>` (`.claude/skills/open-pr/SKILL.md`) runs steps 2–4 below:
+it stops for my approval before the push in step 4, then pushes and opens
+the PR. (The skill numbers its own steps separately.)
 
 1. One topic per branch. Never commit to `main`.
 2. Before opening a PR, run the code-reviewer subagent. Fix or note each
