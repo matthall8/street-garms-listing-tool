@@ -66,8 +66,9 @@ every section short; the whole body should fit on one screen with the
 - **Review:** the report's Verdict line, unchanged. Findings: one line
   per ledger entry (step 3), as "problem → fixed in <sha>" or
   "problem → noted: <reason>", or "None". For a fix, the SHA is the
-  commit after the reviewed SHA that changed that file
-  (`git log --format=%h <reviewed sha>..HEAD -- <file>`). If none did, the
+  first commit after the reviewed SHA that changed that file
+  (`git log --reverse --format=%h <reviewed sha>..HEAD -- <file> | head -1`).
+  If none did, the
   fix may be in another file: ask me which commit fixed it. If the verdict
   is not Ready to merge, say why in one line per gap, and what evidence
   covers it (e.g. a commit message).
