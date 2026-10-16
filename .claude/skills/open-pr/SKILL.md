@@ -53,7 +53,9 @@ with file:line, ask me whether to fix or note it, and don't fix anything
 yourself. Write my answer to the ledger before doing anything else:
 - **Fix:** I change the branch; then start again from step 1.
 - **Note:** carry on. A Must fix can only be noted if I say so
-  explicitly.
+  explicitly, and a privacy Must fix can never be noted: it gives the
+  location of private data, so it is always fixed and never goes in the
+  body.
 
 ## 4. Body
 
@@ -65,15 +67,18 @@ every section short; the whole body should fit on one screen with the
   per ledger entry (step 3), as "problem → fixed in <sha>" or
   "problem → noted: <reason>", or "None". For a fix, the SHA is the
   commit after the reviewed SHA that changed that file
-  (`git log --format=%h <reviewed sha>..HEAD -- <file>`); if none did, the
-  fix is missing: stop and tell me. If the verdict is not Ready to merge, say why in one line
-  per gap, and what evidence covers it (e.g. a commit message).
+  (`git log --format=%h <reviewed sha>..HEAD -- <file>`). If none did, the
+  fix may be in another file: ask me which commit fixed it. If the verdict
+  is not Ready to merge, say why in one line per gap, and what evidence
+  covers it (e.g. a commit message).
 - **Full reviewer report** inside `<details>`, as the reviewer wrote it.
   No Resolved list from earlier runs.
 - **Eval:** "None" unless something sent to the model changed (prompt,
   schemas, model strings, MODEL_SETTINGS). Then give the eval tag,
-  fingerprint and decision-rule result, or, for a change proven not to
-  alter the schema, "None. Schema unchanged (checked, see <sha>)".
+  fingerprint and decision-rule result. The only exception is a change to
+  `schemas.py` code (not its descriptions or field names) proven not to
+  alter `model_json_schema()`: "None. Schema unchanged (checked, see
+  <sha>)". Any change to prompt text needs an eval.
 - **Gate impact:** "None", or what changed in `needs_review` and the test
   covering it.
 - **Checks:** tick a box only if it's fully true. Otherwise leave it
