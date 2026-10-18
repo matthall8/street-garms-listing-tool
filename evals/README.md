@@ -89,7 +89,8 @@ its filenames and expected codes as private, as it does the dev set's.
 - Its md5 has its own ledger table in `TODO.md`, headed
   `| date | holdout md5 | what changed |`. The hook blocks every commit while
   the manifest has a header and no rows, so write its first row and commit the
-  matching ledger row together.
+  matching ledger row together. Once that table has a row, the hook also
+  blocks every commit in a clone where the held-out manifest is missing.
 
 The harness doesn't read it yet: a `--holdout` flag is planned on its own
 branch.

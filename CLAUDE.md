@@ -80,7 +80,7 @@ A `corrected` resolution is a silent substitution, so it forces
 would make the flag meaningless. This is not a bug — don't "fix" it without
 changing the product semantics.
 
-**Private data never enters git** (`.gitignore:229-238`). Catalogue, photos,
+**Private data never enters git** (`.gitignore:229-239`). Catalogue, photos,
 manifest, results — photos can carry live Certilogo codes. Never commit them,
 never paste a code into a commit message or issue. The `hooks/` pre-commit and
 commit-msg hooks check this against the real values locally; never bypass them.
