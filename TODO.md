@@ -265,8 +265,7 @@ put it in the `--note`.
 - [ ] **Capture usage and cost per call.** `.usage()` is discarded in
       `transcribe_art`. One JSONL line per call:
       timestamp, model, prompt fingerprint, tokens in/out, latency, stop reason.
-      One call per listing while the details read is off, so this is a
-      unit-economics number. Also capture
+      One call per listing, so this is a unit-economics number. Also capture
       `response.model` into `run_metadata()` — check first whether it returns
       anything more specific than `claude-sonnet-5`; if it doesn't, note in
       `evals/README.md` that an unchanged prompt fingerprint beside a moved
@@ -277,18 +276,16 @@ put it in the `--note`.
       request count per call, and record the resulting worst-case latency in
       CLAUDE.md beside the timeout rule.
 
-- [ ] **Remove the `details` plumbing if the care-label read stays off.** The
-      web form and CLI take one photo now, so nothing passes `details`. It
-      still runs through `transcribe()` / `extract_bytes()` / `extract()`, with
-      tests that only cover it (`test_brand_falls_back_to_the_printed_brand`,
-      `TestFieldMapping` in `tests/test_pipeline.py`, and in its section 4
-      `test_art_read_falls_back_to_the_details_photo` and
-      `test_two_photos_only_the_art_photo_is_read`). Run 4 of ADR-0001's
-      rollout moves size, brand and colour into the single ART call; if it
-      passes, the details read and this plumbing can go.
+- [x] **Remove the `details` plumbing.** Done ahead of run 4: the details
+      prompt, agent and schema, the `details` inputs, the brand fallback and
+      the five `Extraction` fields only it filled (`size`, `composition`,
+      `made_in`, `certilogo`, `colour_observed`) are gone, and `art` is now
+      required. The old code is at the `parked/details-read` tag. Run 4 of
+      ADR-0001's rollout brings size, brand and colour back through the
+      single ART call, under ADR-0001's field names.
 
-- [ ] **Brand can come out empty unflagged.** With the details read off,
-      `decoded.brand or det.brand_printed` has no fallback. A clear read with a
+- [ ] **Brand can come out empty unflagged.** `brand` comes only from
+      `decoded.brand`; there is no printed-brand fallback. A clear read with a
       known season but a brand key missing from `BRAND`, plus a catalogue miss,
       gives `brand=None` and `needs_review=False`. A `brand-unknown` flag would
       fix it — a `needs_review` product decision. Run 4's `brand_printed`
@@ -381,10 +378,11 @@ put it in the `--note`.
 - What's the gate for shipping a prompt change — which metric, what margin, how
   many repeats before a difference is believed? *Decision rule* below is the
   one used so far; still open as a general policy.
-- When does the care-label read come back, and on what model? It's switched off
-  in `transcribe()` (2026-10-08): only the ART number is wanted for now, and it
-  halves the calls per listing. If it returns, consider a cheaper
-  `DETAILS_MODEL` — "ordinary OCR on large clear text", never measured. Note
+- Does a separate care-label read come back, and on what model? It was switched
+  off on 2026-10-08 and later removed (kept at the `parked/details-read` tag):
+  only the ART number is wanted for now, and it halves the calls per listing.
+  If it returns, consider a cheaper model than the ART read — "ordinary OCR on
+  large clear text", never measured. Note
   that Haiku carries a dated model ID where Sonnet 5 doesn't, so whatever
   records the model must handle both shapes.
 - Is the Flask app localhost-only or reachable? Decides whether the missing
