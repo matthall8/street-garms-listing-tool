@@ -36,7 +36,7 @@ def client(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def no_real_extraction(monkeypatch):
-    def unpatched(art=None, details=None, source=""):
+    def unpatched(art, source=""):
         pytest.fail("extract_bytes was not patched: this test would call the API")
 
     monkeypatch.setattr(routes, "extract_bytes", unpatched)
@@ -47,15 +47,15 @@ def extract_calls(monkeypatch):
     """Patch the pipeline with a fake that succeeds and records each call."""
     calls = []
 
-    def fake_extract(art=None, details=None, source=""):
-        calls.append({"art": art, "details": details, "source": source})
+    def fake_extract(art, source=""):
+        calls.append({"art": art, "source": source})
         return _extraction(source)
 
     monkeypatch.setattr(routes, "extract_bytes", fake_extract)
     return calls
 
 
-def failing_extract(art=None, details=None, source=""):
+def failing_extract(art, source=""):
     raise TimeoutError("boom")
 
 
@@ -69,11 +69,6 @@ def _extraction(source: str) -> Extraction:
         season=None,
         brand=None,
         garment=None,
-        size=None,
-        composition=None,
-        made_in=None,
-        certilogo=None,
-        colour_observed=None,
         legibility="clear",
         all_reads=[],
         flags=[],
@@ -116,7 +111,7 @@ def test_supported_type_reaches_the_pipeline(client, extract_calls, media_type):
     response = client.post("/", data=data, content_type="multipart/form-data")
     assert response.status_code == 200
     assert extract_calls == [
-        {"art": (b"x", media_type), "details": None, "source": filename}
+        {"art": (b"x", media_type), "source": filename}
     ]
     assert b"Test Jacket" in response.data
 
@@ -128,7 +123,7 @@ def test_a_stray_second_photo_is_ignored(client, extract_calls):
     data["details_photo"] = (io.BytesIO(b"y"), "b.png", "image/png")
     response = client.post("/", data=data, content_type="multipart/form-data")
     assert response.status_code == 200
-    assert extract_calls == [{"art": (b"x", "image/png"), "details": None, "source": "a.png"}]
+    assert extract_calls == [{"art": (b"x", "image/png"), "source": "a.png"}]
 
 
 def test_a_second_photo_alone_is_a_400(client, extract_calls):

@@ -17,8 +17,7 @@ season is slow, and one misread character can point to a different garment.
 
 ## The key decision: the model only transcribes
 
-- **Transcribe** (`labels/transcribe.py`): one vision call for the ART number.
-  (A second, care-label read exists but is switched off for now.) The prompt
+- **Transcribe** (`labels/transcribe.py`): one vision call for the ART number. The prompt
   forbids identifying, inferring or correcting. An unreadable character becomes
   `?`, never a guess.
 - **Decode** (`labels/art_number.py`): pure code with no I/O. It identifies the
@@ -96,8 +95,8 @@ git config core.hooksPath hooks                     # privacy hooks, once per cl
 ```
 
 The catalogue, eval photos and manifest are private and gitignored. Tests that need
-the catalogue skip rather than fail: currently 202 pass and 41 skip on a fresh clone,
-and 243 pass with it.
+the catalogue skip rather than fail: currently 199 pass and 37 skip on a fresh clone,
+and 236 pass with it.
 
 ## How AI coding agents are used
 
@@ -165,5 +164,5 @@ and 243 pass with it.
 
 - **Catalogue misses don't set `needs_review`.** Flagging every miss would make the flag meaningless.
 - **Not an agent loop.** pydantic-ai's `Agent` is a constrained-extraction wrapper, called once per listing.
-- **The care-label read is switched off.** Only the ART number is read for now. The details prompt and agent stay in `labels/transcribe.py`, but `transcribe()` doesn't call them, which halves the cost per listing.
+- **No care-label read.** Only the ART number is read, one call per listing. The earlier care-label details read (size, composition, origin, CLG, colour) was removed; it is kept at the `parked/details-read` tag.
 - **Open:** whether clean reads auto-publish or every listing gets human review.

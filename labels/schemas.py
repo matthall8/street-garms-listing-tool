@@ -53,75 +53,10 @@ class ArtNumberReading(BaseModel):
     )
 
 
-class SizeMarking(BaseModel):
-    """One size as printed, with the sizing system it belongs to."""
-
-    system: str = Field(
-        description="Sizing system as printed, e.g. 'IT', 'UK', 'US', 'EU', "
-        "'INT', 'JP'. Use 'unlabelled' if a size is printed with no system."
-    )
-    value: str = Field(description="The size value exactly as printed, e.g. '50', 'L'.")
-
-
-class LabelDetails(BaseModel):
-    """Everything other than the ART number, read from the care label photo."""
-
-    brand_printed: str | None = Field(
-        default=None,
-        description="Brand name exactly as physically printed, if visible.",
-    )
-
-    sizes: list[SizeMarking] = Field(
-        default_factory=list,
-        description="Every size marking printed on the label, one entry per "
-        "sizing system shown.",
-    )
-
-    composition: str | None = Field(
-        default=None,
-        description="Composition/fibre information exactly as physically printed.",
-    )
-
-    made_in: str | None = Field(
-        default=None,
-        description="Country-of-origin text exactly as physically printed.",
-    )
-
-    clg_number: str | None = Field(
-        default=None,
-        description=(
-            "Printed Certilogo/CLG number exactly as physically visible. "
-            "Do not derive it from the QR code."
-        ),
-    )
-
-    garment_colour_observed: str | None = Field(
-        default=None,
-        description=(
-            "OBSERVATION, NOT TRANSCRIPTION. The apparent colour of the garment "
-            "fabric visible around the label, in plain words such as 'olive green' "
-            "or 'navy'. This is a judgment about appearance under unknown lighting, "
-            "not printed text. Leave null if no garment fabric is visible."
-        ),
-    )
-
-    notes: str | None = Field(
-        default=None,
-        description=(
-            "Objective visual observations only. "
-            "Do not include authenticity judgments or inferred product information."
-        ),
-    )
-
-
 class LabelReading(BaseModel):
-    """The two reads joined. Either half may be absent if its photo wasn't given;
-    details is always absent while the details read is switched off."""
+    """What transcription returns for one listing: the ART read."""
 
-    art: ArtNumberReading = Field(
-        default_factory=lambda: ArtNumberReading(art_legible="not_visible")
-    )
-    details: LabelDetails = Field(default_factory=LabelDetails)
+    art: ArtNumberReading
 
 
 @dataclass
@@ -136,11 +71,6 @@ class Extraction:
     season: str | None
     brand: str | None
     garment: str | None
-    size: str | None
-    composition: str | None
-    made_in: str | None
-    certilogo: str | None
-    colour_observed: str | None
     legibility: str
     all_reads: list
     flags: list

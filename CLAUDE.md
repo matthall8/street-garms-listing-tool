@@ -6,8 +6,8 @@ deterministic decoder parses it, and a private catalogue resolves it to a real
 product. Pre-launch, one developer, no users.
 
 Not an agent loop: `Agent` is pydantic-ai's constrained-extraction wrapper,
-called once per listing. A second, care-label read exists but is switched off
-in `transcribe()` for now.
+called once per listing. The care-label details read was removed; it is kept
+at the `parked/details-read` tag.
 
 This file describes stable architecture, domain invariants and working
 constraints. `TODO.md` describes what is currently changing — gaps, in-flight
@@ -51,7 +51,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 ## Domain invariants
 
 **`needs_review` is the gate between a bad read and a published listing**
-(`labels/pipeline.py:49-55`). Any new field in `Extraction` must explicitly be
+(`labels/pipeline.py:34-41`). Any new field in `Extraction` must explicitly be
 considered for this gate. Changing what flags is a product decision, not a
 refactor.
 

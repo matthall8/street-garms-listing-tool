@@ -49,8 +49,6 @@
     {% endif %}
 
     <table>
-      {# size, composition, made_in and certilogo come from the details read,
-         which is switched off — see labels/transcribe.py. #}
       {% for key in ["year", "season", "brand", "garment", "legibility"] %}
         <tr>
           <th>{{ key.replace("_", " ") }}</th>
@@ -60,13 +58,6 @@
         </tr>
       {% endfor %}
     </table>
-
-    {% if extraction.colour_observed %}
-      <p class="observed">
-        <span class="label">Colour — observed, not printed</span>
-        {{ extraction.colour_observed }}
-      </p>
-    {% endif %}
 
     <a class="again" href="{{ url_for('main.index') }}">Read another</a>
   </div>

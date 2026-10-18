@@ -136,17 +136,6 @@ th, td { text-align: left; padding: 0.5rem 0; border-bottom: 1px solid var(--lin
 th { color: var(--dim); font-weight: 400; text-transform: capitalize; width: 38%; }
 td.empty { color: #55584c; }
 
-/* Observation, not transcription — kept visually distinct on purpose. */
-.observed {
-  margin-top: 1rem;
-  padding: 0.6rem 0.85rem;
-  border: 1px dashed var(--line);
-  border-radius: 8px;
-  color: var(--dim);
-}
-
-.observed .label { display: block; margin-bottom: 0.15rem; }
-
 .again { display: inline-block; margin-top: 1.25rem; color: var(--accent); }
 
 .lead { color: var(--dim); margin: 0 0 1rem; }

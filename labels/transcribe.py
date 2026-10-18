@@ -1,26 +1,17 @@
-"""The vision half: label photos in, a LabelReading out.
+"""The vision half: a label photo in, a LabelReading out.
 
-Two separate reads, because they are different jobs. The ART number needs
-character-level precision and strict anti-guessing rules; the care label
-fields are ordinary text OCR where those rules only get in the way.
-
-Only the ART read runs for now. The details read is kept but switched off in
-transcribe(): one call per listing instead of two, and nothing downstream of
-the ART number depends on it.
+One read per listing: the ART number, which needs character-level precision
+and strict anti-guessing rules. The care-label details read was removed; it is
+kept at the `parked/details-read` tag.
 """
 
 from functools import cache
 
 from pydantic_ai import Agent, BinaryContent, ModelSettings
 
-from labels.schemas import ArtNumberReading, LabelDetails, LabelReading
+from labels.schemas import ArtNumberReading, LabelReading
 
-# Two constants, because the two reads are not equally hard. The ART pass is
-# character-level work on small, faded print; the details pass is ordinary OCR
-# on large clear text and could run on something cheaper. DETAILS_MODEL is
-# unused while the details read is switched off.
 ART_MODEL = "anthropic:claude-sonnet-5"
-DETAILS_MODEL = "anthropic:claude-sonnet-5"
 
 # Model settings to reduce timeout time to 1 minute, rather than the client's default.
 MODEL_SETTINGS = ModelSettings(timeout=60)
@@ -94,40 +85,6 @@ RULES
 6. Never use product knowledge or databases to alter the transcription.
 """
 
-DETAILS_PROMPT = """\
-You transcribe Stone Island and C.P. Company garment care labels.
-
-Report only what is physically printed and visible in this image. Leave any
-field null, or any list empty, if it is not visible. Do not infer, complete
-or normalise text, and do not judge authenticity.
-
-COMPOSITION
-Transcribe as printed, including the multiple languages these labels carry.
-Keep each component distinct where the label separates them (main fabric,
-lining, padding, secondary lining).
-
-SIZES
-These labels often print the same size in several systems, e.g. "IT 50 /
-UK 40 / US 40". Record every one as its own entry with the system as
-printed. If a size is printed with no system next to it, use "unlabelled".
-
-CERTILOGO
-If a Certilogo (CLG) number is printed on the label, record it in
-clg_number. Read it from the printed digits only — never from the QR code.
-Do not put the ART number in clg_number.
-
-GARMENT COLOUR — OBSERVATION, NOT TRANSCRIPTION
-Every field above is transcription: the text is printed and you either read
-it correctly or you do not. garment_colour_observed is different. It is your
-judgment of the colour of the garment fabric visible around the label, seen
-under unknown lighting and unknown camera white balance.
-
-Give it in plain words such as "olive green" or "navy". Do not attempt a
-precise or technical colour name, and do not guess a colour from the brand,
-the season or the product type. If no garment fabric is visible in the
-image, leave it null.
-"""
-
 @cache
 def get_art_agent(model: str = ART_MODEL) -> Agent[None, ArtNumberReading]:
     """Build on first use, so importing this module needs no API key.
@@ -140,14 +97,6 @@ def get_art_agent(model: str = ART_MODEL) -> Agent[None, ArtNumberReading]:
                  output_type=ArtNumberReading)
 
 
-@cache
-def get_details_agent(model: str = DETAILS_MODEL) -> Agent[None, LabelDetails]:
-    return Agent(model,
-                 system_prompt=DETAILS_PROMPT,
-                 model_settings=MODEL_SETTINGS,
-                 output_type=LabelDetails)
-
-
 def transcribe_art(
     data: bytes, media_type: str, model: str = ART_MODEL
 ) -> ArtNumberReading:
@@ -158,29 +107,6 @@ def transcribe_art(
     ]).output
 
 
-def transcribe_details(
-    data: bytes, media_type: str, model: str = DETAILS_MODEL
-) -> LabelDetails:
-    """Read size, composition, origin and CLG from the care label photo."""
-    return get_details_agent(model).run_sync([
-        "Transcribe the visible care label details.",
-        BinaryContent(data=data, media_type=media_type),
-    ]).output
-
-
-def transcribe(
-    art: tuple[bytes, str] | None = None,
-    details: tuple[bytes, str] | None = None,
-) -> LabelReading:
-    """Read the ART number from whichever photo the caller supplied.
-
-    Each argument is (image_bytes, media_type). The ART read prefers its own
-    photo but falls back to the details photo. The details read is switched
-    off for now, so `details` on the result is always empty.
-    """
-    for_art = art or details
-
-    reading = LabelReading()
-    if for_art is not None:
-        reading.art = transcribe_art(*for_art)
-    return reading
+def transcribe(art: tuple[bytes, str]) -> LabelReading:
+    """Read the ART number from the label photo, as (image_bytes, media_type)."""
+    return LabelReading(art=transcribe_art(*art))

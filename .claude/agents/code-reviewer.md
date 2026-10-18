@@ -108,10 +108,9 @@ This project:
   `needs_review` in `pipeline.py`: was the gate decision made explicitly,
   and is it tested?
 - **Prompt contract.** Anything sent to the model is the prompt: the prompt
-  constants, the user message built in `transcribe_art` /
-  `transcribe_details`, the reading schemas in `schemas.py` (docstrings,
-  field names, field order, descriptions), the model strings and
-  `MODEL_SETTINGS`. A change to any of these needs an eval citation on the
+  constants, the user message built in `transcribe_art`, the reading
+  schemas in `schemas.py` (docstrings, field names, field order,
+  descriptions), the model strings and `MODEL_SETTINGS`. A change to any of these needs an eval citation on the
   branch, in a commit message or in the TODO/baselines diff, giving the tag,
   the fingerprint and the decision-rule result. Missing citation: Fix first.
   Check the eval covers this code: if
