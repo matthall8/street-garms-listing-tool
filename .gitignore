@@ -235,6 +235,7 @@ evals/archive/
 evals/results/
 evals/archive/
 evals/manifest.csv
+evals/holdout/
 !evals/manifest.example.csv
 
 # Working notes and audits — local scratch, not part of the repo.

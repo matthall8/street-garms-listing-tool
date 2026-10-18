@@ -44,8 +44,8 @@ def load_script():
 check_private = load_script()
 
 
-def ledger(md5: str) -> str:
-    return f"| date | md5 | what changed |\n|---|---|---|\n| 2026-01-01 | `{md5}` | synthetic |\n"
+def ledger(md5: str, column: str = "md5") -> str:
+    return f"| date | {column} | what changed |\n|---|---|---|\n| 2026-01-01 | `{md5}` | synthetic |\n"
 
 
 @dataclass
@@ -65,6 +65,7 @@ class Repo:
         self.path = base / "repo"
         self.catalogue = base / "private" / "catalogue.csv"
         self.manifest = base / "private" / "manifest.csv"
+        self.holdout = base / "private" / "holdout.csv"  # absent until add_holdout()
 
     @classmethod
     def create(cls, base: Path) -> "Repo":
@@ -89,6 +90,19 @@ class Repo:
 
     def manifest_md5(self) -> str:
         return hashlib.md5(self.manifest.read_bytes()).hexdigest()
+
+    def holdout_md5(self) -> str:
+        return hashlib.md5(self.holdout.read_bytes()).hexdigest()
+
+    def add_holdout(self) -> None:
+        """Opt in to a held-out manifest, its ledger table committed beside
+        the dev one."""
+        self.holdout.write_text(
+            "photo,expected_art_number,note\n"
+            f"{s.HOLDOUT_PHOTO},{s.HOLDOUT_EXPECTED_CODE},clear\n"
+        )
+        self.write("TODO.md", ledger(self.manifest_md5()) + "\n" + ledger(self.holdout_md5(), "holdout md5"))
+        self.commit("holdout ledger")
 
     def git(self, *args: str) -> str:
         result = subprocess.run(
@@ -116,6 +130,7 @@ class Repo:
         return [
             "--catalogue", str(catalogue or self.catalogue),
             "--manifest", str(manifest or self.manifest),
+            "--holdout", str(self.holdout),
             *args,
         ]
 
@@ -463,6 +478,7 @@ class TestDataFiles:
         err = capsys.readouterr().err
         assert "catalogue checks skipped" in err
         assert "manifest and md5 checks skipped" in err
+        assert "holdout checks skipped" in err
 
     def test_catalogue_missing_a_column_blocks(self, repo):
         repo.catalogue.write_text(f"Brand,Product Name\nBrand,{s.NAME}\n")
@@ -514,6 +530,97 @@ class TestManifestMd5:
         assert repo.check().returncode == 1
 
 
+class TestHoldout:
+    """The held-out manifest, loaded beside the dev one. Each test opts in, so
+    the rest of the suite runs without it."""
+
+    @pytest.fixture
+    def held(self, repo):
+        repo.add_holdout()
+        return repo
+
+    def append_row(self, path: Path) -> None:
+        with path.open("a") as f:
+            f.write("zz_another,NONE,\n")
+
+    def test_holdout_photo_filename_blocks(self, held):
+        held.stage("notes.md", f"photo {s.HOLDOUT_PHOTO} is blurred\n")
+        assert blocked(held.check(), "photo_filename", "notes.md:1")
+
+    def test_holdout_photo_stem_blocks(self, held):
+        held.stage("notes.md", f"photo {s.HOLDOUT_PHOTO_STEM} is blurred\n")
+        assert blocked(held.check(), "photo_filename", "notes.md:1")
+
+    def test_holdout_expected_code_blocks(self, held):
+        held.stage("notes.md", f"expected {s.HOLDOUT_EXPECTED_CODE}\n")
+        assert blocked(held.check(), "expected_code", "notes.md:1")
+
+    def test_dev_photo_still_blocks(self, held):
+        held.stage("notes.md", f"photo {s.PHOTO_STEM} is blurred\n")
+        assert blocked(held.check(), "photo_filename", "notes.md:1")
+
+    def test_matching_holdout_md5_passes(self, held):
+        held.stage("notes.md", "nothing\n")
+        result = held.check()
+        assert result.returncode == 0
+        assert "skipped" not in result.stderr
+
+    def test_holdout_md5_mismatch_blocks(self, held):
+        self.append_row(held.holdout)
+        result = held.check()
+        assert result.returncode == 1
+        assert "holdout manifest md5 does not match" in result.stdout
+        assert "unrecorded ground-truth edit needs a ledger row" in result.stdout
+
+    def test_staged_holdout_ledger_row_passes(self, held):
+        self.append_row(held.holdout)
+        held.stage(
+            "TODO.md",
+            ledger(held.manifest_md5()) + "\n" + ledger("0" * 32, "holdout md5")
+            + f"| 2026-01-02 | `{held.holdout_md5()}` | row added |\n",
+        )
+        assert held.check().returncode == 0
+
+    def test_dev_ledger_row_does_not_satisfy_the_holdout(self, repo):
+        # The same bytes as the dev manifest, so the dev table's last row
+        # carries the holdout's md5 too; only a holdout table counts.
+        shutil.copy(repo.manifest, repo.holdout)
+        result = repo.check()
+        assert result.returncode == 1
+        assert result.stdout.splitlines() == [
+            "holdout manifest exists but its md5 ledger was not found: add a ledger row"
+        ]
+
+    def test_missing_holdout_skips_while_dev_checks_run(self, repo):
+        repo.stage("notes.md", f"photo {s.PHOTO_STEM}\n")
+        self.append_row(repo.manifest)
+        result = repo.check()
+        assert blocked(result, "photo_filename", "notes.md:1")
+        assert "manifest md5 does not match" in result.stdout
+        assert "holdout checks skipped" in result.stderr
+        assert "manifest and md5 checks skipped" not in result.stderr
+
+    def test_missing_holdout_with_an_empty_ledger_passes(self, repo):
+        # The state before the set exists: a ledger table with no rows.
+        empty = "| date | holdout md5 | what changed |\n|---|---|---|\n"
+        repo.stage("TODO.md", ledger(repo.manifest_md5()) + "\n" + empty)
+        result = repo.check()
+        assert result.returncode == 0
+        assert "holdout checks skipped" in result.stderr
+
+    @pytest.mark.parametrize("args", [[], ["--text", "feat: clean"]], ids=["staged", "text"])
+    def test_missing_holdout_with_ledger_rows_blocks(self, repo, args):
+        repo.stage("TODO.md", ledger(repo.manifest_md5()) + "\n" + ledger("0" * 32, "holdout md5"))
+        result = repo.check(*args)
+        assert result.returncode == 1
+        assert "no holdout manifest, but its md5 ledger has rows" in result.stdout
+
+    def test_header_only_holdout_blocks(self, repo):
+        # Fails closed: the first row and its ledger row go in together.
+        repo.holdout.write_text("photo,expected_art_number,note\n")
+        assert internal_error(repo.check())
+
+
 class TestWrappers:
     """The real hooks, installed in the throwaway repo. No catalogue or
     manifest there, so only the pattern checks can block."""
@@ -554,9 +661,13 @@ class TestWrappers:
     def test_linked_worktree_reads_the_main_worktrees_data(self, hooked, tmp_path):
         # The private files sit gitignored in the main worktree only, as in a
         # real clone; an agent's worktree has none of its own.
+        hooked.add_holdout()
         shutil.copy(hooked.catalogue, hooked.write("data/art-number.csv", ""))
         shutil.copy(hooked.manifest, hooked.write("evals/manifest.csv", ""))
-        hooked.write(".git/info/exclude", "hooks\n.venv\ndata/\nevals/manifest.csv\n")
+        shutil.copy(hooked.holdout, hooked.write("evals/holdout/manifest.csv", ""))
+        hooked.write(
+            ".git/info/exclude", "hooks\n.venv\ndata/\nevals/manifest.csv\nevals/holdout/\n"
+        )
         linked = Repo(tmp_path / "linked")
         hooked.git("worktree", "add", "-q", "-b", "topic", str(linked.path))
         (linked.path / "hooks").symlink_to(ROOT / "hooks")

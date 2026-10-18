@@ -95,8 +95,8 @@ git config core.hooksPath hooks                     # privacy hooks, once per cl
 ```
 
 The catalogue, eval photos and manifest are private and gitignored. Tests that need
-the catalogue skip rather than fail: currently 199 pass and 37 skip on a fresh clone,
-and 236 pass with it.
+the catalogue skip rather than fail: currently 212 pass and 37 skip on a fresh clone,
+and 249 pass with it.
 
 ## How AI coding agents are used
 
@@ -128,23 +128,30 @@ and 236 pass with it.
   rules in `CLAUDE.md` remain instructions as well.
 - **Privacy hooks** (`hooks/`, installed with `git config core.hooksPath hooks`)
   check every commit locally against the real private values, which CI never
-  sees: catalogue keys and product names, manifest photo filenames and expected
-  codes, plus the reviewer's code-shaped and image-filename patterns. A value
-  blocks when a file's added lines hold it more often than its removed lines,
-  so a swapped code blocks too. Findings print as type plus `file:line`, never
-  the value; any error blocks the commit. `hooks/allowed.sha256` holds hashes
-  of the values allowed to appear anyway (format examples, placeholder image
-  names), never the values; a hash of a short code can be reversed by brute
-  force, so only non-private values belong there. The pre-commit hook also
-  blocks a manifest whose md5 isn't the last row of the ledger. Agents are
-  denied `git commit --no-verify`/`-n` and changing `core.hooksPath`, and are
-  asked before editing `hooks/`. These are pattern matches, not a guarantee:
+  sees: catalogue keys and product names, photo filenames and expected codes
+  from both eval manifests (dev and held-out), plus the reviewer's code-shaped
+  and image-filename patterns. A value blocks when a file's added lines hold it
+  more often than its removed lines, so a swapped code blocks too. Findings
+  print as type plus `file:line`, never the value; any error blocks the commit.
+  `hooks/allowed.sha256` holds hashes of the values allowed to appear anyway
+  (format examples, placeholder image names), never the values; a hash of a
+  short code can be reversed by brute force, so only non-private values belong
+  there. The pre-commit hook also blocks a manifest whose md5 isn't the last
+  row of its ledger table in `TODO.md`; the held-out set has its own table. A
+  manifest with a header and no rows blocks every commit, so a new manifest's
+  first row and its first ledger row go in together. A missing catalogue or
+  dev manifest only prints a notice, which `/open-pr` and the code-reviewer
+  treat as a failed check. A missing held-out manifest prints a notice they
+  ignore, since the set doesn't exist yet, so once its ledger table has a row
+  the hook blocks instead. Agents are denied
+  `git commit --no-verify`/`-n` and changing `core.hooksPath`, and are asked
+  before editing `hooks/`. These are pattern matches, not a guarantee:
   `--no-verify` placed where a pattern doesn't expect it, `chmod -x` or an edit
   through Bash gets past them, so the code-reviewer flags every change under
   `hooks/` or to these settings for the maintainer, and runs the same check
   over the branch.
 - **CI** (`.github/workflows/tests.yml`) runs `ruff check`, `pyright` and `pytest -rs` on pushes and PRs
-  to `main`, with no catalogue or API key, so it is currently the 202-pass, 41-skip run.
+  to `main`, with no catalogue or API key, so it is currently the 212-pass, 37-skip run.
 
 ## Known limitations
 
