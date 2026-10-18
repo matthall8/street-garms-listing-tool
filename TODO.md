@@ -169,7 +169,7 @@ Neither blocks nor is blocked by the sequence above.
       after, since the manifest fingerprint changes.
 
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
-      season, not the decoder.** `labels/pipeline.py:32-34` takes year/season
+      season, not the decoder.** `labels/pipeline.py:24-25` takes year/season
       from the decoder even on an exact hit, so a listing ships with its title
       and its season field disagreeing — `03CMOW026A` shows "A/W 15 Soft Shell
       Goggle" beside AW 2017, with `needs_review` False. Roughly 3% of catalogue
@@ -204,7 +204,7 @@ put it in the `--note`.
       Will be fixed for bare catalogue rows by chain step 4, which passes
       `style_code` to `resolve()` instead of the raw read. Compound keys still
       miss until ADR-0003's index (see *Catalogue: frozen*); `matched_key`
-      replaces `matched_art` in step 3. Original note: `labels/pipeline.py:26`
+      replaces `matched_art` in step 3. Original note: `labels/pipeline.py:18`
       passes the raw read to `resolve()`, and
       `catalogue.normalise()` strips only spacing and case, so a correct read
       of `5215M226/2525` resolves `miss` while `5215M226` resolves `exact`. The
