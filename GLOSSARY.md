@@ -14,7 +14,7 @@ wherever it is held: on a label, in the manifest or in a catalogue key.
 | ART number | The code to find on the label. Used in the prompt and prose; technical text names the stage (`art_line`, `art_base`, catalogue key). |
 | `art_line` | The printed line containing the ART number, copied exactly by the model, `?` marks included. Never rewritten. *(not in code yet: run 1 replaces `art_number_raw`, today's read of the ART number alone)* |
 | read | One model call's output for one photo. |
-| parser | `parse()` in `labels/art_number.py`. Decodes an ART number's format, season and brand; from step 4 it also splits the read into the parts below (the `art_line` from run 1). |
+| parser | `parse()` in `labels/art_number.py`. Decodes an ART number's format, year, season, brand and garment; from step 4 it also splits the read into the parts below (the `art_line` from run 1). |
 | `art_caption` | Text introducing the code on the `art_line`, such as `ART.`. Recorded as evidence the right line was picked; never used for lookup. A caption on the line above isn't one. *(not in code yet)* |
 | format family | One of the ART number formats in `labels/art_number.py`, reported in the parser's `format` (which also has `si_namespace` for non-seasonal codes). Each has its own base shapes. |
 | known shape | A pattern for a caption, base, suffix or lot: lengths and character classes, never copied values. Base and suffix shapes come from the catalogue; caption and lot shapes from labels. Frozen data: extended by adding entries, never generalised. |
@@ -67,7 +67,7 @@ under a different product name may be exceptions.
 
 | Term | Meaning |
 |---|---|
-| `art_legible` | The model's rating of the `art_line`: `clear`, `partial` (some characters unreadable), `illegible` (an ART number is there but unreadable) or `not_visible` (no ART number in the photo). Anything but `clear` is a signal; `clear` proves nothing. |
+| `art_legible` | The model's rating of the read (of the `art_line` from run 1): `clear`, `partial` (some characters unreadable), `illegible` (an ART number is there but unreadable) or `not_visible` (no ART number in the photo). Anything but `clear` is a signal; `clear` proves nothing. |
 | `needs_review` | The gate: true means a person checks the listing before it publishes. |
 | `review_reasons` | Why `needs_review` is set. *(not in code yet)* |
 
@@ -97,6 +97,6 @@ under a different product name may be exceptions.
 | decoder | parser | still in comments, a test name, `Extraction.decoded` and the web page's "Decoder flags" heading; not scheduled |
 | `matched_art`, `matched_key` | `resolved_key` | chain step 3 |
 | `miss` | `no_key` | chain step 3 |
-| `expected_line`, `expected_style` | `expected_art_line`, `expected_art_base` | hook, on `manifest-id` |
+| `expected_line`, `expected_style` | `expected_art_line`, `expected_art_base` | hook, in chain step 2 |
 | style-exact | base-exact | never in code |
 | `art_number_raw` | `art_line` | run 1 |

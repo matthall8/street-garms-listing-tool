@@ -5,7 +5,7 @@ Current state and in-flight work. Stable architecture and invariants are in CLAU
 ## Now
 
 **2026-10-09: the approach changed.** Replaying the 2026-10-08 baseline's
-reads through the decoder, catalogue and gate showed 21% of positive reads
+reads through the parser, catalogue and gate showed 21% of positive reads
 would publish wrong with no flag, mostly where a neighbouring code was joined
 onto the ART number and declared `clear`. The model now transcribes the ART
 number's whole printed line, and code does the interpreting:
@@ -22,7 +22,7 @@ reports archived to `evals/results/archive/`. On 2026-09-25 the manifest grew
 to 18 positives + 4 negatives, all ground truth re-checked by eye (see the md5
 table). `si_certilogo_01.png` carries an ART number but is too hard to read, so
 it was removed rather than used. Flask route tests merged (#18). CI added
-(`.github/workflows/tests.yml`) ahead of the decoder tests, by decision: on a
+(`.github/workflows/tests.yml`) ahead of the parser tests, by decision: on a
 clean runner with no catalogue, 111 tests pass and 42 skip. What it does not
 cover is under *Next*.
 
@@ -45,9 +45,11 @@ gitignored, so this file is their only audit trail.
 - [ ] **2. Ground truth for run 0.** First, as its own commit: add an opaque
       `id` column to the manifest (not derived from filename or code), plus
       `id` in `evals/manifest.example.csv` and the columns table in
-      `evals/README.md`. Edit by hand; add an md5 row noting "added id column,
-      no labels changed". Then add `expected_line` (the ART line exactly
-      as printed, same-line caption included) and `expected_style` to the
+      `evals/README.md`. Before any manifest edit, commit the
+      `MANIFEST_COLUMNS` rename in `hooks/check_private.py` (CLAUDE.md,
+      *Working rules*). Edit by hand; add an md5 row noting "added id column,
+      no labels changed". Then add `expected_art_line` (the ART line exactly
+      as printed, same-line caption included) and `expected_art_base` to the
       manifest, checked by eye before any result exists. Write both rules in
       `evals/README.md` and mark `expected_art_number` as legacy. Fix the stale
       `upside down` note on `si_art_number_photo_9_rotated.jpg`: its Certilogo
@@ -228,7 +230,7 @@ put it in the `--note`.
       passes the raw read to `resolve()`, and
       `catalogue.normalise()` strips only spacing and case, so a correct read
       of `5215M226/2525` resolves `miss` while `5215M226` resolves `exact`. The
-      decoder already strips the suffix (`labels/art_number.py:124`); the
+      parser already strips the suffix (`labels/art_number.py:124`); the
       catalogue side doesn't. Misses don't flag, so nothing surfaces it: the
       listing just loses its product name. Photo 7 in the 2026-10-08 set hits
       it on every correct read. The eval is unaffected (it scores against the
@@ -478,7 +480,7 @@ v1.
 | flagged but correct | 0% |
 | fabricated on no-code photos | 0% |
 | fabricated and declared clear | 0% |
-| wrong and unflagged (replay through decoder, catalogue and gate; not in the report) | 21% |
+| wrong and unflagged (replay through parser, catalogue and gate; not in the report) | 21% |
 
 The largest failure was neighbouring codes joined onto the ART number and
 declared `clear` (ADR-0001, *Evidence*). 31 of 33 photos returned the same
