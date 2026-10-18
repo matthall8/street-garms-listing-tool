@@ -2,7 +2,7 @@
 
 - **Status:** Accepted. *Pending decisions* and the `<N>`/`<rate>` placeholders
   under *Success criteria* stay Proposed until run 0.
-- **Date:** 2026-10-09
+- **Date:** 2026-10-09. Terms moved to `GLOSSARY.md` 2026-10-18.
 
 ## Context
 
@@ -62,18 +62,9 @@ and how code treats each output. The pipeline reads one photo per listing.
 
 ## Terms
 
-"ART number" means different things on the label, in the catalogue and in the
-old eval column, so each stage gets its own name.
-
-| Term | Meaning |
-|---|---|
-| ART number | The domain term for the code to look for on the label. Used in the prompt and in prose to say what to find. Technical text never uses it for a specific stage; use `art_line` or `style_code`. |
-| `art_line` (the ART line) | The printed line containing the ART number, copied by the model exactly as printed: caption, separators, same-line extras and `?` marks included. Never cleaned; once cleaned, it is a `style_code`. |
-| `style_code` | What code derives from the `art_line`: the full code with caption and suffix removed, season prefix included. The same design in another season has a different `style_code`. Assumed to cover every colourway of one design in one season, pending inspection of the catalogue's bare/compound pairs. Applies to `expected_style` too. |
-| `art_suffix` | A code on the same line after the `style_code` that matches a known suffix shape, such as a colour code. May be used to choose between catalogue rows. |
-| `art_lot` | A lot or batch code on the same line that matches a known lot shape. Recorded; never used for catalogue lookup and never flags. |
-| `art_trailing` | Anything left on the line that matches no known shape. It flags for review. |
-| catalogue key | The value in the catalogue's `ART` column: a `style_code`, or a `style_code` plus suffix. Some compound keys use a separator (`/`); others have the suffix typed on with none, and the index cannot split those. Only the catalogue index build deals with the difference. |
+Moved to [`GLOSSARY.md`](../GLOSSARY.md) on 2026-10-18. This ADR keeps the
+names as decided on 2026-10-09; the glossary's *Renamed* table maps them, for
+example `style_code` → `art_base` and `art_trailing` → `art_unmatched`.
 
 ## Decision
 
