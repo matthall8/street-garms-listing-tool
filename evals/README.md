@@ -66,7 +66,7 @@ is scored on `exact` only — `cer` has no denominator, so it is left out of the
 CER average rather than counted as zero.
 
 `NONE` is safe as a sentinel because it is not a shape any real ART number can
-take, so a genuine code can never be mistaken for it. (The decoder is not
+take, so a genuine code can never be mistaken for it. (The parser is not
 consulted during an eval run — the check is purely on the manifest string.)
 
 A **blank** `expected_art_number` is different: it means *not labelled yet*.
@@ -154,7 +154,7 @@ overconfident.)
 characters as ambiguous. This is the closest thing here to a "silently wrong"
 rate, but read it carefully: **it is not the rate at which a wrong listing gets
 published.** That gate is `needs_review` (`labels/pipeline.py:34-41`), which
-also consults the decoder and the catalogue, so this number is wrong in both
+also consults the parser and the catalogue, so this number is wrong in both
 directions:
 
 - a confidently wrong read the catalogue *corrects* does get flagged, so this
@@ -185,7 +185,7 @@ first, and it is invisible on an all-positive manifest.
 **fabricated and declared clear** — the same failure, asserted confidently. This
 is the negative-case counterpart of **overconfident**, and the one that *can*
 put an invented code on a listing with nothing flagged. Like overconfident, it
-is not a publish rate: most invented codes fail to decode, get the decoder flag
+is not a publish rate: most invented codes fail to decode, get the parser flag
 `unrecognised`, and are caught by `needs_review`. The dangerous ones are those
 that happen to decode cleanly — for example a digit string whose first two
 digits are a valid season number — which pass the gate unflagged.

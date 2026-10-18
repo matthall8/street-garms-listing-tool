@@ -4,7 +4,7 @@
 
 Turns photos of Stone Island and C.P. Company garment labels into structured
 listing data (product name, season, garment type) for a reseller of
-second-hand pieces. A vision model transcribes the label, a deterministic decoder
+second-hand pieces. A vision model transcribes the label, a deterministic parser
 parses the ART number, and a private catalogue resolves it to a real product.
 Pre-launch, one developer, no users.
 
@@ -26,7 +26,7 @@ season is slow, and one misread character can point to a different garment.
   single-character OCR confusions (0/O, 1/I, 5/S, 8/B, 6/G). Only `exact` is confident.
 
 **`needs_review` is the gate to a human** (`labels/pipeline.py`). Any of these
-sets it: a read that is not `clear`, an ambiguous character, a decoder flag, an
+sets it: a read that is not `clear`, an ambiguous character, a parser flag, an
 unrecognised format, a missing year, or a `corrected` or `ambiguous` match.
 A single model call that reads the label and names the product was rejected. It
 can misread the code and still return a confident title, with no record of what
@@ -73,7 +73,7 @@ The rule's out-of-sample check was waived for this merge.
 **Scope.** Every photo gave the same read on all 3 repeats, so in effect this is
 one sample per photo: 12 were read correctly and 6 were missed. The results are
 in-sample, because the change was accepted on this same set. They cover Stone
-Island only, and two decoder formats (`si_numeric`, `si_namespace`). The catalogue's
+Island only, and two parser formats (`si_numeric`, `si_namespace`). The catalogue's
 489 C.P. modern and 86 Stone Island alphanumeric rows use formats the eval has never
 tested. All 4 no-code photos are Certilogo-type (one care label, three crops), and
 3 positives are care labels of garments already in the set.
@@ -89,7 +89,7 @@ git config core.hooksPath hooks                     # privacy hooks, once per cl
 .venv/bin/python -m pytest                          # offline, no API key
 .venv/bin/ruff check .                              # lint, rules in pyproject.toml
 .venv/bin/pyright                                   # types, basic mode
-.venv/bin/python tests/report_art_number.py         # decoder score, needs catalogue
+.venv/bin/python tests/report_art_number.py         # parser score, needs catalogue
 .venv/bin/python tests/eval_transcription.py --model test --no-save   # harness, no API calls
 .venv/bin/python tests/eval_transcription.py --repeat 3 --workers 1 --note "..."  # as baseline
 ```
@@ -157,12 +157,12 @@ and 249 pass with it.
 
 - 6 of 18 positive photos are missed on every read, 5 of them at 1200x1600.
   Images are sent uncropped and unresized. Two eval photos share one expected code.
-- Decoder seasons agree with the catalogue on 2,288 of 2,359 checkable rows. The
+- Parser seasons agree with the catalogue on 2,288 of 2,359 checkable rows. The
   71 disagreements are untriaged, so that ground truth is unverified.
-- On an exact match the season comes from the decoder, not the catalogue, so the
+- On an exact match the season comes from the parser, not the catalogue, so the
   title and season can disagree unflagged. Which source wins is undecided.
 - CI runs only 1 of the 8 `needs_review` tests, because the rest need the catalogue.
-  The decoder has no unit tests. There is no per-call cost tracking or eval spend cap.
+  The parser has no unit tests. There is no per-call cost tracking or eval spend cap.
 - `claude-sonnet-5` has no dated snapshot, so a silent model update can't be told
   apart from other changes in a run diff.
   The CLI shows a traceback on API failure, and the web form has no auth or rate limit.

@@ -9,8 +9,8 @@ reads through the decoder, catalogue and gate showed 21% of positive reads
 would publish wrong with no flag, mostly where a neighbouring code was joined
 onto the ART number and declared `clear`. The model now transcribes the ART
 number's whole printed line, and code does the interpreting:
-`adr/0001-model-vs-code-responsibilities.md` holds the decision, the terms
-(`art_line`, `style_code`, …), the gate and the rollout. A local scan found a
+`adr/0001-model-vs-code-responsibilities.md` holds the decision, the gate
+and the rollout; the terms (`art_line`, `art_base`, …) are in `GLOSSARY.md`. A local scan found a
 Data Matrix on newer Stone Island back tags that carries the ART number, `V`
 code and size. Only 4 of 33 photos carry one (all 4 decode), so it becomes an
 optional stage (ADR-0002, to write), not the core. The catalogue is frozen while the
@@ -53,16 +53,19 @@ gitignored, so this file is their only audit trail.
       `upside down` note on `si_art_number_photo_9_rotated.jpg`: its Certilogo
       QR reads −2°, so the photo is upright. Add an md5 row.
 
-- [ ] **3. `Resolution.matched_art` → `matched_key`.** Its own PR with no
-      change in behaviour, so run 0's PR holds only behaviour.
+- [ ] **3. `Resolution.matched_art` → `resolved_key`, and the `miss` status
+      → `no_key`.** Its own PR with no change in behaviour, so run 0's PR
+      holds only behaviour. Drop both *(not in code yet)* markers in
+      `GLOSSARY.md`.
 
 - [ ] **4. Run 0, behaviour (PR, no API calls).**
-      - Family split in `art_number.py` into `style_code`, `art_suffix`,
-        `art_lot` and `art_trailing`. Spaces carry no meaning: C.P. splits by
+      - Family split in `art_number.py` into `art_caption`, `art_base`,
+        `art_suffix`, `art_lot` and `art_unmatched` (`GLOSSARY.md`, *Parsing
+        rules*, including its *Not yet decided* line). Spaces carry no meaning: C.P. splits by
         fixed length, Stone Island numeric only at a printed slash. A remainder
-        becomes `art_suffix` or `art_lot` only when it matches a shape seen in
-        the catalogue; anything else is `art_trailing`, which flags.
-      - `pipeline.py` passes `style_code` to the existing `resolve()` (see
+        becomes `art_suffix` or `art_lot` only when it matches a known
+        shape; anything else is `art_unmatched`, which flags.
+      - `pipeline.py` passes `art_base` to the existing `resolve()` (see
         *Catalogue: frozen*).
       - `review_reasons: list[str]` on `Extraction`, with
         `needs_review = bool(review_reasons)`. Consistency checks in plain
@@ -71,10 +74,11 @@ gitignored, so this file is their only audit trail.
         space; `V00NN` from the next line, with and without an invented slash;
         a slash suffix; a lot code; an `si_alpha` key with an 11-character base.
       - The era length table waits for the catalogue inspection (*Parallel*).
+      - Drop the glossary's *(not in code yet)* markers for whatever lands.
 
 - [ ] **5. Run 0, measurement (PR), then the new baseline.**
-      - Scorer: wrong-and-unflagged (the primary metric), style-exact through
-        the pipeline, and line-exact against `expected_line`, counted per
+      - Scorer: wrong-and-unflagged (the primary metric), base-exact through
+        the pipeline, and line-exact against `expected_art_line`, counted per
         garment-side as well as per photo. Reads both `art_number_raw` and
         `art_line`.
       - Merge, tag, and replay the 2026-10-08 baseline's saved reads. Record
@@ -158,7 +162,7 @@ Starts now; each item blocks only what it names.
 focus. Planned, not started: an index derived from the unchanged CSV, a
 confusion-pair margin on exact hits, and a flag on uninspected pairs
 (ADR-0003 and ADR-0004). Known limitation meanwhile: looked up by
-`style_code`, the 42 compound keys miss. Misses don't flag, so this costs
+`art_base`, the 42 compound keys miss. Misses don't flag, so this costs
 product names, not safety.
 
 ### Independent of the chain
@@ -180,8 +184,8 @@ Neither blocks nor is blocked by the sequence above.
       after, since the manifest fingerprint changes.
 
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
-      season, not the decoder.** `labels/pipeline.py:24-25` takes year/season
-      from the decoder even on an exact hit, so a listing ships with its title
+      season, not the parser.** `labels/pipeline.py:24-25` takes year/season
+      from the parser even on an exact hit, so a listing ships with its title
       and its season field disagreeing — `03CMOW026A` shows "A/W 15 Soft Shell
       Goggle" beside AW 2017, with `needs_review` False. Roughly 3% of catalogue
       hits. Latent rather than bleeding: pre-launch, nothing is shipping yet.
@@ -213,8 +217,8 @@ put it in the `--note`.
 
 - [ ] **The catalogue misses codes printed with an attached colour suffix.**
       Will be fixed for bare catalogue rows by chain step 4, which passes
-      `style_code` to `resolve()` instead of the raw read. Compound keys still
-      miss until ADR-0003's index (see *Catalogue: frozen*); `matched_key`
+      `art_base` to `resolve()` instead of the raw read. Compound keys still
+      miss until ADR-0003's index (see *Catalogue: frozen*); `resolved_key`
       replaces `matched_art` in step 3. Original note: `labels/pipeline.py:18`
       passes the raw read to `resolve()`, and
       `catalogue.normalise()` strips only spacing and case, so a correct read
@@ -225,7 +229,7 @@ put it in the `--note`.
       it on every correct read. The eval is unaffected (it scores against the
       manifest, not the catalogue). Fix in `catalogue.py` with a test on the
       synthetic-catalogue pattern so it runs in CI; decide whether
-      `matched_key` should carry the suffix.
+      `resolved_key` should carry the suffix.
 
 - [ ] **Preprocessing experiment, for the six remaining misses.** The prompt
       change fixed most of what looked like a resolution problem (see Known
@@ -248,11 +252,11 @@ put it in the `--note`.
       add new tests on that pattern alongside the real-catalogue ones, not
       instead of them. Put the invented codes in `tests/synthetic.py` (the
       location CLAUDE.md's private-data rule allows), built by hand from the
-      decoder tables, never derived from the catalogue. Also add the two gate
+      parser tables, never derived from the catalogue. Also add the two gate
       clauses with no test of their own: a catalogue `ambiguous` result, and
       `year is None` on a recognised format with no flags.
 
-- [ ] **Decoder unit tests for `labels/art_number.py`.** The split's tests come
+- [ ] **Parser unit tests for `labels/art_number.py`.** The split's tests come
       with chain step 4; the rest of this item stands. No pytest coverage,
       needs no catalogue, so they run in full in CI. Write the
       uncontroversial half now: format-family detection, the `len(s) >= 8`
@@ -316,9 +320,9 @@ put it in the `--note`.
 
 ## Known issues
 
-- **71 decoder/catalogue season disagreements, untriaged.** `CP_MODERN_SEASON`
+- **71 parser/catalogue season disagreements, untriaged.** `CP_MODERN_SEASON`
   samples look like a table offset. Spot-check ten by hand after the baseline —
-  the goal is finding out whether these are decoder bugs or catalogue typos,
+  the goal is finding out whether these are parser bugs or catalogue typos,
   not fixing all 71. Until then, 97.0% is measured against ground truth that
   hasn't been verified.
 
@@ -376,8 +380,8 @@ put it in the `--note`.
   blocks publishing or is just dropped. Needed before run 4 of ADR-0001's
   rollout.
 - **What fraction of real listings miss the catalogue?** Decides how much the
-  decoder carries — on a hit the product name supplies the season, on a miss the
-  decoder is the only source.
+  parser carries — on a hit the product name supplies the season, on a miss the
+  parser is the only source.
 - **What will production photos actually look like?** With the current
   prompt, 6 of 7 4032x3024 photos read against 6 of 11 1200x1600, so the
   smaller format still carries most of the misses. If production is
