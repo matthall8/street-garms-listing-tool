@@ -15,9 +15,7 @@ from labels.schemas import (
     AmbiguousCharacter,
     ArtLegibility,
     ArtNumberReading,
-    LabelDetails,
     LabelReading,
-    SizeMarking,
 )
 
 PHOTO = (b"not-really-an-image", "image/png")
@@ -27,21 +25,18 @@ PHOTO = (b"not-really-an-image", "image/png")
 def run(monkeypatch):
     """Run the pipeline over a transcription you specify.
 
-    Returns a callable: run(code, legibility=..., **detail_fields) -> Extraction
+    Returns a callable: run(code, legibility=..., ambiguous=...) -> Extraction
     """
 
-    def _run(code=None, legibility: ArtLegibility = "clear", ambiguous=(), **details):
+    def _run(code=None, legibility: ArtLegibility = "clear", ambiguous=()):
         reading = LabelReading(
             art=ArtNumberReading(
                 art_number_raw=code,
                 art_legible=legibility,
                 ambiguous_characters=list(ambiguous),
             ),
-            details=LabelDetails(**details),
         )
-        monkeypatch.setattr(
-            pipeline, "transcribe", lambda art=None, details=None: reading
-        )
+        monkeypatch.setattr(pipeline, "transcribe", lambda art: reading)
         return extract_bytes(art=PHOTO, source="test.png")
 
     return _run
@@ -141,47 +136,11 @@ class TestCatalogueWiring:
 
 
 # ---------------------------------------------------------------------------
-# 3. Field provenance — spot checks for swaps, not all nineteen fields
+# 3. Field provenance — spot checks for swaps, not all fourteen fields
 # ---------------------------------------------------------------------------
 
 
 class TestFieldMapping:
-    def test_details_fields_come_from_the_details_read(self, run, clean_code):
-        result = run(
-            clean_code,
-            composition="100% Poliestere",
-            made_in="Made in Italy",
-            clg_number="CLG123",
-            garment_colour_observed="olive green",
-        )
-        assert result.composition == "100% Poliestere"
-        assert result.made_in == "Made in Italy"
-        assert result.certilogo == "CLG123"
-        assert result.colour_observed == "olive green"
-
-    def test_sizes_join_across_systems(self, run, clean_code):
-        result = run(
-            clean_code,
-            sizes=[
-                SizeMarking(system="IT", value="50"),
-                SizeMarking(system="UK", value="40"),
-            ],
-        )
-        assert result.size == "IT 50 / UK 40"
-
-    def test_no_sizes_gives_none_not_empty_string(self, run, clean_code):
-        assert run(clean_code).size is None
-
-    def test_brand_falls_back_to_the_printed_brand(self, run):
-        """The decoder cannot name a brand it does not recognise, so the
-        printed text stands in."""
-        result = run("!!!not-a-code!!!", brand_printed="C.P. COMPANY")
-        assert result.brand == "C.P. COMPANY"
-
-    def test_decoder_brand_wins_over_printed(self, run, clean_code, catalogue):
-        result = run(clean_code, brand_printed="SOMETHING ELSE")
-        assert result.brand != "SOMETHING ELSE"
-
     def test_ambiguous_characters_serialise_to_dicts(self, run, clean_code):
         """all_reads goes through json.dumps in the CLI, so pydantic models
         would raise. They must be plain dicts by this point."""
@@ -205,73 +164,38 @@ class TestFieldMapping:
 
 
 # ---------------------------------------------------------------------------
-# 4. One photo, one read — the details read is switched off
+# 4. One photo, one read
 # ---------------------------------------------------------------------------
 
 
-class TestSinglePhotoFallback:
-    def test_one_photo_is_passed_to_transcribe(self, monkeypatch, clean_code):
-        """The pipeline hands the photo through untouched; choosing which
-        reads run is transcribe()'s job."""
+class TestOneRead:
+    def test_photo_is_passed_to_transcribe(self, monkeypatch, clean_code):
+        """The pipeline hands the photo through untouched."""
         seen = []
 
-        def fake_transcribe(art=None, details=None):
-            seen.append(("art", art))
-            seen.append(("details", details))
+        def fake_transcribe(art):
+            seen.append(art)
             return LabelReading(
-                art=ArtNumberReading(art_number_raw=clean_code, art_legible="clear"),
-                details=LabelDetails(),
+                art=ArtNumberReading(art_number_raw=clean_code, art_legible="clear")
             )
 
         monkeypatch.setattr(pipeline, "transcribe", fake_transcribe)
         extract_bytes(art=PHOTO, source="one.png")
 
-        assert dict(seen)["art"] == PHOTO
-        assert dict(seen)["details"] is None, (
-            "pipeline passes both through; transcribe() owns the fallback"
-        )
+        assert seen == [PHOTO]
 
-    @pytest.fixture
-    def calls(self, monkeypatch):
-        """Record which reads transcribe() makes, and on which photo. No code
-        needed, so these run without the private catalogue."""
+    def test_transcribe_makes_one_art_call(self, monkeypatch):
+        """One API call per listing. No code needed, so this runs without the
+        private catalogue."""
         from labels import transcribe as T
 
         calls = []
         monkeypatch.setattr(
             T, "transcribe_art",
-            lambda data, media_type, model=None: calls.append(("art", data))
+            lambda data, media_type, model=None: calls.append((data, media_type))
             or ArtNumberReading(art_legible="not_visible"),
         )
-        monkeypatch.setattr(
-            T, "transcribe_details",
-            lambda data, media_type, model=None: calls.append(("details", data))
-            or LabelDetails(),
-        )
-        return calls
 
-    def test_transcribe_makes_only_the_art_call(self, calls):
-        """One API call per listing. A details call here doubles the cost."""
-        from labels import transcribe as T
+        T.transcribe(art=PHOTO)
 
-        reading = T.transcribe(art=PHOTO, details=None)
-
-        assert calls == [("art", PHOTO[0])]
-        assert reading.details == LabelDetails()
-
-    def test_art_read_falls_back_to_the_details_photo(self, calls):
-        """Given only a details photo, the ART read still runs against it."""
-        from labels import transcribe as T
-
-        T.transcribe(art=None, details=PHOTO)
-
-        assert calls == [("art", PHOTO[0])]
-
-    def test_two_photos_only_the_art_photo_is_read(self, calls):
-        """Given both photos, the second one is currently not read at all."""
-        from labels import transcribe as T
-
-        second = (b"second-photo", "image/png")
-        T.transcribe(art=PHOTO, details=second)
-
-        assert calls == [("art", PHOTO[0])]
+        assert calls == [PHOTO]
