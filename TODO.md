@@ -132,9 +132,20 @@ Starts now; each item blocks only what it names.
       it is frozen data, so a person decides it. Blocks only the era table and
       the uninspected-pairs decision.
 - [ ] **Photos.** `K1S…` labels, which decide whether `S0…` codes print on the
-      ART line; new garments for a held-out set, not looked at while tuning;
-      more front labels, to confirm the Certilogo tag sits level with the EAC
-      label that carries the ART number (2 of 2 so far).
+      ART line; more front labels, to confirm the Certilogo tag sits level
+      with the EAC label that carries the ART number (2 of 2 so far); new
+      garments for a held-out set, not looked at while tuning
+      (`evals/README.md`, *Held-out set*). The split:
+      - ~100 images: ~70 dev (including the current 33), ~30 held out.
+      - Split by garment: no garment on both sides. Held-out photos come only
+        from new garments, one photo per garment-side.
+      - Every format family, `si_alpha` included, plus a few negatives, in the
+        mix expected at launch.
+      - Labelled by eye before any run. The held-out set runs once, at the end
+        of the phase, and each use is recorded; studying its failures turns
+        it into dev data.
+      - The harness needs a `--holdout` flag (separate branch). `.gitignore`
+        and the privacy hook already cover `evals/holdout/`.
 - [x] **Positive count.** 28 is right: the manifest has 28 positive rows,
       and the report's `.photos.sha256` lists 33 photos. The 27 in the
       2026-10-08 run note and the `4f298e…` md5 row was a miscount, not a
@@ -529,6 +540,16 @@ labelled `partial`.
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.
+
+**Held-out manifest md5** (`evals/holdout/manifest.csv`). Empty until the set
+exists; its first row goes in with the manifest's first row, since the hook
+blocks every commit while the manifest has a header and no rows:
+
+| date | holdout md5 | what changed |
+|---|---|---|
+
+Re-run `md5 -q evals/holdout/manifest.csv` after any edit and add a row here,
+never in the table above.
 
 ## Dropped
 

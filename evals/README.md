@@ -15,6 +15,9 @@ can be compared against the run before it.
 evals/
     photos/         your label photos
     manifest.csv    one row per photo (copy manifest.example.csv)
+    holdout/        the held-out set; see below
+        photos/
+        manifest.csv    same columns as the dev manifest
     results/        one JSON report per run
 ```
 
@@ -70,6 +73,26 @@ A **blank** `expected_art_number` is different: it means *not labelled yet*.
 Those rows are skipped with a warning on stdout rather than scored. The two
 states must not be conflated — a blank row silently treated as a negative would
 score an unlabelled photo as passing whenever the model read nothing.
+
+## Held-out set
+
+`evals/holdout/` is a second set kept out of tuning, so a score on it says how
+the pipeline does on labels nobody tuned against. Its `manifest.csv` has the
+same columns and rules as the dev manifest above, with `photo` naming a file
+in `evals/holdout/photos/`. Both are gitignored, and the privacy hook treats
+its filenames and expected codes as private, as it does the dev set's.
+
+- No garment is in both sets; holdout photos come only from new garments.
+- Every row is labelled by eye before any run.
+- It runs once, at the end of a phase, and each use is recorded in `TODO.md`.
+  Studying its failures turns those photos into dev data.
+- Its md5 has its own ledger table in `TODO.md`, headed
+  `| date | holdout md5 | what changed |`. The hook blocks every commit while
+  the manifest has a header and no rows, so write its first row and commit the
+  matching ledger row together.
+
+The harness doesn't read it yet: a `--holdout` flag is planned on its own
+branch.
 
 ## Running
 
