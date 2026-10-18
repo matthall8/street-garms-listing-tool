@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Block a commit that adds a private value.
 
-The repo is public; the catalogue, the photos and the manifest are not. This
-checks what a commit adds against the real private values, locally, where they
-exist (CI never can). Standard library only, so it runs before `uv sync`.
+The repo is public; the catalogue, the photos and the eval manifests (dev and
+held-out) are not. This checks what a commit adds against the real private
+values, locally, where they exist (CI never can). Standard library only, so
+it runs before `uv sync`.
 
     check_private.py                      the staged diff (pre-commit)
     check_private.py --commit-msg FILE    a commit message (commit-msg)
@@ -39,6 +40,7 @@ from typing import NoReturn
 ALLOWLIST = "hooks/allowed.sha256"
 LEDGER_FILES = ("evals/BASELINES.md", "TODO.md")
 LEDGER_HEADER = re.compile(r"^\|\s*date\s*\|\s*md5\s*\|")
+HOLDOUT_LEDGER_HEADER = re.compile(r"^\|\s*date\s*\|\s*holdout\s+md5\s*\|")
 MD5 = re.compile(r"\b[0-9a-f]{32}\b")
 
 # The reviewer's two patterns. Code-shaped is ASCII, as `git grep -P` is.
@@ -87,10 +89,19 @@ def fold(text: str) -> str:
 class Private:
     codes: dict[str, str] = field(default_factory=dict)  # normalised → type
     names: dict[str, list[tuple[str, re.Pattern]]] = field(default_factory=dict)
+    filenames: set[str] = field(default_factory=set)  # from every manifest
     photos: re.Pattern | None = None
 
     def lengths(self) -> list[int]:
         return sorted({len(c) for c in self.codes})
+
+    def compile_photos(self) -> None:
+        """One pattern over the filenames of every manifest loaded, so a
+        second manifest adds to the first rather than replacing it."""
+        alternatives = sorted({fold(f) for f in self.filenames if f}, key=len, reverse=True)
+        if alternatives:
+            body = "|".join(re.escape(a).replace(r"\ ", r"\s+") for a in alternatives)
+            self.photos = re.compile(r"(?<!\w)(?:" + body + r")(?!\w)", re.IGNORECASE)
 
 
 def load_catalogue(path: Path, private: Private) -> None:
@@ -114,6 +125,9 @@ def load_catalogue(path: Path, private: Private) -> None:
 
 
 def load_manifest(path: Path, private: Private) -> None:
+    """Add a manifest's codes and filenames. A manifest with a header and no
+    rows is an error, so a new manifest's first row and the first row of its
+    md5 ledger go in together."""
     with path.open(encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f, strict=True)
         columns = list(reader.fieldnames or ())
@@ -123,7 +137,6 @@ def load_manifest(path: Path, private: Private) -> None:
         rows = list(reader)
     if not rows:
         raise ValueError("manifest has no rows")
-    filenames = set()
     for row in rows:
         if None in row or None in row.values():
             raise ValueError("manifest row has the wrong number of fields")
@@ -132,12 +145,9 @@ def load_manifest(path: Path, private: Private) -> None:
             if kind != "private" or not value:
                 continue
             if column == "photo":
-                filenames |= {value, Path(value).stem}
+                private.filenames |= {value, Path(value).stem}
             elif normalise(value) not in NO_CODE:
                 private.codes.setdefault(normalise(value), "expected_code")
-    alternatives = sorted({fold(f) for f in filenames if f}, key=len, reverse=True)
-    body = "|".join(re.escape(a).replace(r"\ ", r"\s+") for a in alternatives)
-    private.photos = re.compile(r"(?<!\w)(?:" + body + r")(?!\w)", re.IGNORECASE)
 
 
 def code_hits(line: str, private: Private, lengths: list[int]) -> list[tuple[str, str]]:
@@ -342,11 +352,11 @@ def load_allowlist(text: str | None) -> set[str]:
     return allowed
 
 
-def last_ledger_md5(text: str) -> str | None:
+def last_ledger_md5(text: str, header: re.Pattern) -> str | None:
     last = None
     in_table = False
     for line in text.splitlines():
-        if LEDGER_HEADER.match(line):
+        if header.match(line):
             in_table = True
         elif in_table:
             if not line.startswith("|"):
@@ -357,19 +367,22 @@ def last_ledger_md5(text: str) -> str | None:
     return last
 
 
-def check_md5(manifest: Path, show: Callable[[str], str | None]) -> str | None:
-    """None if the manifest's md5 is the ledger's last row, else the problem."""
+def check_md5(
+    manifest: Path, show: Callable[[str], str | None], header: re.Pattern, label: str
+) -> str | None:
+    """None if the manifest's md5 is the last row of the ledger table under
+    `header`, else the problem, naming the manifest by `label`."""
     actual = hashlib.md5(manifest.read_bytes()).hexdigest()
     for name in LEDGER_FILES:
         text = show(name)
-        if text is not None and any(LEDGER_HEADER.match(line) for line in text.splitlines()):
-            if last_ledger_md5(text) == actual:
+        if text is not None and any(header.match(line) for line in text.splitlines()):
+            if last_ledger_md5(text, header) == actual:
                 return None
             return (
-                f"manifest md5 does not match the last md5 ledger row in {name}: "
+                f"{label} md5 does not match the last row of its md5 ledger in {name}: "
                 "an unrecorded ground-truth edit needs a ledger row"
             )
-    return "manifest exists but no md5 ledger was found: add a ledger row"
+    return f"{label} exists but its md5 ledger was not found: add a ledger row"
 
 
 def message_lines(text: str, comment: str) -> tuple[list[tuple[int, str]], list[tuple[int, str]]]:
@@ -410,16 +423,18 @@ def run(argv: list[str]) -> int:
     mode.add_argument("--text", metavar="STRING")
     parser.add_argument("--catalogue", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--manifest", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--holdout", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
     roots = [Path(".")]
-    if not (args.catalogue and args.manifest):
+    if not (args.catalogue and args.manifest and args.holdout):
         top, common = git(
             "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"
         ).splitlines()
         roots = [Path(top), Path(common).parent]
     catalogue = args.catalogue or private_file(roots, "data/art-number.csv")
     manifest = args.manifest or private_file(roots, "evals/manifest.csv")
+    holdout = args.holdout or private_file(roots, "evals/holdout/manifest.csv")
 
     private = Private()
     if catalogue.exists():
@@ -430,6 +445,11 @@ def run(argv: list[str]) -> int:
         load_manifest(manifest, private)
     else:
         print("check_private: no manifest; manifest and md5 checks skipped", file=sys.stderr)
+    if holdout.exists():
+        load_manifest(holdout, private)
+    else:
+        print("check_private: no held-out set; holdout checks skipped", file=sys.stderr)
+    private.compile_photos()
     lengths = private.lengths()
 
     if args.range:
@@ -536,8 +556,13 @@ def run(argv: list[str]) -> int:
                     label, change, lambda t: pattern_hits(t, lambda _: False), allowed
                 )
 
-        if manifest.exists() and (problem := check_md5(manifest, show)):
-            problems.append(problem)
+        ledgers = [
+            (manifest, LEDGER_HEADER, "manifest"),
+            (holdout, HOLDOUT_LEDGER_HEADER, "holdout manifest"),
+        ]
+        for path, header, label in ledgers:
+            if path.exists() and (problem := check_md5(path, show, header, label)):
+                problems.append(problem)
 
     # A value that is private is reported once, as private.
     located = {(f, n) for t, f, n in findings if t not in ("code_shaped", "image_filename")}

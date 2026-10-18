@@ -23,6 +23,11 @@ PHOTO_STEM = "zz_synthetic_label_07"
 NEGATIVE_PHOTO = "zz_synthetic_label_08.png"
 EXPECTED_CODE = "QZ5550Y7001"  # in the manifest, not the catalogue
 
+# Held-out manifest
+HOLDOUT_PHOTO = "zz_synthetic_holdout_03.jpg"
+HOLDOUT_PHOTO_STEM = "zz_synthetic_holdout_03"
+HOLDOUT_EXPECTED_CODE = "QZ6660T8002"  # in the held-out manifest only
+
 # Not private, but caught by the reviewer's patterns
 CODE_SHAPED = "QZ9020W1234"
 IMAGE = "zz_untracked_shot.webp"
@@ -33,5 +38,6 @@ UNKNOWN_COLUMN = "QZ4040V9090"
 
 ALL = [
     KEY, OTHER_KEY, COMPOUND_KEY, COMPOUND_PRINTED, NAME, SHORT_NAME, PHOTO,
-    PHOTO_STEM, NEGATIVE_PHOTO, EXPECTED_CODE, CODE_SHAPED, IMAGE, UNKNOWN_COLUMN,
+    PHOTO_STEM, NEGATIVE_PHOTO, EXPECTED_CODE, HOLDOUT_PHOTO, HOLDOUT_PHOTO_STEM,
+    HOLDOUT_EXPECTED_CODE, CODE_SHAPED, IMAGE, UNKNOWN_COLUMN,
 ]
