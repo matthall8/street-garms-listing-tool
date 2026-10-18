@@ -600,6 +600,21 @@ class TestHoldout:
         assert "holdout checks skipped" in result.stderr
         assert "manifest and md5 checks skipped" not in result.stderr
 
+    def test_missing_holdout_with_an_empty_ledger_passes(self, repo):
+        # The state before the set exists: a ledger table with no rows.
+        empty = "| date | holdout md5 | what changed |\n|---|---|---|\n"
+        repo.stage("TODO.md", ledger(repo.manifest_md5()) + "\n" + empty)
+        result = repo.check()
+        assert result.returncode == 0
+        assert "holdout checks skipped" in result.stderr
+
+    @pytest.mark.parametrize("args", [[], ["--text", "feat: clean"]], ids=["staged", "text"])
+    def test_missing_holdout_with_ledger_rows_blocks(self, repo, args):
+        repo.stage("TODO.md", ledger(repo.manifest_md5()) + "\n" + ledger("0" * 32, "holdout md5"))
+        result = repo.check(*args)
+        assert result.returncode == 1
+        assert "no holdout manifest, but its md5 ledger has rows" in result.stdout
+
     def test_header_only_holdout_blocks(self, repo):
         # Fails closed: the first row and its ledger row go in together.
         repo.holdout.write_text("photo,expected_art_number,note\n")

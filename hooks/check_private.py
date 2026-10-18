@@ -373,16 +373,25 @@ def check_md5(
     """None if the manifest's md5 is the last row of the ledger table under
     `header`, else the problem, naming the manifest by `label`."""
     actual = hashlib.md5(manifest.read_bytes()).hexdigest()
+    found = find_ledger(show, header)
+    if found is None:
+        return f"{label} exists but its md5 ledger was not found: add a ledger row"
+    name, text = found
+    if last_ledger_md5(text, header) == actual:
+        return None
+    return (
+        f"{label} md5 does not match the last row of its md5 ledger in {name}: "
+        "an unrecorded ground-truth edit needs a ledger row"
+    )
+
+
+def find_ledger(show: Callable[[str], str | None], header: re.Pattern) -> tuple[str, str] | None:
+    """The first ledger file with a table under `header`, and its text."""
     for name in LEDGER_FILES:
         text = show(name)
         if text is not None and any(header.match(line) for line in text.splitlines()):
-            if last_ledger_md5(text, header) == actual:
-                return None
-            return (
-                f"{label} md5 does not match the last row of its md5 ledger in {name}: "
-                "an unrecorded ground-truth edit needs a ledger row"
-            )
-    return f"{label} exists but its md5 ledger was not found: add a ledger row"
+            return name, text
+    return None
 
 
 def message_lines(text: str, comment: str) -> tuple[list[tuple[int, str]], list[tuple[int, str]]]:
@@ -475,6 +484,14 @@ def run(argv: list[str]) -> int:
     allowed = load_allowlist(show(ALLOWLIST))
     findings: set[tuple[str, str, int]] = set()
     problems: list[str] = []
+
+    # Until the held-out ledger has a row the set doesn't exist and the notice
+    # above is enough; after that, a missing file means unchecked values.
+    found = find_ledger(show, HOLDOUT_LEDGER_HEADER)
+    if not holdout.exists() and found and last_ledger_md5(found[1], HOLDOUT_LEDGER_HEADER):
+        problems.append(
+            "no holdout manifest, but its md5 ledger has rows: its values can't be checked"
+        )
 
     def scan_private(text: str) -> list[tuple[str, str]]:
         return private_hits(text, private, lengths)
