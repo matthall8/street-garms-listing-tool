@@ -485,8 +485,9 @@ def run(argv: list[str]) -> int:
     findings: set[tuple[str, str, int]] = set()
     problems: list[str] = []
 
-    # Until the held-out ledger has a row the set doesn't exist and the notice
-    # above is enough; after that, a missing file means unchecked values.
+    # /open-pr and the reviewer fail on the catalogue and dev manifest notices
+    # but ignore the held-out one, which is normal until the set exists. Once
+    # its ledger has a row, a missing file means unchecked values, so block.
     found = find_ledger(show, HOLDOUT_LEDGER_HEADER)
     if not holdout.exists() and found and last_ledger_md5(found[1], HOLDOUT_LEDGER_HEADER):
         problems.append(

@@ -139,8 +139,11 @@ and 249 pass with it.
   there. The pre-commit hook also blocks a manifest whose md5 isn't the last
   row of its ledger table in `TODO.md`; the held-out set has its own table. A
   manifest with a header and no rows blocks every commit, so a new manifest's
-  first row and its first ledger row go in together. Once the held-out table
-  has a row, a missing held-out manifest blocks too. Agents are denied
+  first row and its first ledger row go in together. A missing catalogue or
+  dev manifest only prints a notice, which `/open-pr` and the code-reviewer
+  treat as a failed check. A missing held-out manifest prints a notice they
+  ignore, since the set doesn't exist yet, so once its ledger table has a row
+  the hook blocks instead. Agents are denied
   `git commit --no-verify`/`-n` and changing `core.hooksPath`, and are asked
   before editing `hooks/`. These are pattern matches, not a guarantee:
   `--no-verify` placed where a pattern doesn't expect it, `chmod -x` or an edit
