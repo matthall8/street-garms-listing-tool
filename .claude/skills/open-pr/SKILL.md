@@ -113,13 +113,18 @@ Check the branch as a whole, which includes the manifest md5 against the
 ledger at HEAD; it must exit 0:
 `.venv/bin/python hooks/check_private.py --range main...HEAD`
 Then check each commit on its own, so a value added in one commit and
-removed in a later one is still caught. The md5 lines (`manifest …`) are
-dropped here: today's manifest only has to match the ledger at HEAD, not
-at every earlier commit. One command, must print nothing:
-`for c in $(git rev-list main..HEAD); do rest=$(.venv/bin/python hooks/check_private.py --range "$c~1...$c" 2>&1 | grep -v '^manifest '); case "$rest" in *skipped*) echo "skipped $c";; *"private value ("*) echo "private $c";; ?*) echo "error $c";; esac; done`
-- **skipped** (from any of these checks): the catalogue or manifest
+removed in a later one is still caught. The md5 lines (`manifest …` and
+`holdout manifest …`) are dropped here: today's manifests only have to
+match the ledgers at HEAD, not at every earlier commit. So is the held-out
+notice (below). One command, must print nothing:
+`for c in $(git rev-list main..HEAD); do rest=$(.venv/bin/python hooks/check_private.py --range "$c~1...$c" 2>&1 | grep -v -E '^(holdout )?manifest |holdout checks skipped$'); case "$rest" in *skipped*) echo "skipped $c";; *"private value ("*) echo "private $c";; ?*) echo "error $c";; esac; done`
+- **skipped** (from any of these checks): `catalogue checks skipped` or
+  `manifest and md5 checks skipped` means the catalogue or the dev manifest
   is missing, so the real-value checks didn't run. Stop and tell me.
-  That's a failed check, never a pass.
+  That's a failed check, never a pass. `holdout checks skipped` is not a
+  failure: while the held-out ledger in `TODO.md` has no rows, the set
+  doesn't exist yet, and once it has a row a missing set blocks the check
+  itself.
 - **private <sha>:** a privacy Must fix in that commit. Handle it as step
   3 says: never noted, never in the ledger or body; I rewrite the commit.
 - **error <sha>:** the check failed for another reason, such as an

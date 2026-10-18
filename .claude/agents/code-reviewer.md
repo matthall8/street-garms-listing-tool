@@ -74,10 +74,14 @@ This project:
   - Exit 0 and no stdout: pass.
   - Each `private value (<type>) in <file>:<line>` line is a Must fix at
     that file:line. Don't open the line to quote it.
-  - A manifest md5 line belongs to the Evals check below.
-  - `blocked by an internal error`, or a stderr notice that the catalogue
-    or manifest was skipped: the check didn't fully run. List it under
-    Validation gaps, never as a pass.
+  - A manifest or holdout manifest md5 line belongs to the Evals check
+    below.
+  - `blocked by an internal error`, or the stderr notice
+    `catalogue checks skipped` or `manifest and md5 checks skipped`: the
+    check didn't fully run. List it under Validation gaps, never as a pass.
+    `holdout checks skipped` is not a gap: while the held-out ledger has no
+    rows the set doesn't exist yet, and once it has a row a missing set
+    blocks the check itself.
 
   It covers commits only. Uncommitted and untracked files aren't checked,
   which the verdict rules already make Review incomplete.
@@ -130,7 +134,8 @@ This project:
   runs are compared must be flagged, never approved silently. If
   `evals/manifest.csv` exists, hash it and compare with the last row of the
   md5 ledger (TODO.md or `evals/BASELINES.md`); the privacy check prints
-  a line when they differ. A mismatch is an unrecorded ground-truth edit:
+  a line when they differ. Do the same for `evals/holdout/manifest.csv`
+  against the `holdout md5` table. A mismatch is an unrecorded ground-truth edit:
   Must fix.
 - **Docs.** If a documented claim is now stale (a measured number, test
   count or behaviour), are README, TODO.md and CLAUDE.md updated? Do
