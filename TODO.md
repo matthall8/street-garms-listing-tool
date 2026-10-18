@@ -54,17 +54,22 @@ gitignored, so this file is their only audit trail.
       QR reads −2°, so the photo is upright. Add an md5 row.
 
 - [ ] **3. `Resolution.matched_art` → `resolved_key`, and the `miss` status
-      → `no_key`.** Its own PR with no change in behaviour, so run 0's PR
-      holds only behaviour. Drop both *(not in code yet)* markers in
+      → `no_key`.** Its own PR with no change in what flags, so run 0's PR
+      holds only behaviour. The `catalogue_match` value in the JSON output
+      and `app/templates/result.html` change with it. Drop both *(not in code yet)* markers in
       `GLOSSARY.md`.
 
 - [ ] **4. Run 0, behaviour (PR, no API calls).**
       - Family split in `art_number.py` into `art_caption`, `art_base`,
         `art_suffix`, `art_lot` and `art_unmatched` (`GLOSSARY.md`, *Parsing
-        rules*, including its *Not yet decided* line). Spaces carry no meaning: C.P. splits by
+        rules*, including its *Not yet decided* line). Scope agreed
+        2026-10-18 with the glossary: the caption is recorded as
+        `art_caption` as well as stripped, and the `?` and separator rules
+        are new. Spaces carry no meaning: C.P. splits by
         fixed length, Stone Island numeric only at a printed slash. A remainder
         becomes `art_suffix` or `art_lot` only when it matches a known
-        shape; anything else is `art_unmatched`, which flags.
+        shape (base and suffix shapes from the catalogue, caption and lot
+        shapes from labels); anything else is `art_unmatched`, which flags.
       - `pipeline.py` passes `art_base` to the existing `resolve()` (see
         *Catalogue: frozen*).
       - `review_reasons: list[str]` on `Extraction`, with
