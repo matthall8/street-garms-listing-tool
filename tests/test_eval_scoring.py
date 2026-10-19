@@ -468,9 +468,9 @@ class TestLoadManifest:
     at call time — the same rule as the transcribe patch target in CLAUDE.md.
     """
 
-    def write(self, tmp_path, monkeypatch, body):
+    def write(self, tmp_path, monkeypatch, body, header="photo,expected_art_number,note"):
         manifest = tmp_path / "manifest.csv"
-        manifest.write_text("photo,expected_art_number,note\n" + body, encoding="utf-8")
+        manifest.write_text(header + "\n" + body, encoding="utf-8")
         monkeypatch.setattr(eval_transcription, "MANIFEST", manifest)
 
     def test_blank_expected_is_skipped(self, tmp_path, monkeypatch):
@@ -508,6 +508,20 @@ class TestLoadManifest:
         metadata = load_manifest()[0].metadata
         assert metadata is not None
         assert metadata["note"] == "faded garment dyed"
+
+    def test_columns_it_does_not_score_change_nothing(self, tmp_path, monkeypatch):
+        """Run 0's columns, filled or blank, leave the cases as they were."""
+        legacy = "a,123456789,faded\nb,NONE,\nc,,\n"
+        self.write(tmp_path, monkeypatch, legacy)
+        before = [(c.name, c.expected_output, c.metadata) for c in load_manifest()]
+        self.write(
+            tmp_path, monkeypatch,
+            'p1,a,g1,back,123456789,"ART. 123456789",,faded\n'
+            "p2,b,g1,front,NONE,NONE,NONE,\n"
+            "p3,c,g2,back,,,,\n",
+            header="id,photo,garment,side,expected_art_number,expected_art_line,expected_art_base,note",
+        )
+        assert [(c.name, c.expected_output, c.metadata) for c in load_manifest()] == before
 
 
 class TestSentinelSafety:
