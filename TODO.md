@@ -441,7 +441,8 @@ every count below straight from the report's *per photo* table: its `missed`,
   questions). Revisit it if every listing gets human review.
 - **For the contract v2 runs** (chain step 7), this rule still decides
   `missed` and the guardrails. ADR-0001 adds wrong-and-unflagged, counted per
-  garment-side, as the primary metric; its thresholds are set from run 0.
+  garment-side, as the primary metric; its thresholds are set from the full-manifest
+  baseline after run 0 (chain step 5).
   Photo numbers in this section refer to the archived set.
 
 **Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos
