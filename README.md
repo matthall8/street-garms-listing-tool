@@ -95,8 +95,8 @@ git config core.hooksPath hooks                     # privacy hooks, once per cl
 ```
 
 The catalogue, eval photos and manifest are private and gitignored. Tests that need
-the catalogue skip rather than fail: currently 212 pass and 37 skip on a fresh clone,
-and 249 pass with it.
+the catalogue skip rather than fail: currently 219 pass and 46 skip on a fresh clone,
+and 265 pass with it.
 
 ## How AI coding agents are used
 
