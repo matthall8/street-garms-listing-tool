@@ -379,7 +379,7 @@ class TestMissed:
 
 
 class TestPerPhotoCounts:
-    """The table the decision rule in TODO.md is read from: one row per photo,
+    """The table the decision rule in ADR-0006 is read from: one row per photo,
     counts out of --repeat. Run through the real pydantic-evals repeat path,
     since grouping reads by photo depends on its source_case_name."""
 

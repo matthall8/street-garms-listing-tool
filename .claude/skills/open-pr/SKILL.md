@@ -175,9 +175,9 @@ notice (below). One command, must print nothing:
   `manifest and md5 checks skipped` means the catalogue or the dev manifest
   is missing, so the real-value checks didn't run. Stop and tell me.
   That's a failed check, never a pass. `holdout checks skipped` is not a
-  failure: while the held-out ledger in `TODO.md` has no rows, the set
-  doesn't exist yet, and once it has a row a missing set blocks the check
-  itself.
+  failure: while the held-out ledger in `evals/BASELINES.md` has no
+  rows, the set doesn't exist yet, and once it has a row a missing set
+  blocks the check itself.
 - **private <sha>:** a privacy Must fix in that commit. Handle it as step
   3 says: never noted, never in the ledger or body; I rewrite the commit.
 - **error <sha>:** the check failed for another reason, such as an

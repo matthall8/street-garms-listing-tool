@@ -167,9 +167,9 @@ its filenames and expected codes as private, as it does the dev set's.
 - One photo per garment-side, so no repeat shots or rotated copies, which
   the dev set allows.
 - Every row is labelled by eye before any run.
-- It runs once, at the end of a phase, and each use is recorded in `TODO.md`.
+- It runs once, at the end of a phase, and each use is recorded in `evals/BASELINES.md`.
   Studying its failures turns those photos into dev data.
-- Its md5 has its own ledger table in `TODO.md`, headed
+- Its md5 has its own ledger table in `evals/BASELINES.md`, headed
   `| date | holdout md5 | what changed |`. The hook blocks every commit while
   the manifest has a header and no rows, so write its first row and commit the
   matching ledger row together. Once that table has a row, the hook also
@@ -342,7 +342,7 @@ Things that make a comparison meaningless:
 - **A different `manifest` fingerprint, for a scored reason.** The runs
   scored different photos or different expected values. A note or an unscored
   column changes the fingerprint too; the md5 ledger's "what changed" column
-  in `TODO.md` says which it was.
+  in `evals/BASELINES.md` says which it was.
 - **One run each.** The same photo can read correctly on one run and not the
   next. With 15 photos a single flip moves exact match by about 7 points, so
   use `--repeat 3` before trusting a difference.

@@ -179,7 +179,7 @@ class ConfidenceRates(ReportEvaluator):
 
 @dataclass
 class PerPhotoCounts(ReportEvaluator):
-    """Counts per photo across --repeat: the unit the decision rule in TODO.md
+    """Counts per photo across --repeat: the unit the decision rule in ADR-0006
     is judged on, so nobody has to tally `photo [k/3]` rows by hand.
 
     `reads` is how many reads were scored. A failed read is left out, so

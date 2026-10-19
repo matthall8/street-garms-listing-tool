@@ -125,7 +125,7 @@ This project:
   constants, the user message built in `transcribe_art`, the reading
   schemas in `schemas.py` (docstrings, field names, field order,
   descriptions), the model strings and `MODEL_SETTINGS`. A change to any of these needs an eval citation on the
-  branch, in a commit message or in the TODO/baselines diff, giving the tag,
+  branch, in a commit message or in the baselines diff, giving the tag,
   the fingerprint and the decision-rule result. Missing citation: Fix first.
   Check the eval covers this code: if
   `git diff <cited-tag> -- labels/transcribe.py labels/schemas.py`
@@ -143,7 +143,7 @@ This project:
   Check the code around it: any change to scoring, the manifest reader or how
   runs are compared must be flagged, never approved silently. If
   `evals/manifest.csv` exists, hash it and compare with the last row of the
-  md5 ledger (TODO.md or `evals/BASELINES.md`); the privacy check prints
+  md5 ledger (`evals/BASELINES.md`); the privacy check prints
   a line when they differ. Do the same for `evals/holdout/manifest.csv`
   against the `holdout md5` table. A mismatch is an unrecorded ground-truth edit:
   Must fix.

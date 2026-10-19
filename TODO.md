@@ -222,6 +222,10 @@ check, the negative count, both 2026-09-25 baselines, the whole-label prompt
 change and the 2026-10-08 baseline. The full notes are in git history before
 the 2026-10-09 TODO update.
 
+### Eval run procedure
+
+Moved to `evals/README.md`, *Eval run procedure*.
+
 ## Next
 
 - [ ] **The catalogue misses codes printed with an attached colour suffix.**
@@ -417,6 +421,14 @@ the 2026-10-09 TODO update.
   is out of phase 1 and its listings always go to review. Decide in the
   `phase-1-acceptance` ADR; it also settles which tag a second baseline runs
   at.
+
+## Decision rule for prompt changes
+
+Moved to `adr/0006-decision-rule-for-prompt-changes.md`.
+
+## Current baseline
+
+Moved to `evals/BASELINES.md`, with both md5 ledgers.
 
 ## Dropped
 
