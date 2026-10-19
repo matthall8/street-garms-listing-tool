@@ -187,12 +187,10 @@ product names, not safety.
 
 Neither blocks nor is blocked by the sequence above.
 
-- [ ] **Split and scrub this file.** It breaks CLAUDE.md's private-data rule
-      (photo filenames, code literals, a catalogue product name) and is ~30 KB.
-      Keep Now, Next and Open questions here; move baselines and the md5
-      ledger to `evals/BASELINES.md` and the decision rule to an ADR. Refer to
-      photos by manifest `id`. The
-      privacy hook flags only values a change adds, so editing this file
+- [ ] **Split and scrub this file.** Scrubbed of private values 2026-10-19;
+      still ~30 KB. Keep Now, Next and Open questions here; move baselines and
+      the md5 ledger to `evals/BASELINES.md` and the decision rule to an ADR.
+      The privacy hook flags only values a change adds, so editing this file
       doesn't block meanwhile.
 
 - [ ] **Widen format coverage in the eval set.** Partly done 2026-10-08:
