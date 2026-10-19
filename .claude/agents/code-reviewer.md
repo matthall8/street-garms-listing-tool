@@ -195,7 +195,8 @@ run: list it under Validation gaps with the skip reasons.
   and nothing else about it. If an open `TODO.md` item already covers it
   (for example, *Split and scrub this file* covers private data in
   `TODO.md`), write nothing about it and carry on: that item is the fix
-  branch.
+  branch. Do the same for a gap in a privacy check that `README.md`'s
+  *Known limitations* already documents.
 - If the only fix is a plan change beyond the branch's topic
   (`git log main..HEAD`), as CLAUDE.md's *No plan changes in passing*
   defines it, the fix sentence proposes a separate branch, not an edit.
