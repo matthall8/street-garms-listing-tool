@@ -51,7 +51,8 @@ main.py  /  app/routes.py
 
 ## Evaluation
 
-**Baseline, 2026-09-25:** `anthropic:claude-sonnet-5`, tag `eval-baseline-2026-09-25b`.
+**Archived baseline, 2026-09-25,** on the archived eval set (the current baseline is in
+[evals/BASELINES.md](evals/BASELINES.md)): `anthropic:claude-sonnet-5`, tag `eval-baseline-2026-09-25b`.
 18 positive photos (14 distinct codes) and 4 photos with no ART number, each read
 3 times; all 66 reads scored. Harness: [evals/README.md](evals/README.md).
 
@@ -156,7 +157,7 @@ and 266 pass with it.
 
 ## Known limitations
 
-- 6 of 18 positive photos are missed on every read, 5 of them at 1200x1600.
+- On the archived eval set, 6 of 18 positive photos are missed on every read, 5 of them at 1200x1600.
   Images are sent uncropped and unresized. Two eval photos share one expected code.
 - Parser seasons agree with the catalogue on 2,288 of 2,359 checkable rows. The
   71 disagreements are untriaged, so that ground truth is unverified.

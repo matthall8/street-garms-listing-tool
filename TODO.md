@@ -23,40 +23,13 @@ and its wrong-and-unflagged rate, the headline metric
 *The chain* below is the plan of record; ADR-0001 holds the decision behind
 it, and `GLOSSARY.md` the terms.
 
-**Done before 2026-10-09:** `.env` key fixed and `.env.example` added (#11);
-negative cases implemented, tested and documented (#12); the six pre-port
-reports archived to `evals/results/archive/`. On 2026-09-25 the manifest grew
-to 18 positives + 4 negatives, all ground truth re-checked by eye (see the md5
-table). An unlisted Certilogo photo carries an ART number but is too hard to read, so
-it was removed rather than used. Flask route tests merged (#18). CI added
-(`.github/workflows/tests.yml`) ahead of the parser tests, by decision: on a
-clean runner with no catalogue, 111 tests pass and 42 skip. What it does not
-cover is under *Next*.
-
-On 2026-10-08 the eval set was replaced: 28 positives + 5 negatives, ten new
-garments including the first two C.P. pieces. The previous set, its manifest
-and photos are in `evals/archive/` (gitignored). Photo numbers in *Known
-issues*, *Decision rule* and *Current baseline* below refer to the archived
-set unless they say otherwise.
-
 ### The chain
 
 Strictly in order; each step's PR merges before the next starts. Commit, tag,
 then run, and record every result here. Photos, manifest and results stay
 gitignored, so this file is their only audit trail.
 
-- [x] **1. Land the decision.** Commit the 2026-10-09 md5 row on
-      its own, then the wording in `README.md` and `evals/README.md`, then
-      ADR-0001 with the CLAUDE.md citation and this file. Code-reviewer, PR, merge.
-
-- [x] **2. Ground truth for run 0.** Done 2026-10-19. `MANIFEST_COLUMNS`
-      classified `id`, `garment`, `side`, `expected_art_line` and
-      `expected_art_base` before the manifest was edited; the rules are in
-      `evals/README.md` and the example in `evals/manifest.example.csv`. All
-      five columns went into the manifest in one hand edit, checked by eye,
-      so the ledger has one row (2026-10-19) and no id-only row. The stale
-      `upside down` note on `p15` was removed: its Certilogo QR reads −2°, so
-      the photo is upright. `expected_art_number` is unchanged and legacy.
+Steps 1 (land the decision) and 2 (ground truth for run 0) are done.
 
 - [ ] **3. `Resolution.matched_art` → `resolved_key`, and the `miss` status
       → `no_key`.** Its own PR with no change in what flags, so run 0's PR
@@ -179,11 +152,20 @@ Starts now; each item blocks only what it names.
         it into dev data.
       - The harness needs a `--holdout` flag (separate branch). `.gitignore`
         and the privacy hook already cover `evals/holdout/`.
-- [x] **Positive count.** 28 is right: the 2026-10-08 set had 28 positive rows,
-      and the report's `.photos.sha256` lists 33 photos. The 27 in the
-      2026-10-08 run note and the `4f298e…` md5 row was a miscount, not a
-      ground-truth edit; whether that version had 27 rows can no longer be
-      checked.
+
+### Kept until recorded in their homes
+
+History, kept because no ADR, ledger or commit message holds it yet.
+
+- **Positive count.** 28 is right: the 2026-10-08 set had 28 positive rows,
+  and the report's `.photos.sha256` lists 33 photos. The 27 in the
+  2026-10-08 run note and the `4f298e…` md5 row was a miscount, not a
+  ground-truth edit; whether that version had 27 rows can no longer be
+  checked.
+- **Pre-port reports.** The six reports from before the pydantic-evals port
+  are archived in `evals/results/archive/` (gitignored).
+- **CI before parser tests.** CI was added ahead of the parser unit tests,
+  by decision.
 
 ### Catalogue: frozen
 
@@ -231,13 +213,6 @@ Neither blocks nor is blocked by the sequence above.
       Independent of the 71-row triage. This is a decision about which source of
       truth wins, not a refactor — once decided, the precedence rule belongs in
       CLAUDE.md domain rules.
-
-### Done (previous chain)
-
-Superseded by the 2026-10-08 set and the chain above: the duplicate-code
-check, the negative count, both 2026-09-25 baselines, the whole-label prompt
-change and the 2026-10-08 baseline. The full notes are in git history before
-the 2026-10-09 TODO update.
 
 ### Eval run procedure
 
@@ -322,14 +297,6 @@ Moved to `evals/README.md`, *Eval run procedure*.
       request count per call, and record the resulting worst-case latency in
       CLAUDE.md beside the timeout rule.
 
-- [x] **Remove the `details` plumbing.** Done ahead of run 4: the details
-      prompt, agent and schema, the `details` inputs, the brand fallback and
-      the five `Extraction` fields only it filled (`size`, `composition`,
-      `made_in`, `certilogo`, `colour_observed`) are gone, and `art` is now
-      required. The old code is at the `parked/details-read` tag. Run 4 of
-      ADR-0001's rollout brings size, brand and colour back through the
-      single ART call, under ADR-0001's field names.
-
 - [ ] **Brand can come out empty unflagged.** `brand` comes only from
       `decoded.brand`; there is no printed-brand fallback. A clear read with a
       known season but a brand key missing from `BRAND`, plus a catalogue miss,
@@ -347,8 +314,6 @@ Moved to `evals/README.md`, *Eval run procedure*.
       front, confirm past a threshold. No `max_tokens` on either agent either.
       Once closed this may earn a line in CLAUDE.md conventions.
 
-- [ ] **Top-level README.** Two lines today; names none of the commands.
-
 ## Known issues
 
 - **71 parser/catalogue season disagreements, untriaged.** `CP_MODERN_SEASON`
@@ -357,7 +322,8 @@ Moved to `evals/README.md`, *Eval run procedure*.
   not fixing all 71. Until then, 97.0% is measured against ground truth that
   hasn't been verified.
 
-- **Six photos still come back `not_visible` on every read.** Until
+- **Archived set: six photos still came back `not_visible` on every read.**
+  Photo numbers here are the archived set's (`evals/archive/`). Until
   2026-09-25 every 1200x1600 photo failed on every date, which pointed at
   capture resolution. The whole-label prompt change overturned most of that:
   6 of the 11 now read correctly on every read, so the prompt — which assumed
@@ -413,8 +379,8 @@ Moved to `evals/README.md`, *Eval run procedure*.
 - **What fraction of real listings miss the catalogue?** Decides how much the
   parser carries — on a hit the product name supplies the season, on a miss the
   parser is the only source.
-- **What will production photos actually look like?** With the current
-  prompt, 6 of 7 4032x3024 photos read against 6 of 11 1200x1600, so the
+- **What will production photos actually look like?** On the archived set,
+  with the current prompt, 6 of 7 4032x3024 photos read against 6 of 11 1200x1600, so the
   smaller format still carries most of the misses. If production is
   full-resolution phone captures, the pipeline may work better than the
   baseline suggests; if it is the smaller format, expect roughly half of
