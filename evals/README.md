@@ -103,7 +103,10 @@ columns only: labelled, but no value is safe. A blank cell is always work
 still to do; an `UNKNOWN` one is finished, and its `note` says why.
 
 Every row keeps an `expected_art_number`, new rows included, until the scorer
-reads these two columns: the harness skips a row where it is blank. How
+reads these two columns: the harness skips a row where it is blank. Where the
+code itself can't be read safely, the legacy cell stays blank, never
+`UNKNOWN`: the harness would score `UNKNOWN` as a code, so it skips such a
+row with a warning. How
 line-exact treats spacing and case is the scorer's to decide; the cells
 record both as printed so either is possible.
 
