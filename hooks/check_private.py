@@ -155,10 +155,11 @@ def load_manifest(path: Path, private: Private) -> None:
 
 def code_parts(value: str) -> list[str]:
     """The code-shaped parts of a cell, so a doc quoting just the code from
-    an `expected_art_line` cell is caught too. Tokens split at spaces and
-    separators, and adjacent pairs joined, since a code can be printed with
-    a space inside it."""
-    tokens = [t for t in re.split(r"[\s/-]+", value.translate(ASCII_UPPER)) if t]
+    an `expected_art_line` cell is caught too. Tokens split at spaces,
+    separators and the dot that can join a caption to its code (`ART.<code>`),
+    and adjacent pairs joined, since a code can be printed with a space
+    inside it."""
+    tokens = [t for t in re.split(r"[\s/.-]+", value.translate(ASCII_UPPER)) if t]
     candidates = tokens + [a + b for a, b in zip(tokens, tokens[1:], strict=False)]
     return [c for c in candidates if CODE_SHAPED.fullmatch(c)]
 

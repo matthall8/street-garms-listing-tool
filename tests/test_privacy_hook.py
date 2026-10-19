@@ -316,6 +316,7 @@ class TestManifestColumns:
         [
             f"ART. {s.EXPECTED_CODE}/12 LOT 4411",
             f"ART. {s.EXPECTED_CODE[:6]} {s.EXPECTED_CODE[6:]} LOT 4411",  # space inside
+            f"ART.{s.EXPECTED_CODE[:6]} {s.EXPECTED_CODE[6:]}",  # caption joined, space inside
         ],
     )
     def test_the_code_inside_a_line_blocks(self, repo, line):
