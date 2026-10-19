@@ -45,7 +45,8 @@ every count below straight from the report's *per photo* table: its `missed`,
   recorded before run 1 (TODO.md's chain step 5).
   Photo numbers in this section refer to the archived set.
 
-The 2026-09-25 result is in `evals/BASELINES.md`, *Previous baselines (archived set)*.
+The result of the 2026-09-25 whole-label prompt change, the merge the waiver
+below refers to, is in `evals/BASELINES.md`, *Previous baselines (archived set)*.
 
 The rule as first written also required confirming a pass on photos outside
 this set before merging, because a pass here is in-sample. That condition was

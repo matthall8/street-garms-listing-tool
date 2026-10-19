@@ -152,11 +152,9 @@ Starts now; each item blocks only what it names.
 
 History, kept because no ADR, ledger or commit message holds it yet.
 
-- **Positive count.** 28 is right: the 2026-10-08 set had 28 positive rows,
-  and the report's `.photos.sha256` lists 33 photos. The 27 in the
-  2026-10-08 run note and the `4f298e…` md5 row was a miscount, not a
-  ground-truth edit; whether that version had 27 rows can no longer be
-  checked.
+- **Positive count.** Beyond the `4f298e…` ledger row's correction: the
+  2026-10-08 report's `.photos.sha256` lists 33 photos, and whether that
+  version had 27 rows can no longer be checked.
 - **Pre-port reports.** The six reports from before the pydantic-evals port
   are archived in `evals/results/archive/` (gitignored).
 - **CI before parser tests.** CI was added ahead of the parser unit tests,
@@ -178,8 +176,9 @@ Neither blocks nor is blocked by the sequence above.
 - [ ] **Tidy follow-ups.** Swap CLAUDE.md's line-number references
       (`labels/pipeline.py`, `.gitignore`, `tests/test_pipeline.py`,
       `tests/conftest.py`, `labels/art_number.py`) for function, test or
-      section names. Find homes for the findings under *Kept until recorded
-      in their homes*, then delete them from this file.
+      section names. CLAUDE.md's intro says TODO.md holds current scores;
+      point it at `evals/BASELINES.md`. Find homes for the findings under
+      *Kept until recorded in their homes*, then delete them from this file.
 
 - [ ] **Replace the photo-hash recipe.** The recipe in `evals/README.md`'s
       *Eval run procedure* is broken (the manifest now starts with `id`;
