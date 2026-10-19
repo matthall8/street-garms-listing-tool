@@ -244,8 +244,8 @@ manifest md5 table before it runs.
 
 | Run | Change | Manifest columns needed |
 |---|---|---|
-| 0 | Code only, no API calls: the split, review reasons, and a replay over the baseline's saved reads, which cover only the rows that baseline scored. The catalogue stays as it is (index: ADR-0003). After it, a paid `--repeat 3` run on the full manifest at the same tag becomes the new baseline, which later runs compare against | `expected_line`, `expected_style` |
-| 1 | The contract change: the one-line rule; `art_number_raw` renamed to `art_line`; `ambiguous_characters` positions counted along `art_line`; the `/181` example dropped; the lot-code rule reworded to match the line rule | `expected_line`, `expected_style` |
+| 0 | Code only, no API calls: the split, review reasons, and a replay over the baseline's saved reads, which cover only the rows that baseline scored. The catalogue stays as it is (index: ADR-0003). After it, a paid `--repeat 3` run on the full manifest at the same tag becomes the new baseline, which later runs compare against | `expected_art_line`, `expected_art_base` |
+| 1 | The contract change: the one-line rule; `art_number_raw` renamed to `art_line`; `ambiguous_characters` positions counted along `art_line`; the `/181` example dropped; the lot-code rule reworded to match the line rule | `expected_art_line`, `expected_art_base` |
 | 2 | `text_orientation`, in first position. If the ART read gets worse, retry it in last position. | `orientation` |
 | 3 | `next_line` | `expected_next_line` |
 | 4 | Size, brand and colour together, with the ART metrics as guardrail | `expected_sizes`, `expected_brand`; colour scored by eye |

@@ -147,8 +147,9 @@ Starts now; each item blocks only what it names.
       with the EAC label that carries the ART number (2 of 2 so far); new
       garments for a held-out set, not looked at while tuning
       (`evals/README.md`, *Held-out set*). The split:
-      - The dev set is frozen at 55 rows for phase 1 (2026-10-19). New
-        photos go to the held-out set only, ~30 of them.
+      - `si_alpha` (`K1S…`) garments join the dev set before chain step 5's
+        paid run. Once that baseline is recorded, the dev set is frozen for
+        phase 1 and new photos go to the held-out set only, ~30 of them.
       - Split by garment: no garment on both sides. Held-out photos come only
         from new garments, one photo per garment-side.
       - Every format family, `si_alpha` included, plus a few negatives, in the
@@ -188,8 +189,11 @@ Neither blocks nor is blocked by the sequence above.
 - [ ] **Widen format coverage in the eval set.** Partly done 2026-10-08:
       `cp_modern` (2 garments, 3 positive rows) and a trailing colour code
       (`5215M226/2525`, 2 rows) are now covered. Still missing: `si_alpha`
-      (`K1S…`, 86 catalogue rows), which the eval has never tested. Re-baseline
-      after, since the manifest fingerprint changes.
+      (`K1S…`, 86 catalogue rows), which the eval has never tested. Add them
+      before chain step 5's paid run, so that baseline covers them and no
+      separate re-baseline is needed. If the `K1S…` labels can't be found in
+      time, step 5 runs without them and a second paid baseline follows once
+      they're added.
 
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
       season, not the parser.** `labels/pipeline.py:24-25` takes year/season
