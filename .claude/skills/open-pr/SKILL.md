@@ -38,21 +38,67 @@ report it with the skip reasons.
 
 ## 3. Review
 
-Findings ledger: `docs/pr-findings.md` (gitignored) keeps each Must fix
-and Should fix across sessions, one line each:
-`- <reviewed sha> | <file:line> | <problem, one sentence> | fix` or
-`| noted: <reason>`, under a first line `branch: <branch>`. Before
-reviewing, read it. Keep it only if the branch matches and its SHAs are
-on this branch but not on `main` (`git merge-base --is-ancestor <sha>
-HEAD`, and not an ancestor of `main`); otherwise replace it with an empty
-ledger for this branch.
+**Ledger-only diff.** If the branch only appends md5 ledger rows, skip
+the reviewer and the rest of this step; go to step 4. Decide from the
+diff, never from the title, branch name or commit messages. It is
+ledger-only only if both hold:
+- `git diff main...HEAD --name-only` lists one file, the one holding the
+  md5 ledgers (CLAUDE.md, *One home per fact*).
+- Every changed line in `git diff -U0 main...HEAD` is an added row of
+  the *Manifest md5* or *Held-out manifest md5* table, and the added
+  rows of each table come directly after its last row on `main`,
+  contiguous at the end of the table. Any removed line (an edited or
+  deleted row), a row added anywhere else, or any change to a table's
+  heading or paragraph takes the full path: `check_md5` checks only the
+  last row, so any other row needs the reviewer.
 
-Run the code-reviewer subagent against `main`. If it reports a Must fix
-or Should fix not already handled, stop. A `noted` ledger entry handles a
-finding; a `fix` entry doesn't if this report still lists the problem, so
-ask me again about it. List each in one sentence,
-with file:line, ask me whether to fix or note it, and don't fix anything
-yourself. Write my answer to the ledger before doing anything else:
+Anything else, however small, takes the full path. Steps 2 and 5 still
+run in full. Step 5's `--range main...HEAD` check still compares each
+manifest's md5 with the last row of its ledger at HEAD (`check_md5` in
+`hooks/check_private.py`), so the ledger row itself is verified without
+the reviewer. The reviewer's read of changed docs for a quoted garment
+name (code-reviewer.md, *Privacy*) doesn't run, so read the added lines
+for one yourself; a hit is a privacy Must fix, handled as below.
+
+Findings ledger: `docs/pr-findings.md` (gitignored) keeps each review
+round and each Must fix, Should fix and inherited finding across
+sessions, one line each: `- round <n> | <reviewed sha>` per reviewer
+run, and `- <reviewed sha> | <file:line> | <problem, one sentence> |`
+then `fix`, `noted: <reason>` or `inherited` per finding, under a first
+line `branch: <branch>`.
+Before reviewing, read it. Keep it only if the branch matches and its
+SHAs are on this branch but not on `main` (`git merge-base --is-ancestor
+<sha> HEAD`, and not an ancestor of `main`); otherwise replace it with an
+empty ledger for this branch.
+
+**One re-review.** Review, fix, re-review once. Round 1 is the first
+reviewer run on the branch; round 2 re-reviews after its fixes. From
+round 2 on, only a Must fix triggers another round.
+
+Run the code-reviewer subagent against `main`, and add its round line
+(the ledger's last round + 1, or 1 if none). From round 2, give it the
+last round's reviewed SHA and that round's ledger findings: it checks
+those and the diff since that SHA only (code-reviewer.md, section 1).
+
+If the reviewer reports an inherited privacy problem (its `Stop:` line),
+stop. Tell me the file:line and propose a fix branch from `main`; this PR
+waits until that fix merges. Keep it out of the ledger and the body.
+
+Inherited (noted) findings aren't asked about. Write each one not
+already in the ledger as `inherited`, without asking: step 4 lists them
+under *Not in this PR* from the ledger, so a round-1 item survives a
+round-2 re-review. From round 2, write each
+unhandled finding other than a Must fix to the ledger as `noted: after
+re-review, <why it can wait>`, without asking.
+
+If it reports any other Must fix or Should fix not already handled,
+stop. A `noted` ledger entry handles a finding; a `fix` entry doesn't if
+this report still lists the problem, so ask me again about it. List each
+in one sentence, with file:line, ask me whether to fix or note it, and
+don't fix anything yourself. If its fix is a plan change beyond the
+branch's topic (CLAUDE.md, *No plan changes in passing*), say so and
+propose a separate branch instead. Write my answer to the ledger before
+doing anything else:
 - **Fix:** I change the branch; then start again from step 1.
 - **Note:** carry on. A Must fix can only be noted if I say so
   explicitly.
@@ -69,7 +115,8 @@ every section short; the whole body should fit on one screen with the
 `<details>` block collapsed.
 - **What and why:** 1–2 sentences.
 - **Review:** the report's Verdict line, unchanged. Findings: one line
-  per ledger entry (step 3; privacy Must fixes are never in it), as
+  per `fix` or `noted` ledger finding, not round lines or `inherited`
+  ones (step 3; privacy Must fixes are never in it), as
   "problem → fixed in <sha>" or
   "problem → noted: <reason>", or "None". For a fix, the SHA is the
   first commit after the reviewed SHA that changed that file
@@ -79,6 +126,10 @@ every section short; the whole body should fit on one screen with the
   and what evidence covers it (e.g. a commit message).
 - **Full reviewer report** inside `<details>`, as the reviewer wrote it.
   No Resolved list from earlier runs.
+- **Ledger-only diff** (step 3): the Verdict line is
+  "**Verdict:** Not reviewed: ledger-only diff · HEAD `<sha>` · tests
+  <passed>/<failed>/<skipped>, exit <code>", Findings is "None", and the
+  `<details>` block is deleted.
 - **Eval:** "None" unless something sent to the model changed (prompt,
   schemas, model strings, MODEL_SETTINGS). Then give the eval tag,
   fingerprint and decision-rule result. The only exception is a change to
@@ -89,7 +140,9 @@ every section short; the whole body should fit on one screen with the
   covering it.
 - **Checks:** tick a box only if it's fully true. Otherwise leave it
   unticked and add "Not fully: <reason>".
-- **Not in this PR:** one line per deliberate follow-up. Don't reveal
+- **Not in this PR:** one line per deliberate follow-up, built from the
+  ledger, not the last report: each `inherited` and each `noted: after
+  re-review` entry, then each proposed separate branch. Don't reveal
   facts about private data here either, such as which strings are real
   catalogue keys.
 - Any number in the body or the diff that was derived rather than

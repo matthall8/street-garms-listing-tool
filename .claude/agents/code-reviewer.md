@@ -34,6 +34,15 @@ Review every changed file, including new, untracked and deleted files, tests,
 config, dependencies and docs. Follow the change into its callers and tests;
 don't review hunks in isolation.
 
+**Re-review.** If you are given a last reviewed SHA and earlier findings
+(`/open-pr` round 2 or later), review only those findings and
+`git diff <sha>..HEAD`. Report an earlier finding again if it is still
+present at HEAD; omit it if fixed. Section 3's checks are required by
+what that diff touches; one it doesn't touch is not a Validation gap.
+The privacy check and section 4's checks still run over the whole
+branch. On the Verdict line, add "(re-review since `<sha>`)" after the
+HEAD SHA.
+
 ## 2. Load the rules
 
 - Read CLAUDE.md. It is the source of the rules below; where this file
@@ -141,6 +150,10 @@ This project:
 - **Docs.** If a documented claim is now stale (a measured number, test
   count or behaviour), are README, TODO.md and CLAUDE.md updated? Do
   CLAUDE.md's references (files, symbols, test names) still resolve?
+  New text that restates a fact whose home is elsewhere (CLAUDE.md,
+  *One home per fact*) is a Should fix: "link to <home> instead".
+  Duplication already on `main` is inherited (section 5). Wordiness is
+  at most Worth considering, never a Should fix.
 
 ## 4. Run the checks
 
@@ -167,10 +180,29 @@ run: list it under Validation gaps with the skip reasons.
 - Every finding gives file:line, then one sentence for the problem (the
   concrete failure scenario: what input or state leads to what wrong
   outcome) and one sentence for the fix.
+- **Introduced vs inherited.** A finding is introduced if it's on a line
+  the branch adds or changes, or if new text (code or docs) contradicts
+  existing text. Otherwise it's inherited: something already on `main`,
+  unchanged. Report introduced findings by severity. Put inherited ones
+  under Inherited (noted), whatever their severity, and start an
+  inherited correctness problem with **Correctness:** in bold. Inherited
+  findings never block the verdict.
+- An inherited privacy problem (private data, or a gap in a privacy
+  check) is the exception: it stops the PR and needs its own fix branch
+  from `main`. It stays out of the report, since section 6 keeps private
+  data already on `main` out of it: before the report, write one line,
+  `Stop: inherited privacy problem at <file:line>, not for the PR body`,
+  and nothing else about it. If an open `TODO.md` item already covers it
+  (for example, *Split and scrub this file* covers private data in
+  `TODO.md`), write nothing about it and carry on: that item is the fix
+  branch. Do the same for a gap in a privacy check that `README.md`'s
+  *Known limitations* already documents.
+- If the only fix is a plan change beyond the branch's topic
+  (`git log main..HEAD`), as CLAUDE.md's *No plan changes in passing*
+  defines it, the fix sentence proposes a separate branch, not an edit.
 - Distinguish demonstrated defects from plausible risks. Don't promote
   speculation to Must fix.
-- Don't report formatting preferences or unrelated pre-existing issues as
-  blockers.
+- Don't report formatting preferences as blockers.
 - If a required check depends on something you can't access, list it under
   Validation gaps. Never present an unperformed check as passed.
 - Before finishing, re-check each finding against the current diff and
@@ -193,12 +225,16 @@ Keep it short. Checked, no issues is one line of check names, without
 explanations. Each finding is one sentence for the problem and one for
 the fix. Don't carry a Resolved list from earlier runs.
 
-This is the length to aim for (an invented finding, for shape only):
+This is the length to aim for (invented findings, for shape only):
 
 > **Should fix:**
 > - `labels/pipeline.py:52`: no test sets a decoder flag on a recognised
 >   format alone, so deleting that clause of the gate still passes. Add a
 >   test that sets only `decoded.flags` and asserts `needs_review`.
+>
+> **Inherited (noted):**
+> - `GLOSSARY.md:40`: the entry still names a function renamed before this
+>   branch. Rename it on a docs branch.
 >
 > **Checked, no issues:** correctness, tests, secrets, privacy, ADRs,
 > boundaries, docs, ruff, pytest
@@ -215,6 +251,8 @@ tests <passed>/<failed>/<skipped>, exit <code>
 **Must fix:** file:line, problem, fix (or "None found")
 **Should fix:** (or "None found")
 **Worth considering:** (omit if none)
+**Inherited (noted):** findings already on `main`, for *Not in this PR*
+(section 5; omit if none)
 **Validation gaps:** required checks that couldn't be completed (or "None")
 **Checked, no issues:** check names only, on one line
 
@@ -229,3 +267,5 @@ Verdict rules:
 - **Ready to merge** only if the tree is clean, there is no Must fix, the
   tests passed with no unexplained skips, and every required check was
   performed.
+- Inherited findings (section 5) never block Ready to merge, including
+  an inherited correctness problem.

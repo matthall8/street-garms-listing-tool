@@ -134,6 +134,27 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   permissions, pytest at the end of each turn, `ruff check` after each Python
   edit (the hooks need `jq`, built into macOS; without it they do nothing).
   A denied call is a rule, not an obstacle: don't route around it; ask.
+- **One home per fact.** Each kind of fact lives in one file:
+
+  | fact | home |
+  |---|---|
+  | decisions and the rules they set | the ADR in `adr/` |
+  | decision rule for prompt changes | an ADR (`TODO.md` until the todo split moves it) |
+  | terms | `GLOSSARY.md` |
+  | invariants and working rules | `CLAUDE.md` |
+  | harness and procedure | `evals/README.md` |
+  | eval run procedure | `evals/README.md` (`TODO.md` until the todo split moves it) |
+  | results, baselines and md5 ledgers | `evals/BASELINES.md` (`TODO.md` until it exists) |
+  | status and next steps | `TODO.md` |
+
+  The todo split is `TODO.md`'s *Split and scrub this file*.
+
+  Elsewhere, link to the home instead of restating it; a one-line pointer
+  naming the home is fine. `README.md` is the public overview: it may
+  summarise a fact in a sentence or two with a link to its home, but not
+  restate the rule in full. Current-state docs hold no history: that's in
+  git and the ledgers. Say each thing once, in the shortest form that
+  stays exact.
 
 ## Pull requests
 
@@ -143,7 +164,15 @@ the PR. (The skill numbers its own steps separately.)
 
 1. One topic per branch. Never commit to `main`.
 2. Before opening a PR, run the code-reviewer subagent. Fix or note each
-   finding; if anything changed, re-run it so the report matches HEAD.
+   introduced finding; inherited ones go under *Not in this PR*
+   (`.claude/agents/code-reviewer.md`, *Finding standards*). If anything
+   changed, re-run it so the report matches HEAD, within the round limit
+   and re-review scope in `/open-pr` step 3, which also has the
+   ledger-only light path.
+   **No plan changes in passing:** if a fix would change a decision,
+   plan, threshold or invariant beyond the branch's topic, don't make it
+   here. Stop, propose a separate branch, and list it under *Not in this
+   PR*.
 3. Write the PR body from `.github/pull_request_template.md` into
    `docs/pr-body.md` (gitignored), including the reviewer's report. Run
    `hooks/check_private.py --file docs/pr-body.md` and
