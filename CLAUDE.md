@@ -143,7 +143,15 @@ the PR. (The skill numbers its own steps separately.)
 
 1. One topic per branch. Never commit to `main`.
 2. Before opening a PR, run the code-reviewer subagent. Fix or note each
-   finding; if anything changed, re-run it so the report matches HEAD.
+   introduced finding; inherited ones go under *Not in this PR*
+   (`.claude/agents/code-reviewer.md`, *Finding standards*). If anything
+   changed, re-run it so the report matches HEAD, within the round limit
+   and re-review scope in `/open-pr` step 3, which also has the
+   ledger-only light path.
+   **No plan changes in passing:** if a fix would change a decision,
+   plan, threshold or invariant beyond the branch's topic, don't make it
+   here. Stop, propose a separate branch, and list it under *Not in this
+   PR*.
 3. Write the PR body from `.github/pull_request_template.md` into
    `docs/pr-body.md` (gitignored), including the reviewer's report. Run
    `hooks/check_private.py --file docs/pr-body.md` and

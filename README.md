@@ -112,9 +112,9 @@ and 266 pass with it.
   with the md5 ledger kept by hand in `TODO.md`. A verdict of Ready to merge
   requires a clean tree, so the report matches the commit it describes.
 - **Pull requests** follow `CLAUDE.md`: one topic per branch, the reviewer before
-  the PR opens, and a body written from `.github/pull_request_template.md` that
-  includes the reviewer's report and is read by the maintainer before it is
-  published. `/open-pr` (`.claude/skills/open-pr/SKILL.md`) runs that flow and
+  the PR opens (skipped for a diff that only touches the md5 ledger), and a
+  body written from `.github/pull_request_template.md` that includes the
+  reviewer's report and is read by the maintainer before it is published. `/open-pr` (`.claude/skills/open-pr/SKILL.md`) runs that flow and
   stops before pushing. Agents never merge.
 - **Enforcement.** A GitHub ruleset on `main` is the hard limit: no direct or
   force pushes, no deletion, and every change arrives by PR with a green CI
