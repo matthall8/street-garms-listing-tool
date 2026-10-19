@@ -17,8 +17,9 @@ Factors that make this risk more likely:
 - Label layouts vary by brand and era. Extra codes (colour, lot, variant) may sit on
   the same line as the ART number, separated by a slash or a space, or on the
   line below.
-- ART numbers are not purely numeric. Many contain letters (`6915G0424`,
-  `03CMOW026A`, `K1S154100067`), so "the long number on the label" is not
+- ART numbers are not purely numeric. Many contain letters (older Stone Island
+  codes with a letter in the 5th position, C.P. Company codes from 2017, Stone
+  Island codes from 2025), so "the long number on the label" is not
   enough to pick one out.
 - Labels carry other code-like strings. The most visible are Certilogo numbers,
   which are sometimes more prominent than the ART number.

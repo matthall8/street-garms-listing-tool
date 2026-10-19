@@ -20,7 +20,7 @@ reading is the focus. *The chain* below is the plan of record.
 negative cases implemented, tested and documented (#12); the six pre-port
 reports archived to `evals/results/archive/`. On 2026-09-25 the manifest grew
 to 18 positives + 4 negatives, all ground truth re-checked by eye (see the md5
-table). `si_certilogo_01.png` carries an ART number but is too hard to read, so
+table). An unlisted Certilogo photo carries an ART number but is too hard to read, so
 it was removed rather than used. Flask route tests merged (#18). CI added
 (`.github/workflows/tests.yml`) ahead of the parser tests, by decision: on a
 clean runner with no catalogue, 111 tests pass and 42 skip. What it does not
@@ -142,7 +142,7 @@ Starts now; each item blocks only what it names.
       no separator, many filed under a different product name from their bare
       key; and the odd rows: the `si_alpha` key with an 11-character base, the
       other 11-character `si_alpha` keys, the 9-character `cp_modern` key, the
-      11-character `cp_transitional` key, `0126422791` (the only key starting
+      11-character `cp_transitional` key, a 10-digit key (the only key starting
       `01`), and a 10-character `si_numeric` key containing a `V00NN`-like run.
       Settle the Stone Island numeric era length table from bare-looking rows:
       it is frozen data, so a person decides it. Blocks only the era table and
@@ -197,7 +197,7 @@ Neither blocks nor is blocked by the sequence above.
 
 - [ ] **Widen format coverage in the eval set.** Partly done 2026-10-08:
       `cp_modern` (2 garments, 3 positive rows) and a trailing colour code
-      (`5215M226/2525`, 2 rows) are now covered. Still missing: `si_alpha`
+      (p08, p11) are now covered. Still missing: `si_alpha`
       (`K1S…`, 86 catalogue rows), which the eval has never tested. Add them
       before chain step 5's paid run, so that baseline covers them and no
       separate re-baseline is needed. If the `K1S…` labels can't be found in
@@ -209,8 +209,8 @@ Neither blocks nor is blocked by the sequence above.
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
       season, not the parser.** `labels/pipeline.py:24-25` takes year/season
       from the parser even on an exact hit, so a listing ships with its title
-      and its season field disagreeing — `03CMOW026A` shows "A/W 15 Soft Shell
-      Goggle" beside AW 2017, with `needs_review` False. Roughly 3% of catalogue
+      and its season field disagreeing — a `cp_modern` code whose product name
+      says A/W 15 shows beside AW 2017, with `needs_review` False. Roughly 3% of catalogue
       hits. Latent rather than bleeding: pre-launch, nothing is shipping yet.
       Independent of the 71-row triage. This is a decision about which source of
       truth wins, not a refactor — once decided, the precedence rule belongs in
@@ -245,7 +245,8 @@ put it in the `--note`.
       replaces `matched_art` in step 3. Original note: `labels/pipeline.py:18`
       passes the raw read to `resolve()`, and
       `catalogue.normalise()` strips only spacing and case, so a correct read
-      of `5215M226/2525` resolves `miss` while `5215M226` resolves `exact`. The
+      of a code with its colour suffix resolves `miss` while the bare code
+      resolves `exact`. The
       parser already strips the suffix (`labels/art_number.py:124`); the
       catalogue side doesn't. Misses don't flag, so nothing surfaces it: the
       listing just loses its product name. Photo 7 in the 2026-10-08 set hits
@@ -380,7 +381,7 @@ put it in the `--note`.
 
 - **The eval set measures a narrower surface than "OCR".** As of 2026-10-08:
   `si_numeric` and `cp_modern` only, no `si_alpha`; five negatives, all
-  Certilogo-only labels. The set is lopsided: one garment (`741563051`) is 6
+  Certilogo-only labels. The set is lopsided: one garment is 6
   of 28 positives and four more have 4 rows each, so headline rates are
   weighted towards a few garments. Judge on the *per photo* table, and expect
   wins and losses to cluster by garment. Unlike the archived set, the
@@ -567,10 +568,10 @@ labelled `partial`.
 | 2026-09-15→16 | not recorded | Photo 03's expected code changed by one digit. This happened before the tripwire existed and was found later in the archived reports: the same read scored a miss on 09-15 and exact on 09-16. It was almost certainly a transcription typo corrected: the new value is in the catalogue and the old one is not. Re-checked by eye 2026-09-25. |
 | 2026-09-24 | `6e91e2f0e7c059542fde28fb57f58aa8` | Negative case added and row order adjusted. |
 | 2026-09-25 | `4d583ebee12c3d72e3813013f1575437` | Trailing comma removed from the negative-case row; it had added a fourth, unnamed column. No expected value changed. |
-| 2026-09-25 | `743c2fc3525c68b5271c4773a5584c0d` | Ground truth re-checked by eye. Now 18 positives + 4 negatives. The old negative renamed `si_details_photo_04.JPG` → `si_details_photo_01.JPG`; three new negatives `si_details_photo_02`–`04` (Certilogo crops); the three old care-label photos added as positives `si_art_number_photo_16`–`18` (same garments as photos 03, 01, 02). `si_certilogo_01.png` removed: it carries an ART number but is too hard to read. |
-| 2026-09-25 | `cb321369b2b7bd1e3b27eac7a6e9ff74` | `si_details_photo_02`–`04` renamed `.JPG` → `.png` to match their real format; the extension sets the media type sent to the model. No expected value changed. Archived 2026-10-08 as `evals/archive/manifest.csv`. |
+| 2026-09-25 | `743c2fc3525c68b5271c4773a5584c0d` | Ground truth re-checked by eye. Now 18 positives + 4 negatives. The old negative renamed archived negative 4 → archived negative 1; three new negatives archived negatives 2–4 (Certilogo crops); the three old care-label photos added as positives archived photos 16–18 (same garments as photos 03, 01, 02). An unlisted Certilogo photo removed: it carries an ART number but is too hard to read. |
+| 2026-09-25 | `cb321369b2b7bd1e3b27eac7a6e9ff74` | Archived negatives 2–4 renamed `.JPG` → `.png` to match their real format; the extension sets the media type sent to the model. No expected value changed. Archived 2026-10-08 as `evals/archive/manifest.csv`. |
 | 2026-10-08 | `4f298e4ceb31d67d8d7c8180a332a50a` | New eval set: 27 positives + 5 negatives, 10 garments, none shared with the archived set; first C.P. photos (2 `cp_modern` garments, 1 new negative) and `_rotated` variants. The four Certilogo negatives carried over byte for byte. Not run: 13 paths did not match the files on disk. |
-| 2026-10-08 | `02cfa7cb2065ae27e6944b62731651bc` | Paths fixed to match files on disk (13 rows: zero-padding, `.JPG` case, space in `cp_art_number_photo_2 rotated.jpg`). `5215M226` → `5215M226/2525` on both photo-7 rows: the suffix is printed attached with a slash, per the `evals/README.md` rule; checked by eye. `si_art_number_photo_14_rotated.jpg` re-saved as a real 270° rotation; it had been byte-identical to the original. Expected values of photos 1, 4, 5, 9, 10, 14 and both C.P. positives re-checked by eye. Baseline `eval-baseline-2026-10-08` ran on this. |
+| 2026-10-08 | `02cfa7cb2065ae27e6944b62731651bc` | Paths fixed to match files on disk (13 rows: zero-padding, `.JPG` case, space in p19). Colour suffix added to the expected code on both photo-7 rows: the suffix is printed attached with a slash, per the `evals/README.md` rule; checked by eye. p25 re-saved as a real 270° rotation; it had been byte-identical to the original. Expected values of photos 1, 4, 5, 9, 10, 14 and both C.P. positives re-checked by eye. Baseline `eval-baseline-2026-10-08` ran on this. |
 | 2026-10-09 | `1a83e41cb8059ab1b2624a683818a487` | Notes only: `back of label` added to photos 5 and 19, both of which show the back "Art." tag (checked by eye). No photo or expected value changed, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs, so `--baseline` will report it as changed. |
 | 2026-10-19 | `769a3e4639b11da01f1fcd4ae606b36e` | `id`, `garment`, `side`, `expected_art_line` and `expected_art_base` added in one edit, checked by eye: 33 rows, 15 garments, 21 garment-sides. The id-only version was not saved, so it has no row. Stale `upside down` note on `p15` removed: the photo is upright. `expected_art_number` unchanged, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs. |
 | 2026-10-19 | `94d41fd31287b33459f781fcef9672ae` | 22 rows added (`p34`–`p55`), checked by eye: 20 positives + 2 negatives, 15 new garments (`g16`–`g34`, some ids unused), 21 garment-sides, none shared with earlier rows. Whole set now 55 rows (48 positives + 7 negatives), 30 garments, 42 garment-sides. `p44`'s `expected_art_line` is `UNKNOWN`: the end of the lot code is under a thumb. Earlier rows unchanged. The new rows are scored, so the 2026-10-08 baseline no longer covers the whole set. **Current.** |
