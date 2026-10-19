@@ -26,8 +26,8 @@ it, and `GLOSSARY.md` the terms.
 ### The chain
 
 Strictly in order; each step's PR merges before the next starts. Commit, tag,
-then run, and record every result here. Photos, manifest and results stay
-gitignored, so this file is their only audit trail.
+then run, and record every result in `evals/BASELINES.md`. Photos, manifest
+and results stay gitignored, so that file is their only audit trail.
 
 Steps 1 (land the decision) and 2 (ground truth for run 0) are done.
 
@@ -205,7 +205,7 @@ Neither blocks nor is blocked by the sequence above.
       set.
 
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
-      season, not the parser.** `labels/pipeline.py:24-25` takes year/season
+      season, not the parser.** `extract_bytes()` in `labels/pipeline.py` takes year/season
       from the parser even on an exact hit, so a listing ships with its title
       and its season field disagreeing — a `cp_modern` code whose product name
       says A/W 15 shows beside AW 2017, with `needs_review` False. Roughly 3% of catalogue
@@ -214,22 +214,18 @@ Neither blocks nor is blocked by the sequence above.
       truth wins, not a refactor — once decided, the precedence rule belongs in
       CLAUDE.md domain rules.
 
-### Eval run procedure
-
-Moved to `evals/README.md`, *Eval run procedure*.
-
 ## Next
 
 - [ ] **The catalogue misses codes printed with an attached colour suffix.**
       Will be fixed for bare catalogue rows by chain step 4, which passes
       `art_base` to `resolve()` instead of the raw read. Compound keys still
       miss until ADR-0003's index (see *Catalogue: frozen*); `resolved_key`
-      replaces `matched_art` in step 3. Original note: `labels/pipeline.py:18`
+      replaces `matched_art` in step 3. Original note: `extract_bytes()`
       passes the raw read to `resolve()`, and
       `catalogue.normalise()` strips only spacing and case, so a correct read
       of a code with its colour suffix resolves `miss` while the bare code
       resolves `exact`. The
-      parser already strips the suffix (`labels/art_number.py:124`); the
+      parser already strips the suffix (`parse()` in `labels/art_number.py`); the
       catalogue side doesn't. Misses don't flag, so nothing surfaces it: the
       listing just loses its product name. Photo 7 in the 2026-10-08 set hits
       it on every correct read. The eval is unaffected (it scores against the
@@ -253,7 +249,7 @@ Moved to `evals/README.md`, *Eval run procedure*.
       (`TestNeedsReview::test_correction_flags_even_when_everything_else_is_clean`)
       and misses not flagging (`TestNeedsReview::test_catalogue_miss_does_not_flag`),
       along with `TestResolveCorrected` and `TestCorrectionSafety`. A green CI run says nothing about the gate.
-      `TestResolveAmbiguous` (`tests/test_resolve.py:129-165`) already
+      `TestResolveAmbiguous` (`tests/test_resolve.py`) already
       monkeypatches `labels.catalogue.load_catalogue` with a synthetic dict;
       add new tests on that pattern alongside the real-catalogue ones, not
       instead of them. Put the invented codes in `tests/synthetic.py` (the
@@ -305,9 +301,9 @@ Moved to `evals/README.md`, *Eval run procedure*.
       cross-check covers part of this, but only where brand text is printed:
       back tags carry none.
 
-- [ ] **CLI error handling.** `main.py:36` calls `extract()` bare, so any API
+- [ ] **CLI error handling.** `cli()` in `main.py` calls `extract()` bare, so any API
       failure prints a ~40-line traceback instead of a message. The web path
-      already handles this (`app/routes.py:51-52`); the CLI is the odd one out.
+      already handles this (`capture()` in `app/routes.py`); the CLI is the odd one out.
 
 - [ ] **Cap eval spend.** `--repeat` is unbounded and `--workers` defaults to 4,
       so a mistyped `--repeat 30` is 450 vision calls. Print the call count up
@@ -344,7 +340,7 @@ Moved to `evals/README.md`, *Eval run procedure*.
 
   Still missed: 06, 08, 09, 10, 12 (1200x1600) and 17 (care label). Photo 12
   shares its expected code with 07, which now reads — whether it is a second
-  shot of the same label is the open duplicate-code item above. Photo 17 is
+  shot of the same label was never settled before the set was archived. Photo 17 is
   the care label of 01's garment, a different label from 01's tag. The
   cheapest test for all six is to re-shoot them at full phone resolution.
 
@@ -371,7 +367,7 @@ Moved to `evals/README.md`, *Eval run procedure*.
 - **Auto-accept clean reads, or human review every listing?** Decides what
   "better OCR" means: if a human checks each listing, overconfidence is mildly
   interesting; if clean reads auto-publish, it's the only metric worth driving
-  down. Answer before spending eval runs. Now chain step 9; until then the
+  down. Now chain step 9; until then the
   guardrails and ADR-0004 assume clean reads may auto-publish.
 - **Is size mandatory for a listing?** Decides whether an uncertain size
   blocks publishing or is just dropped. Needed before run 4 of ADR-0001's
@@ -388,7 +384,7 @@ Moved to `evals/README.md`, *Eval run procedure*.
   preprocessing experiment and which part of the eval set is the real one.
 - Is 97.0% on `report_art_number.py` a floor that must not regress?
 - What's the gate for shipping a prompt change — which metric, what margin, how
-  many repeats before a difference is believed? *Decision rule* below is the
+  many repeats before a difference is believed? ADR-0006 is the
   one used so far; still open as a general policy.
 - Does a separate care-label read come back, and on what model? It was switched
   off on 2026-10-08 and later removed (kept at the `parked/details-read` tag):
@@ -404,14 +400,6 @@ Moved to `evals/README.md`, *Eval run procedure*.
   is out of phase 1 and its listings always go to review. Decide in the
   `phase-1-acceptance` ADR; it also settles which tag a second baseline runs
   at.
-
-## Decision rule for prompt changes
-
-Moved to `adr/0006-decision-rule-for-prompt-changes.md`.
-
-## Current baseline
-
-Moved to `evals/BASELINES.md`, with both md5 ledgers.
 
 ## Dropped
 
