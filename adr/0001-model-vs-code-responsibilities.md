@@ -256,8 +256,10 @@ This order is fixed before any result exists.
 ## Pending decisions (status: Proposed)
 
 The first three are catalogue rules, drafted in ADR-0004 from the full-manifest
-baseline recorded after run 0; ADR-0004 changes CLAUDE.md's "misses do NOT
-flag" invariant. ADR-0003 covers the catalogue index they read from. The last two are settled by amending this ADR.
+baseline recorded after run 0; if a second baseline follows before run 1, they
+are re-checked against it and change only if it contradicts them. ADR-0004
+changes CLAUDE.md's "misses do NOT flag" invariant. ADR-0003 covers the
+catalogue index they read from. The last two are settled by amending this ADR.
 
 - Flagging an atypical length combined with a catalogue miss.
 - Flagging a catalogue match when another key is one confusion-pair
@@ -287,8 +289,9 @@ part in tuning:
 - correct reads sent to review stay at or below `<rate>`, a level one person
   can clear.
 
-`<N>` and `<rate>` are set when the full-manifest baseline after run 0 is
-recorded: `<rate>` from how many listings can be reviewed in a day.
+`<N>` and `<rate>` are set from the last full-manifest baseline recorded before
+run 1, so a second baseline re-sets them: `<rate>` from how many listings can
+be reviewed in a day.
 
 **Revisit** if wrong-line selection makes up most of the remaining errors
 (consider the OCR cross-check), or if the review rate becomes unmanageable

@@ -90,10 +90,15 @@ gitignored, so this file is their only audit trail.
         manifest at the same tag; record that as the **new baseline**. The
         2026-10-08 report stays as the record of contract v1: superseded, not
         deleted.
-      - From the new baseline, so step 7 compares against the numbers they
-        were set on: set ADR-0001's success thresholds; decide its pending
-        items (atypical length plus a miss, confusion-pair neighbours,
-        uninspected pairs); draft ADR-0003 and ADR-0004. ADR-0004 changes
+      - Set ADR-0001's success thresholds (`<N>`, `<rate>`) from the last
+        baseline recorded before run 1, so step 7 compares against the numbers
+        they were set on: a second baseline (the `si_alpha` exception in
+        *Photos*) re-sets them. From the first new baseline, decide ADR-0001's
+        pending items (atypical length plus a miss, confusion-pair neighbours,
+        uninspected pairs) and draft ADR-0003 and ADR-0004; a second baseline
+        re-checks them, and a decision changes only if it contradicts it. The
+        step 6 rotation run's result stands for the set it was measured on.
+        ADR-0004 changes
         CLAUDE.md's "misses do NOT flag" invariant, so accepting it updates
         CLAUDE.md in the same PR.
 
