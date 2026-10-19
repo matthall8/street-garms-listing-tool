@@ -139,14 +139,20 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   | fact | home |
   |---|---|
   | decisions and the rules they set | the ADR in `adr/` |
+  | decision rule for prompt changes | an ADR (`TODO.md` until the todo split moves it) |
   | terms | `GLOSSARY.md` |
   | invariants and working rules | `CLAUDE.md` |
   | harness and procedure | `evals/README.md` |
+  | eval run procedure | `evals/README.md` (`TODO.md` until the todo split moves it) |
   | results, baselines and md5 ledgers | `evals/BASELINES.md` (`TODO.md` until it exists) |
   | status and next steps | `TODO.md` |
 
+  The todo split is `TODO.md`'s *Split and scrub this file*.
+
   Elsewhere, link to the home instead of restating it; a one-line pointer
-  naming the home is fine. Current-state docs hold no history: that's in
+  naming the home is fine. `README.md` is the public overview: it may
+  summarise a fact in a sentence or two with a link to its home, but not
+  restate the rule in full. Current-state docs hold no history: that's in
   git and the ledgers. Say each thing once, in the shortest form that
   stays exact.
 

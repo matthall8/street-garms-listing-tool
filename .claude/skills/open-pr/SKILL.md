@@ -57,10 +57,11 @@ name (code-reviewer.md, *Privacy*) doesn't run, so read the added lines
 for one yourself; a hit is a privacy Must fix, handled as below.
 
 Findings ledger: `docs/pr-findings.md` (gitignored) keeps each review
-round and each Must fix and Should fix across sessions, one line each:
-`- round <n> | <reviewed sha>` per reviewer run, and
-`- <reviewed sha> | <file:line> | <problem, one sentence> | fix` or
-`| noted: <reason>` per finding, under a first line `branch: <branch>`.
+round and each Must fix, Should fix and inherited finding across
+sessions, one line each: `- round <n> | <reviewed sha>` per reviewer
+run, and `- <reviewed sha> | <file:line> | <problem, one sentence> |`
+then `fix`, `noted: <reason>` or `inherited` per finding, under a first
+line `branch: <branch>`.
 Before reviewing, read it. Keep it only if the branch matches and its
 SHAs are on this branch but not on `main` (`git merge-base --is-ancestor
 <sha> HEAD`, and not an ancestor of `main`); otherwise replace it with an
@@ -79,8 +80,10 @@ If the reviewer reports an inherited privacy problem (its `Stop:` line),
 stop. Tell me the file:line and propose a fix branch from `main`; this PR
 waits until that fix merges. Keep it out of the ledger and the body.
 
-Inherited (noted) findings aren't asked about or written to the ledger:
-they go under *Not in this PR* in step 4. From round 2, write each
+Inherited (noted) findings aren't asked about. Write each one not
+already in the ledger as `inherited`, without asking: step 4 lists them
+under *Not in this PR* from the ledger, so a round-1 item survives a
+round-2 re-review. From round 2, write each
 unhandled finding other than a Must fix to the ledger as `noted: after
 re-review, <why it can wait>`, without asking.
 
@@ -108,8 +111,8 @@ every section short; the whole body should fit on one screen with the
 `<details>` block collapsed.
 - **What and why:** 1–2 sentences.
 - **Review:** the report's Verdict line, unchanged. Findings: one line
-  per ledger finding, not round lines (step 3; privacy Must fixes are
-  never in it), as
+  per `fix` or `noted` ledger finding, not round lines or `inherited`
+  ones (step 3; privacy Must fixes are never in it), as
   "problem → fixed in <sha>" or
   "problem → noted: <reason>", or "None". For a fix, the SHA is the
   first commit after the reviewed SHA that changed that file
@@ -133,9 +136,9 @@ every section short; the whole body should fit on one screen with the
   covering it.
 - **Checks:** tick a box only if it's fully true. Otherwise leave it
   unticked and add "Not fully: <reason>".
-- **Not in this PR:** one line per deliberate follow-up, including each
-  Inherited (noted) item in the last report, each `noted: after
-  re-review` ledger entry and each proposed separate branch. Don't reveal
+- **Not in this PR:** one line per deliberate follow-up, built from the
+  ledger, not the last report: each `inherited` and each `noted: after
+  re-review` entry, then each proposed separate branch. Don't reveal
   facts about private data here either, such as which strings are real
   catalogue keys.
 - Any number in the body or the diff that was derived rather than
