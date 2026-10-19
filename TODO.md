@@ -42,7 +42,7 @@ gitignored, so this file is their only audit trail.
       its own, then the wording in `README.md` and `evals/README.md`, then
       ADR-0001 with the CLAUDE.md citation and this file. Code-reviewer, PR, merge.
 
-- [ ] **2. Ground truth for run 0.** First, as its own commit: add an opaque
+- [x] **2. Ground truth for run 0.** First, as its own commit: add an opaque
       `id` column to the manifest (not derived from filename or code), plus
       `id` in `evals/manifest.example.csv` and the columns table in
       `evals/README.md`. Before any manifest edit, commit the

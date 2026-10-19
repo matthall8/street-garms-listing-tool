@@ -76,10 +76,10 @@ under a different product name may be exceptions.
 | Term | Meaning |
 |---|---|
 | positive / negative | A photo with or without an ART number. Negatives expect `NONE`; blank means not labelled yet; `UNKNOWN` (in `expected_art_line` and `expected_art_base` only) means labelled, but no value is safe, with the reason in `note`. |
-| `garment` | Manifest column: an opaque id per garment. The dev/held-out split is by garment. *(not in the manifest yet)* |
-| `side` | Manifest column: the label face shown. `front` carries brand text; `back` is the "Art." tag. *(not in the manifest yet)* |
+| `garment` | Manifest column: an opaque id per garment. The dev/held-out split is by garment. |
+| `side` | Manifest column: the label face shown. `front` carries brand text; `back` is the "Art." tag. |
 | garment-side | One garment's one side: the unit results are counted in. |
-| `expected_<term>` | A hand-labelled manifest column: `expected_art_line`, `expected_art_base`. Never produced by the parser. *(not in the manifest yet)* |
+| `expected_<term>` | A hand-labelled manifest column: `expected_art_line`, `expected_art_base`. Never produced by the parser. |
 | `expected_art_number` | Legacy column, kept so older reports stay comparable. Today the manifest's only expected column, and what the harness scores. |
 | wrong-and-unflagged | The primary metric: would publish an `art_base` other than `expected_art_base` (any code, on a negative) with `needs_review` false. A garment-side counts if any of its reads does (proposed). |
 | base-exact | `art_base` equals `expected_art_base`. |
