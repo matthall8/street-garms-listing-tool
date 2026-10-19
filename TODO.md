@@ -42,20 +42,14 @@ gitignored, so this file is their only audit trail.
       its own, then the wording in `README.md` and `evals/README.md`, then
       ADR-0001 with the CLAUDE.md citation and this file. Code-reviewer, PR, merge.
 
-- [x] **2. Ground truth for run 0.** First, as its own commit: add an opaque
-      `id` column to the manifest (not derived from filename or code), plus
-      `id` in `evals/manifest.example.csv` and the columns table in
-      `evals/README.md`. Before any manifest edit, commit the
-      `MANIFEST_COLUMNS` rename in `hooks/check_private.py` (CLAUDE.md,
-      *Working rules*). Edit by hand; add an md5 row noting "added id column,
-      no labels changed". Then add `garment` and `side` (rules in
-      `evals/README.md`, *Garment and side*), and `expected_art_line` (the ART line exactly
-      as printed, same-line caption included) and `expected_art_base` to the
-      manifest, checked by eye before any result exists. Write both rules in
-      `evals/README.md` and mark `expected_art_number` as legacy. Fix the stale
-      `upside down` note on `si_art_number_photo_9_rotated.jpg`: its Certilogo
-      QR reads −2°, so the photo is upright. Add an md5 row, and drop the
-      glossary's *(not in the manifest yet)* markers.
+- [x] **2. Ground truth for run 0.** Done 2026-10-19. `MANIFEST_COLUMNS`
+      classified `id`, `garment`, `side`, `expected_art_line` and
+      `expected_art_base` before the manifest was edited; the rules are in
+      `evals/README.md` and the example in `evals/manifest.example.csv`. All
+      five columns went into the manifest in one hand edit, checked by eye,
+      so the ledger has one row (2026-10-19) and no id-only row. The stale
+      `upside down` note on `p15` was removed: its Certilogo QR reads −2°, so
+      the photo is upright. `expected_art_number` is unchanged and legacy.
 
 - [ ] **3. `Resolution.matched_art` → `resolved_key`, and the `miss` status
       → `no_key`.** Its own PR with no change in what flags, so run 0's PR
