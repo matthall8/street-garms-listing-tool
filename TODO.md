@@ -12,7 +12,7 @@ number's whole printed line, and code does the interpreting:
 `adr/0001-model-vs-code-responsibilities.md` holds the decision, the gate
 and the rollout; the terms (`art_line`, `art_base`, …) are in `GLOSSARY.md`. A local scan found a
 Data Matrix on newer Stone Island back tags that carries the ART number, `V`
-code and size. Only 4 of 33 photos carry one (all 4 decode), so it becomes an
+code and size. Only 4 of the first 33 photos carry one (all 4 decode; `p34`–`p55` not scanned yet), so it becomes an
 optional stage (ADR-0002, to write), not the core. The catalogue is frozen while the
 reading is the focus. *The chain* below is the plan of record.
 
@@ -90,7 +90,8 @@ gitignored, so this file is their only audit trail.
         manifest at the same tag; record that as the **new baseline**. The
         2026-10-08 report stays as the record of contract v1: superseded, not
         deleted.
-      - From the replay: set ADR-0001's success thresholds; decide its pending
+      - From the new baseline, so step 7 compares against the numbers they
+        were set on: set ADR-0001's success thresholds; decide its pending
         items (atypical length plus a miss, confusion-pair neighbours,
         uninspected pairs); draft ADR-0003 and ADR-0004. ADR-0004 changes
         CLAUDE.md's "misses do NOT flag" invariant, so accepting it updates
@@ -459,15 +460,17 @@ gain holds.
 
 **2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
 (contract v1).** It stops being the comparison point once chain step 5
-records the replay under the new scorer; it stays as the record of contract
-v1.
+records the full-manifest `--repeat 3` run as the new baseline; it stays as
+the record of contract v1.
 
 - Report: `evals/results/20261008T154722Z-anthropic_claude-sonnet-5.json`
   (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
 - Code: tag `eval-baseline-2026-10-08` → `6cede38`, `dirty: False`; prompt
   fingerprint `4fc3298aa412`.
-- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; only notes and unscored
-  columns have changed since (md5 ledger, 2026-10-09 and 2026-10-19). `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
+- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; it scored `p01`–`p33` only. Those
+  rows have changed only in notes and unscored columns since (md5 ledger,
+  2026-10-09 and the first 2026-10-19 row); `p34`–`p55` (the second
+  2026-10-19 row) are not in it. `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
   positive (28 photos of 10 garments) and 15 negative.
 
 | rate | value |
