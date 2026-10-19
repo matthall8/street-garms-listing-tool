@@ -37,12 +37,12 @@ every count below straight from the report's *per photo* table: its `missed`,
   - fabricated-and-clear stays at 0 across every negative read. Hard line.
   - no photo is *newly* overconfident in 2 or more of its 3 reads:
     `clear`, wrong, and no ambiguous characters flagged.
-- The second guardrail assumes clean reads may be auto-accepted (see Open
-  questions). Revisit it if every listing gets human review.
-- **For the contract v2 runs** (chain step 7), this rule still decides
+- The second guardrail assumes clean reads may be auto-accepted (see TODO.md's
+  *Open questions*). Revisit it if every listing gets human review.
+- **For the contract v2 runs** (TODO.md's chain step 7), this rule still decides
   `missed` and the guardrails. ADR-0001 adds wrong-and-unflagged, counted per
   garment-side, as the primary metric; its thresholds are set from the last baseline
-  recorded before run 1 (chain step 5).
+  recorded before run 1 (TODO.md's chain step 5).
   Photo numbers in this section refer to the archived set.
 
 **Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos

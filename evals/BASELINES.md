@@ -6,8 +6,8 @@ Results, baselines and the manifest md5 ledgers. How to run an eval:
 ## Current baseline
 
 **2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
-(contract v1).** It stops being the comparison point once chain step 5
-records the full-manifest `--repeat 3` run as the new baseline; it stays as
+(contract v1).** It stops being the comparison point once TODO.md's chain
+step 5 records the full-manifest `--repeat 3` run as the new baseline; it stays as
 the record of contract v1.
 
 - Report: `evals/results/20261008T154722Z-anthropic_claude-sonnet-5.json`
@@ -69,7 +69,7 @@ Every photo returned the identical read on all three repeats — no run-to-run
 noise, but in effect one sample per photo. Treat x/3 counts accordingly:
 
 - **Read correctly 3/3:** 01–05, 07, 11, 13–16, 18 — 12 photos, all `clear`.
-- **Missed 3/3:** 06, 08, 09, 10, 12, 17 (see Known issues).
+- **Missed 3/3:** 06, 08, 09, 10, 12, 17 (see TODO.md's *Known issues*).
 - **Negatives:** all 12 reads returned no code.
 
 Every read the model attempted was correct, so the clean confidence rates now

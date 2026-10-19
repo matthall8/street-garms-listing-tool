@@ -122,7 +122,7 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   Commit, then run; a dirty report's fingerprint points at code you didn't test.
 - Change one variable per eval run.
 - Prompt or model changes require a run against the current baseline
-  (home: *One home per fact*, below).
+  (`evals/BASELINES.md`).
 - Never weaken, skip or delete a test, and never alter eval ground truth, to
   make a result pass. `evals/manifest.csv` is hand-checked by eye.
 - Adding a manifest column: commit its classification in `MANIFEST_COLUMNS`

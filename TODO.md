@@ -187,12 +187,18 @@ product names, not safety.
 
 Neither blocks nor is blocked by the sequence above.
 
-- [ ] **Split and scrub this file.** Scrubbed of private values 2026-10-19;
-      still ~30 KB. Keep Now, Next and Open questions here; move baselines and
-      the md5 ledger to `evals/BASELINES.md`, the eval run procedure to
-      `evals/README.md` and the decision rule to an ADR.
-      The privacy hook flags only values a change adds, so editing this file
-      doesn't block meanwhile.
+- [ ] **Tidy this file.** Split done 2026-10-19 (baselines and md5 ledgers →
+      `evals/BASELINES.md`, run procedure → `evals/README.md`, decision rule →
+      ADR-0006). Left: the status block, history and [x] items, dangling
+      references, rates without counts, line-number references, item titles
+      that don't match their content, the "Moved to …" stubs once nothing
+      points at them, ADR-0006's 2026-09-25 result and waiver (results belong
+      in `evals/BASELINES.md`), and restated facts under *One home per fact*.
+
+- [ ] **Replace the photo-hash recipe.** The recipe in `evals/README.md`'s
+      *Eval run procedure* is broken (the manifest now starts with `id`;
+      a filename has a space). The procedure saves photo hashes beside
+      every report, so this is needed by the next paid run.
 
 - [ ] **Widen format coverage in the eval set.** Partly done 2026-10-08:
       `cp_modern` (2 garments, 3 positive rows) and a trailing colour code
