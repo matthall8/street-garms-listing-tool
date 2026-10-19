@@ -189,7 +189,8 @@ Neither blocks nor is blocked by the sequence above.
 
 - [ ] **Split and scrub this file.** Scrubbed of private values 2026-10-19;
       still ~30 KB. Keep Now, Next and Open questions here; move baselines and
-      the md5 ledger to `evals/BASELINES.md` and the decision rule to an ADR.
+      the md5 ledger to `evals/BASELINES.md`, the eval run procedure to
+      `evals/README.md` and the decision rule to an ADR.
       The privacy hook flags only values a change adds, so editing this file
       doesn't block meanwhile.
 
@@ -220,19 +221,6 @@ Superseded by the 2026-10-08 set and the chain above: the duplicate-code
 check, the negative count, both 2026-09-25 baselines, the whole-label prompt
 change and the 2026-10-08 baseline. The full notes are in git history before
 the 2026-10-09 TODO update.
-
-### Eval run procedure
-
-`--repeat 3 --workers 1` on a clean tree. Run `uv sync --locked` first, so
-the environment is the tagged commit's `uv.lock`. Save the manifest's photo
-hashes and `uv pip freeze` (`.pip-freeze.txt`) beside the report: the
-freeze shows the sync was run. Baselines from before `uv.lock` existed are
-rebuilt from their own saved `.pip-freeze.txt`. Record the manifest md5
-before and after any edit. Hash only the manifest's photos, not the whole folder:
-`tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`.
-Serial running is a precaution against a suspected pydantic-ai concurrency
-stall, never reproduced. `--workers` isn't recorded in the report header, so
-put it in the `--note`.
 
 ## Next
 

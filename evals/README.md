@@ -200,6 +200,21 @@ A read that fails — a missing photo, an API error, a call that stalls past the
 60 s timeout — goes in the **Case Failures** table and is left out of every
 score. An outage can't masquerade as bad transcription.
 
+### Eval run procedure
+
+`--repeat 3 --workers 1` on a clean tree. Run `uv sync --locked` first, so
+the environment is the tagged commit's `uv.lock`. Save the manifest's photo
+hashes and `uv pip freeze` (`.pip-freeze.txt`) beside the report: the
+freeze shows the sync was run. Baselines from before `uv.lock` existed are
+rebuilt from their own saved `.pip-freeze.txt`. Record the manifest md5
+before and after any edit. Hash only the manifest's photos, not the whole folder:
+`tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`.
+Broken (the manifest now starts with `id`; a filename has a space): don't
+use; eval-provenance replaces it.
+Serial running is a precaution against a suspected pydantic-ai concurrency
+stall, never reproduced. `--workers` isn't recorded in the report header, so
+put it in the `--note`.
+
 ## What to look at
 
 Each photo gets a row with:
