@@ -48,12 +48,14 @@ gitignored, so this file is their only audit trail.
       `evals/README.md`. Before any manifest edit, commit the
       `MANIFEST_COLUMNS` rename in `hooks/check_private.py` (CLAUDE.md,
       *Working rules*). Edit by hand; add an md5 row noting "added id column,
-      no labels changed". Then add `expected_art_line` (the ART line exactly
+      no labels changed". Then add `garment` and `side` (rules in
+      `evals/README.md`, *Garment and side*), and `expected_art_line` (the ART line exactly
       as printed, same-line caption included) and `expected_art_base` to the
       manifest, checked by eye before any result exists. Write both rules in
       `evals/README.md` and mark `expected_art_number` as legacy. Fix the stale
       `upside down` note on `si_art_number_photo_9_rotated.jpg`: its Certilogo
-      QR reads −2°, so the photo is upright. Add an md5 row.
+      QR reads −2°, so the photo is upright. Add an md5 row, and drop the
+      glossary's *(not in the manifest yet)* markers.
 
 - [ ] **3. `Resolution.matched_art` → `resolved_key`, and the `miss` status
       → `no_key`.** Its own PR with no change in what flags, so run 0's PR
