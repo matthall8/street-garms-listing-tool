@@ -175,13 +175,11 @@ product names, not safety.
 
 Neither blocks nor is blocked by the sequence above.
 
-- [ ] **Tidy this file.** Split done 2026-10-19 (baselines and md5 ledgers →
-      `evals/BASELINES.md`, run procedure → `evals/README.md`, decision rule →
-      ADR-0006). Left: the status block, history and [x] items, dangling
-      references, rates without counts, line-number references, item titles
-      that don't match their content, the "Moved to …" stubs once nothing
-      points at them, ADR-0006's 2026-09-25 result and waiver (results belong
-      in `evals/BASELINES.md`), and restated facts under *One home per fact*.
+- [ ] **Tidy follow-ups.** Swap CLAUDE.md's line-number references
+      (`labels/pipeline.py`, `.gitignore`, `tests/test_pipeline.py`,
+      `tests/conftest.py`, `labels/art_number.py`) for function, test or
+      section names. Find homes for the findings under *Kept until recorded
+      in their homes*, then delete them from this file.
 
 - [ ] **Replace the photo-hash recipe.** The recipe in `evals/README.md`'s
       *Eval run procedure* is broken (the manifest now starts with `id`;
@@ -204,7 +202,7 @@ Neither blocks nor is blocked by the sequence above.
       from the parser even on an exact hit, so a listing ships with its title
       and its season field disagreeing — a `cp_modern` code whose product name
       says A/W 15 shows beside AW 2017, with `needs_review` False. Roughly 3% of catalogue
-      hits. Latent rather than bleeding: pre-launch, nothing is shipping yet.
+      hits (source unknown). Latent rather than bleeding: pre-launch, nothing is shipping yet.
       Independent of the 71-row triage. This is a decision about which source of
       truth wins, not a refactor — once decided, the precedence rule belongs in
       CLAUDE.md domain rules.
@@ -312,8 +310,11 @@ Neither blocks nor is blocked by the sequence above.
 - **71 parser/catalogue season disagreements, untriaged.** `CP_MODERN_SEASON`
   samples look like a table offset. Spot-check ten by hand after the baseline —
   the goal is finding out whether these are parser bugs or catalogue typos,
-  not fixing all 71. Until then, 97.0% is measured against ground truth that
-  hasn't been verified.
+  not fixing all 71. Until then, the parser score is measured against ground
+  truth that hasn't been verified: `tests/report_art_number.py` scores the
+  season and year `parse()` decodes against the season in the catalogue's
+  product name, over rows that state one and whose format the parser
+  recognises. 97.0%: 2,288 of 2,359, as README records; run output not saved.
 
 - **Archived set: six photos still came back `not_visible` on every read.**
   Photo numbers here are the archived set's (`evals/archive/`). Until
@@ -379,7 +380,8 @@ Neither blocks nor is blocked by the sequence above.
   baseline suggests; if it is the smaller format, expect roughly half of
   labels to need a re-shoot or review. Decides the target for the
   preprocessing experiment and which part of the eval set is the real one.
-- Is 97.0% on `report_art_number.py` a floor that must not regress?
+- Is the parser score (*Known issues*, the 71 disagreements) a floor that
+  must not regress?
 - What's the gate for shipping a prompt change — which metric, what margin, how
   many repeats before a difference is believed? ADR-0006 is the
   one used so far; still open as a general policy.
