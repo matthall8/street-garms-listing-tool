@@ -45,10 +45,12 @@ ledger-only only if both hold:
 - `git diff main...HEAD --name-only` lists one file, the one holding the
   md5 ledgers (CLAUDE.md, *One home per fact*).
 - Every changed line in `git diff -U0 main...HEAD` is an added row of
-  the *Manifest md5* or *Held-out manifest md5* table. Any removed line
-  (an edited or deleted row) or any change to a table's heading or
-  paragraph takes the full path: `check_md5` checks only the last row,
-  so a change to an earlier row needs the reviewer.
+  the *Manifest md5* or *Held-out manifest md5* table, and the added
+  rows of each table come directly after its last row on `main`,
+  contiguous at the end of the table. Any removed line (an edited or
+  deleted row), a row added anywhere else, or any change to a table's
+  heading or paragraph takes the full path: `check_md5` checks only the
+  last row, so any other row needs the reviewer.
 
 Anything else, however small, takes the full path. Steps 2 and 5 still
 run in full. Step 5's `--range main...HEAD` check still compares each
