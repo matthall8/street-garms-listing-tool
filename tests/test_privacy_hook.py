@@ -311,6 +311,25 @@ class TestManifestColumns:
         repo.stage("notes.md", f"{column} {value} is blurred\n")
         assert repo.check().returncode == 0
 
+    @pytest.mark.parametrize(
+        "line",
+        [
+            f"ART. {s.EXPECTED_CODE}/12 LOT 4411",
+            f"ART. {s.EXPECTED_CODE[:6]} {s.EXPECTED_CODE[6:]} LOT 4411",  # space inside
+        ],
+    )
+    def test_the_code_inside_a_line_blocks(self, repo, line):
+        """With no base or legacy cell to carry it, the code alone from a
+        line cell must still be private."""
+        self.with_column(repo, "expected_art_line", line)
+        repo.stage("notes.md", f"expected {s.EXPECTED_CODE}\n")
+        assert blocked(repo.check(), "expected_code", "notes.md:1")
+
+    def test_short_parts_of_a_line_pass(self, repo):
+        self.with_column(repo, "expected_art_line", f"ART. {s.EXPECTED_CODE} LOT 4411")
+        repo.stage("notes.md", "the ART. caption, then LOT 4411\n")
+        assert repo.check().returncode == 0
+
     @pytest.mark.parametrize("marker", ["NONE", "UNKNOWN"])
     def test_markers_are_not_codes(self, repo, marker):
         """A marker in an expected column is not a private value, so docs
