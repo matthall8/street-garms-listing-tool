@@ -176,7 +176,7 @@ Neither blocks nor is blocked by the sequence above.
       (photo filenames, code literals, a catalogue product name) and is ~30 KB.
       Keep Now, Next and Open questions here; move baselines and the md5
       ledger to `evals/BASELINES.md` and the decision rule to an ADR. Refer to
-      photos by manifest `id` (row number plus md5 until it exists). The
+      photos by manifest `id`. The
       privacy hook flags only values a change adds, so editing this file
       doesn't block meanwhile.
 
