@@ -147,7 +147,7 @@ Starts now; each item blocks only what it names.
       with the EAC label that carries the ART number (2 of 2 so far); new
       garments for a held-out set, not looked at while tuning
       (`evals/README.md`, *Held-out set*). The split:
-      - ~100 images: ~70 dev (including the current 33), ~30 held out.
+      - ~100 images: ~70 dev (including the current 55), ~30 held out.
       - Split by garment: no garment on both sides. Held-out photos come only
         from new garments, one photo per garment-side.
       - Every format family, `si_alpha` included, plus a few negatives, in the
@@ -157,7 +157,7 @@ Starts now; each item blocks only what it names.
         it into dev data.
       - The harness needs a `--holdout` flag (separate branch). `.gitignore`
         and the privacy hook already cover `evals/holdout/`.
-- [x] **Positive count.** 28 is right: the manifest has 28 positive rows,
+- [x] **Positive count.** 28 is right: the 2026-10-08 set had 28 positive rows,
       and the report's `.photos.sha256` lists 33 photos. The 27 in the
       2026-10-08 run note and the `4f298e…` md5 row was a miscount, not a
       ground-truth edit; whether that version had 27 rows can no longer be
