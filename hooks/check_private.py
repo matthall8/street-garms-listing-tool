@@ -60,10 +60,12 @@ PATTERN_EXEMPT_REGIONS = {
 MANIFEST_COLUMNS = {
     "photo": "private",
     "expected_art_number": "private",
-    "expected_line": "private",
-    "expected_style": "private",
+    "expected_art_line": "private",
+    "expected_art_base": "private",
     "note": "public",
     "id": "public",
+    "garment": "public",
+    "side": "public",
 }
 NO_CODE = {"", "NONE"}
 MIN_NAME_WORDS = 3

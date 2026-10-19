@@ -289,6 +289,39 @@ class TestManifestValues:
         assert repo.check().returncode == 0
 
 
+class TestManifestColumns:
+    """Each column added for run 0 loads, and is private or public as
+    classified. A column the hook can't classify blocks every commit."""
+
+    def with_column(self, repo, column: str, value: str) -> None:
+        repo.manifest.write_text(f"photo,{column},note\n{s.PHOTO},{value},\n")
+        repo.stage("TODO.md", ledger(repo.manifest_md5()))  # so only the value can block
+
+    @pytest.mark.parametrize("column", ["expected_art_line", "expected_art_base"])
+    def test_expected_values_block(self, repo, column):
+        self.with_column(repo, column, s.EXPECTED_CODE)
+        repo.stage("notes.md", f"expected {s.EXPECTED_CODE}\n")
+        assert blocked(repo.check(), "expected_code", "notes.md:1")
+
+    @pytest.mark.parametrize(
+        ("column", "value"), [("id", "r07"), ("garment", "g03"), ("side", "back")]
+    )
+    def test_grouping_values_pass(self, repo, column, value):
+        self.with_column(repo, column, value)
+        repo.stage("notes.md", f"{column} {value} is blurred\n")
+        assert repo.check().returncode == 0
+
+    @pytest.mark.parametrize("column", ["expected_line", "expected_style"])
+    def test_names_before_the_glossary_block(self, repo, column):
+        """Renamed in GLOSSARY.md; a manifest still using them must not pass."""
+        self.with_column(repo, column, s.EXPECTED_CODE)
+        assert internal_error(repo.check())
+
+    def test_example_manifest_columns_are_classified(self):
+        header = (ROOT / "evals" / "manifest.example.csv").read_text().splitlines()[0]
+        assert set(header.split(",")) <= set(check_private.MANIFEST_COLUMNS)
+
+
 class TestPatterns:
     def test_code_shaped_token_blocks(self, repo):
         repo.stage("notes.md", f"try {s.CODE_SHAPED}\n")
