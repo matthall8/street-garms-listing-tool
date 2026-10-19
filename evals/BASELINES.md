@@ -75,6 +75,13 @@ noise, but in effect one sample per photo. Treat x/3 counts accordingly:
 Every read the model attempted was correct, so the clean confidence rates now
 rest on 36 real attempts rather than on the model declining.
 
+Judged by ADR-0006's decision rule:
+
+**Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos
+01, 05, 07, 11, 13, 14, 15, 16, eight different garments — and 0 losses
+(p ≈ 0.008). No photo newly overconfident; fabricated-and-clear 0 of 12, and
+no fabrication of any kind.
+
 ### Previous baseline
 
 2026-09-25, the earlier `ART_PROMPT` (framed-tag wording) at tag

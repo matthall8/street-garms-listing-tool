@@ -143,15 +143,10 @@ Starts now; each item blocks only what it names.
         starts join the dev set, followed by the second paid baseline
         *Widen format coverage* describes. After run 1 starts, late `si_alpha`
         photos go to the held-out set.
-      - Split by garment: no garment on both sides. Held-out photos come only
-        from new garments, one photo per garment-side.
       - Every format family, `si_alpha` included, plus a few negatives, in the
-        mix expected at launch.
-      - Labelled by eye before any run. The held-out set runs once, at the end
-        of the phase, and each use is recorded; studying its failures turns
-        it into dev data.
-      - The harness needs a `--holdout` flag (separate branch). `.gitignore`
-        and the privacy hook already cover `evals/holdout/`.
+        mix expected at launch. The rest of the held-out rules are in
+        `evals/README.md`, *Held-out set*.
+      - The harness needs a `--holdout` flag (separate branch).
 
 ### Kept until recorded in their homes
 
@@ -389,7 +384,7 @@ Neither blocks nor is blocked by the sequence above.
   many repeats before a difference is believed? ADR-0006 is the
   one used so far; still open as a general policy.
 - Does a separate care-label read come back, and on what model? It was switched
-  off on 2026-10-08 and later removed (kept at the `parked/details-read` tag):
+  off on 2026-10-08 and later removed (CLAUDE.md):
   only the ART number is wanted for now, and it halves the calls per listing.
   If it returns, consider a cheaper model than the ART read — "ordinary OCR on
   large clear text", never measured. Note

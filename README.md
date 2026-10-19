@@ -63,14 +63,11 @@ main.py  /  app/routes.py
 | wrong, of reads declared `clear` | 0 of 36 | 0 of 9 |
 | code invented on a no-code photo | 0 of 12 | 0 of 12 |
 
-**Decision rule, committed before the first baseline.** The unit is the photo,
-which counts as missed if at least 2 of its 3 reads return nothing. A change
-passes if wins (missed → not missed) beat losses on a two-sided sign test at
-p < 0.05: 6–0, 8–1 or 10–2, with 3 or more losses rejecting it. Two guardrails
-reject it regardless: any invented code declared `clear`, or a photo newly
-overconfident in at least 2 of 3 reads. The current prompt passed 8–0 (p ≈ 0.008).
-The rule's out-of-sample check was waived for this merge. Full rule:
-[ADR-0006](adr/0006-decision-rule-for-prompt-changes.md).
+**Decision rule.** Fixed before the first baseline: a prompt change wins on a
+sign test over photos moving out of or into *missed*, and two guardrails on
+invented and overconfident reads can reject it regardless. Full rule:
+[ADR-0006](adr/0006-decision-rule-for-prompt-changes.md); its results are in
+[evals/BASELINES.md](evals/BASELINES.md).
 
 **Scope.** Every photo gave the same read on all 3 repeats, so in effect this is
 one sample per photo: 12 were read correctly and 6 were missed. The results are
