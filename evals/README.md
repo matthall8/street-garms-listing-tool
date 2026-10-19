@@ -99,8 +99,9 @@ is `<code>`, and `expected_art_number` was `<code>/<suffix>`. Row `p04` of
 `NONE` and blank mean the same in both columns as in `expected_art_number`:
 no ART number in the photo, and not labelled yet. They are explained under
 [Negative cases](#negative-cases). `UNKNOWN` is a third state, for these two
-columns only: labelled, but no value is safe. A blank cell is always work
-still to do; an `UNKNOWN` one is finished, and its `note` says why.
+columns only: labelled, but no value is safe. A blank cell in these two
+columns is always work still to do; an `UNKNOWN` one is finished, and its
+`note` says why.
 
 Every row keeps an `expected_art_number`, new rows included, until the scorer
 reads these two columns: the harness skips a row where it is blank. Where the
@@ -146,8 +147,10 @@ CER average rather than counted as zero.
 take, so a genuine code can never be mistaken for it. (The parser is not
 consulted during an eval run — the check is purely on the manifest string.)
 
-A **blank** `expected_art_number` is different: it means *not labelled yet*.
-Those rows are skipped with a warning on stdout rather than scored. The two
+A **blank** `expected_art_number` is different: it means *not labelled yet*,
+unless `expected_art_line` and `expected_art_base` beside it are `UNKNOWN`.
+Then the code itself can't be read safely, the blank legacy cell is
+finished, and `note` says why. Either way, those rows are skipped with a warning on stdout rather than scored. The two
 states must not be conflated — a blank row silently treated as a negative would
 score an unlabelled photo as passing whenever the model read nothing.
 
