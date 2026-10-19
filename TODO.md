@@ -42,18 +42,14 @@ gitignored, so this file is their only audit trail.
       its own, then the wording in `README.md` and `evals/README.md`, then
       ADR-0001 with the CLAUDE.md citation and this file. Code-reviewer, PR, merge.
 
-- [ ] **2. Ground truth for run 0.** First, as its own commit: add an opaque
-      `id` column to the manifest (not derived from filename or code), plus
-      `id` in `evals/manifest.example.csv` and the columns table in
-      `evals/README.md`. Before any manifest edit, commit the
-      `MANIFEST_COLUMNS` rename in `hooks/check_private.py` (CLAUDE.md,
-      *Working rules*). Edit by hand; add an md5 row noting "added id column,
-      no labels changed". Then add `expected_art_line` (the ART line exactly
-      as printed, same-line caption included) and `expected_art_base` to the
-      manifest, checked by eye before any result exists. Write both rules in
-      `evals/README.md` and mark `expected_art_number` as legacy. Fix the stale
-      `upside down` note on `si_art_number_photo_9_rotated.jpg`: its Certilogo
-      QR reads −2°, so the photo is upright. Add an md5 row.
+- [x] **2. Ground truth for run 0.** Done 2026-10-19. `MANIFEST_COLUMNS`
+      classified `id`, `garment`, `side`, `expected_art_line` and
+      `expected_art_base` before the manifest was edited; the rules are in
+      `evals/README.md` and the example in `evals/manifest.example.csv`. All
+      five columns went into the manifest in one hand edit, checked by eye,
+      so the ledger has one row (2026-10-19) and no id-only row. The stale
+      `upside down` note on `p15` was removed: its Certilogo QR reads −2°, so
+      the photo is upright. `expected_art_number` is unchanged and legacy.
 
 - [ ] **3. `Resolution.matched_art` → `resolved_key`, and the `miss` status
       → `no_key`.** Its own PR with no change in what flags, so run 0's PR
@@ -180,7 +176,7 @@ Neither blocks nor is blocked by the sequence above.
       (photo filenames, code literals, a catalogue product name) and is ~30 KB.
       Keep Now, Next and Open questions here; move baselines and the md5
       ledger to `evals/BASELINES.md` and the decision rule to an ADR. Refer to
-      photos by manifest `id` (row number plus md5 until it exists). The
+      photos by manifest `id`. The
       privacy hook flags only values a change adds, so editing this file
       doesn't block meanwhile.
 
@@ -467,8 +463,8 @@ v1.
   (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
 - Code: tag `eval-baseline-2026-10-08` → `6cede38`, `dirty: False`; prompt
   fingerprint `4fc3298aa412`.
-- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; only notes have
-  changed since. `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
+- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; only notes and unscored
+  columns have changed since (md5 ledger, 2026-10-09 and 2026-10-19). `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
   positive (28 photos of 10 garments) and 15 negative.
 
 | rate | value |
@@ -547,7 +543,8 @@ labelled `partial`.
 | 2026-09-25 | `cb321369b2b7bd1e3b27eac7a6e9ff74` | `si_details_photo_02`–`04` renamed `.JPG` → `.png` to match their real format; the extension sets the media type sent to the model. No expected value changed. Archived 2026-10-08 as `evals/archive/manifest.csv`. |
 | 2026-10-08 | `4f298e4ceb31d67d8d7c8180a332a50a` | New eval set: 27 positives + 5 negatives, 10 garments, none shared with the archived set; first C.P. photos (2 `cp_modern` garments, 1 new negative) and `_rotated` variants. The four Certilogo negatives carried over byte for byte. Not run: 13 paths did not match the files on disk. |
 | 2026-10-08 | `02cfa7cb2065ae27e6944b62731651bc` | Paths fixed to match files on disk (13 rows: zero-padding, `.JPG` case, space in `cp_art_number_photo_2 rotated.jpg`). `5215M226` → `5215M226/2525` on both photo-7 rows: the suffix is printed attached with a slash, per the `evals/README.md` rule; checked by eye. `si_art_number_photo_14_rotated.jpg` re-saved as a real 270° rotation; it had been byte-identical to the original. Expected values of photos 1, 4, 5, 9, 10, 14 and both C.P. positives re-checked by eye. Baseline `eval-baseline-2026-10-08` ran on this. |
-| 2026-10-09 | `1a83e41cb8059ab1b2624a683818a487` | Notes only: `back of label` added to photos 5 and 19, both of which show the back "Art." tag (checked by eye). No photo or expected value changed, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs, so `--baseline` will report it as changed. **Current.** |
+| 2026-10-09 | `1a83e41cb8059ab1b2624a683818a487` | Notes only: `back of label` added to photos 5 and 19, both of which show the back "Art." tag (checked by eye). No photo or expected value changed, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs, so `--baseline` will report it as changed. |
+| 2026-10-19 | `769a3e4639b11da01f1fcd4ae606b36e` | `id`, `garment`, `side`, `expected_art_line` and `expected_art_base` added in one edit, checked by eye: 33 rows, 15 garments, 21 garment-sides. The id-only version was not saved, so it has no row. Stale `upside down` note on `p15` removed: the photo is upright. `expected_art_number` unchanged, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs. **Current.** |
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.

@@ -60,12 +60,14 @@ PATTERN_EXEMPT_REGIONS = {
 MANIFEST_COLUMNS = {
     "photo": "private",
     "expected_art_number": "private",
-    "expected_line": "private",
-    "expected_style": "private",
+    "expected_art_line": "private",
+    "expected_art_base": "private",
     "note": "public",
     "id": "public",
+    "garment": "public",
+    "side": "public",
 }
-NO_CODE = {"", "NONE"}
+NO_CODE = {"", "NONE", "UNKNOWN"}  # no code in the photo; labelled, no safe value
 MIN_NAME_WORDS = 3
 
 ASCII_UPPER = str.maketrans("abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -147,7 +149,19 @@ def load_manifest(path: Path, private: Private) -> None:
             if column == "photo":
                 private.filenames |= {value, Path(value).stem}
             elif normalise(value) not in NO_CODE:
-                private.codes.setdefault(normalise(value), "expected_code")
+                for code in {normalise(value), *code_parts(value)}:
+                    private.codes.setdefault(code, "expected_code")
+
+
+def code_parts(value: str) -> list[str]:
+    """The code-shaped parts of a cell, so a doc quoting just the code from
+    an `expected_art_line` cell is caught too. Tokens split at every
+    character a code can't contain (spaces, separators, a caption's `.` or
+    `:`), and adjacent pairs joined, since a code can be printed with a
+    space inside it."""
+    tokens = [t for t in re.split(r"[^0-9A-Z]+", value.translate(ASCII_UPPER)) if t]
+    candidates = tokens + [a + b for a, b in zip(tokens, tokens[1:], strict=False)]
+    return [c for c in candidates if CODE_SHAPED.fullmatch(c)]
 
 
 def code_hits(line: str, private: Private, lengths: list[int]) -> list[tuple[str, str]]:

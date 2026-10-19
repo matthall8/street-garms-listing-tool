@@ -1,9 +1,10 @@
-photo,expected_art_number,note
-cp_overshirt_01.jpg,05CMSH022A 004275A,single label - art and care together
-si_jacket_01.jpg,6915G0424,art on separate seam tag
-si_knit_01.jpg,7515520B9,faded garment dyed
-cp_goggle_01.jpg,03CMOW026A,
-si_2025_01.jpg,K1S154100067,alphanumeric format
-si_reissue_01.jpg,0126422791,leading zero is significant
-si_certilogo_01.png,NONE,negative case - CLG label with no ART number
-si_carelabel_01.jpg,NONE,negative case - care label only
+id,photo,garment,side,expected_art_number,expected_art_line,expected_art_base,note
+p01,cp_overshirt_01.jpg,g01,front,07CMSH041A 008812A,07CMSH041A 008812A,07CMSH041A,single label - art and care together
+p02,si_jacket_01.jpg,g02,back,7215G0337,Art. 7215G0337,7215G0337,art on separate seam tag
+p03,si_jacket_01_rotated.jpg,g02,back,7215G0337,Art. 7215G0337,7215G0337,same photo rotated - same garment-side
+p04,si_knit_01.jpg,g03,front,771530918/162,ART. 771530918/162,771530918,faded garment dyed - colour suffix after a slash
+p05,cp_goggle_01.jpg,g04,front,14SCPUB07713,14SCPUB07713 LOT 2231,14SCPUB07713,caption on its own line above - lot code on the ART line
+p06,si_2025_01.jpg,g05,front,K1S155200043,K1S155200043,K1S155200043,alphanumeric format - printed bare
+p07,si_reissue_01.jpg,g06,back,0127731552,Art. 0127731552,0127731552,leading zero is significant
+p08,si_certilogo_01.png,g02,front,NONE,NONE,NONE,negative case - CLG label with no ART number - same garment as p02
+p09,si_carelabel_01.jpg,g07,front,NONE,NONE,NONE,negative case - care label only

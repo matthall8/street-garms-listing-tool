@@ -25,22 +25,100 @@ evals/
 
 | column | meaning |
 |---|---|
+| `id` | the row's own id: opaque, unique, and never changed once given. Not derived from the filename, a code or the product. Docs refer to a photo by it |
 | `photo` | filename inside `evals/photos/`, **including the extension**. The extension sets the media type sent to the model, so it must match the file's real format — a PNG saved as `.JPG` goes out labelled `image/jpeg` |
-| `expected_art_number` | the code as printed, hand-checked by eye — or `NONE` |
+| `garment` | an opaque id shared by every photo of one garment, negatives included. Not derived from the filename, a code or the product |
+| `side` | which face of the label the photo shows: `front` or `back` (see [Garment and side](#garment-and-side)) |
+| `expected_art_number` | **legacy.** The code as printed, plus an attached colour suffix — or `NONE`. Not authoritative; kept so reports from before run 0 stay comparable, and still what the harness scores |
+| `expected_art_line` | the ART line exactly as printed (see [Ground truth for the ART line](#ground-truth-for-the-art-line)) — or `NONE` |
+| `expected_art_base` | the `art_base` (same section) — or `NONE` |
 | `note` | free text, kept with the case in the saved report |
+
+All of it is hand-checked by eye, never produced by code. `id`, `garment`
+and `side` are public; the expected values and `photo` are private.
 
 **Adding a column:** first commit its classification in `MANIFEST_COLUMNS`
 (`hooks/check_private.py`), private for identifiers such as codes and
 filenames, public for free text and categorical values, then edit the
 manifest. The privacy hook blocks every commit while the manifest has a
-column it can't classify. `id`, `expected_line` and `expected_style` are
-already classified.
+column it can't classify. Every column in the table above is classified.
+
+### Garment and side
+
+Results are counted per garment-side, not per photo
+(`adr/0001-model-vs-code-responsibilities.md`), so these two columns say
+which photos are the same evidence.
+
+- `front` is the label face with printed brand text: the care or EAC label,
+  the Certilogo tag. `back` is the reverse "Art." tag, which carries no brand
+  text and, on newer Stone Island garments, a Data Matrix.
+- On a positive row, `side` is the face carrying the ART line. On a negative,
+  it is the face shown.
+- A rotated copy of a photo, or a second shot of the same face, has the same
+  `garment` and `side` as the first, and its own `id`.
+- A negative whose garment is in no other row still gets a `garment`, its
+  own.
+- A `garment` never appears in both the dev and the held-out manifest. That is
+  the split rule (see [Held-out set](#held-out-set)), and `id`s don't repeat
+  across the two either.
+
+### Ground truth for the ART line
+
+Terms are as in `GLOSSARY.md`. Both columns record what is printed on the
+label, read from this photo or, where it's unclear here, from another photo of
+the same garment-side. That fills in characters of a line this photo shows;
+it never puts a line on a photo that doesn't show one. A photo with no ART
+line in it is `NONE`, whatever the other photos of its garment-side show, so
+a `front` Certilogo crop is `NONE` beside a positive EAC photo of the same
+face. Never guess a character: if no photo shows it clearly,
+write `UNKNOWN` and say why in `note`. Never fill a cell by running the
+parser; a parser bug would then score as correct.
+
+`expected_art_line` is the whole printed line containing the ART number:
+
+- every character as printed, case and separators (`/`, `-`, `.`) included;
+  one space for each printed gap
+- a caption on the same line (`ART.`, `Art.`); a caption on its own line
+  above is left out
+- everything else on that line: a colour code, a lot code, any other text
+- nothing from any other line, such as a variant code on the line below
+
+`expected_art_base` is the `art_base`, read from that line by eye:
+
+- the base code, season prefix included, with no spaces, in upper case
+- without the caption, a colour suffix (attached by a slash or a hyphen, or
+  after a space), a lot code or anything else on the line
+- if you can't tell where it ends, say a suffix typed on with no separator,
+  write `UNKNOWN` and say why in `note`
+
+So the two differ from `expected_art_number` on purpose. For a line printed
+as `ART. <code>/<suffix>`, `expected_art_line` is that whole line, `expected_art_base`
+is `<code>`, and `expected_art_number` was `<code>/<suffix>`. Row `p04` of
+`manifest.example.csv` shows it with invented values.
+
+`NONE` and blank mean the same in both columns as in `expected_art_number`:
+no ART number in the photo, and not labelled yet. They are explained under
+[Negative cases](#negative-cases). `UNKNOWN` is a third state, for these two
+columns only: labelled, but no value is safe. A blank cell in these two
+columns is always work still to do; an `UNKNOWN` one is finished, and its
+`note` says why.
+
+Every row keeps an `expected_art_number`, new rows included, until the scorer
+reads these two columns: the harness skips a row where it is blank. Where the
+code itself can't be read safely, the legacy cell stays blank, never
+`UNKNOWN`: the harness would score `UNKNOWN` as a code, so it skips such a
+row with a warning. How
+line-exact treats spacing and case is the scorer's to decide; the cells
+record both as printed so either is possible.
+
+### What counts as the ART number (legacy)
+
+This is the rule for the legacy `expected_art_number`, which the harness still
+scores; new labelling follows the section above.
 
 Expected values are compared ignoring spacing and case, so `05CMSH022A 004275A`
 and `05cmsh022a004275a` both count as correct. Every other difference counts as
 a miss.
-
-### What counts as the ART number
 
 `expected_art_number` is the ART number as printed, **plus its colour suffix**
 if one is printed attached to it. In the catalogue that is a slash followed by
@@ -69,8 +147,10 @@ CER average rather than counted as zero.
 take, so a genuine code can never be mistaken for it. (The parser is not
 consulted during an eval run — the check is purely on the manifest string.)
 
-A **blank** `expected_art_number` is different: it means *not labelled yet*.
-Those rows are skipped with a warning on stdout rather than scored. The two
+A **blank** `expected_art_number` is different: it means *not labelled yet*,
+unless `expected_art_line` and `expected_art_base` beside it are `UNKNOWN`.
+Then the code itself can't be read safely, the blank legacy cell is
+finished, and `note` says why. Either way, those rows are skipped with a warning on stdout rather than scored. The two
 states must not be conflated — a blank row silently treated as a negative would
 score an unlabelled photo as passing whenever the model read nothing.
 
@@ -82,7 +162,10 @@ same columns and rules as the dev manifest above, with `photo` naming a file
 in `evals/holdout/photos/`. Both are gitignored, and the privacy hook treats
 its filenames and expected codes as private, as it does the dev set's.
 
-- No garment is in both sets; holdout photos come only from new garments.
+- No garment is in both sets; holdout photos come only from new garments,
+  each with a `garment` id not used in the dev manifest.
+- One photo per garment-side, so no repeat shots or rotated copies, which
+  the dev set allows.
 - Every row is labelled by eye before any run.
 - It runs once, at the end of a phase, and each use is recorded in `TODO.md`.
   Studying its failures turns those photos into dev data.
@@ -216,7 +299,7 @@ Every report records what produced it, shown in its header:
 | `commit` | the git commit the harness ran from |
 | `dirty` | `True` if tracked files had uncommitted changes — e.g. an unsaved prompt edit |
 | `prompt` | fingerprint of the ART prompt; changes if any character of it does |
-| `manifest` | fingerprint of `manifest.csv`; changes if a photo or expected value does |
+| `manifest` | fingerprint of `manifest.csv`; changes if any byte does — a photo or expected value, but also a note or a column the harness doesn't score |
 | `limit`, `repeat`, `note` | as passed on the command line |
 
 To test a change:
@@ -241,8 +324,10 @@ Things that make a comparison meaningless:
 
 - **Different `--repeat`.** Repeats rename cases (`photo [1/3]`) and the diff
   matches cases by name, so every case shows as added. The script warns you.
-- **A different `manifest` fingerprint.** The runs scored different photos or
-  different expected values.
+- **A different `manifest` fingerprint, for a scored reason.** The runs
+  scored different photos or different expected values. A note or an unscored
+  column changes the fingerprint too; the md5 ledger's "what changed" column
+  in `TODO.md` says which it was.
 - **One run each.** The same photo can read correctly on one run and not the
   next. With 15 photos a single flip moves exact match by about 7 points, so
   use `--repeat 3` before trusting a difference.

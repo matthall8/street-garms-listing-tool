@@ -95,8 +95,8 @@ git config core.hooksPath hooks                     # privacy hooks, once per cl
 ```
 
 The catalogue, eval photos and manifest are private and gitignored. Tests that need
-the catalogue skip rather than fail: currently 212 pass and 37 skip on a fresh clone,
-and 249 pass with it.
+the catalogue skip rather than fail: currently 229 pass and 37 skip on a fresh clone,
+and 266 pass with it.
 
 ## How AI coding agents are used
 
@@ -151,7 +151,7 @@ and 249 pass with it.
   `hooks/` or to these settings for the maintainer, and runs the same check
   over the branch.
 - **CI** (`.github/workflows/tests.yml`) runs `ruff check`, `pyright` and `pytest -rs` on pushes and PRs
-  to `main`, with no catalogue or API key, so it is currently the 212-pass, 37-skip run.
+  to `main`, with no catalogue or API key, so it is currently the 229-pass, 37-skip run.
 
 ## Known limitations
 
