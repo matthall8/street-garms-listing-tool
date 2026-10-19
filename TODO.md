@@ -4,17 +4,24 @@ Current state and in-flight work. Stable architecture and invariants are in CLAU
 
 ## Now
 
-**2026-10-09: the approach changed.** Replaying the 2026-10-08 baseline's
-reads through the parser, catalogue and gate showed 21% of positive reads
-would publish wrong with no flag, mostly where a neighbouring code was joined
-onto the ART number and declared `clear`. The model now transcribes the ART
-number's whole printed line, and code does the interpreting:
-`adr/0001-model-vs-code-responsibilities.md` holds the decision, the gate
-and the rollout; the terms (`art_line`, `art_base`, …) are in `GLOSSARY.md`. A local scan found a
-Data Matrix on newer Stone Island back tags that carries the ART number, `V`
-code and size. Only 4 of the first 33 photos carry one (all 4 decode; `p34`–`p55` not scanned yet), so it becomes an
-optional stage (ADR-0002, to write), not the core. The catalogue is frozen while the
-reading is the focus. *The chain* below is the plan of record.
+**Next:** chain step 3, the `resolved_key` rename.
+
+**Blocked:**
+
+- Step 4's era length table, on the *Catalogue inspection*.
+- Step 5's paid run, on *Replace the photo-hash recipe*, and on `si_alpha`
+  photos if they turn up in time (*Widen format coverage in the eval set*).
+- Step 7's run 1, on step 5's baseline (ADR-0001's thresholds) and on the
+  schema fingerprint fix (*Next*); run 4, on whether size is mandatory
+  (*Open questions*).
+- Step 9, on the held-out set and its `--holdout` flag (*Photos*).
+
+**Measured against:** the [current baseline](evals/BASELINES.md#current-baseline)
+and its wrong-and-unflagged rate, the headline metric
+([ADR-0001](adr/0001-model-vs-code-responsibilities.md), *Implications*).
+
+*The chain* below is the plan of record; ADR-0001 holds the decision behind
+it, and `GLOSSARY.md` the terms.
 
 **Done before 2026-10-09:** `.env` key fixed and `.env.example` added (#11);
 negative cases implemented, tested and documented (#12); the six pre-port
@@ -103,6 +110,10 @@ gitignored, so this file is their only audit trail.
         CLAUDE.md in the same PR.
 
 - [ ] **6. The 2D-code stage (PR), then the rotation run.**
+      A Data Matrix on newer Stone Island back tags carries the ART number,
+      `V` code and size. Only 4 of the first 33 photos carry one (all 4
+      decode; `p34`–`p55` not scanned yet), so this is an optional stage, not
+      the core.
       - `labels/matrix.py`: decode, keep Data Matrix only, parse
         `ART-Vnnnn-size-TOM…`, and return a `CodeEvidence` (angle, art,
         variant, size, outcome). The payload's tail is the garment's CLG code:
