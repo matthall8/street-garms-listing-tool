@@ -147,7 +147,8 @@ Starts now; each item blocks only what it names.
       with the EAC label that carries the ART number (2 of 2 so far); new
       garments for a held-out set, not looked at while tuning
       (`evals/README.md`, *Held-out set*). The split:
-      - ~100 images: ~70 dev (including the current 55), ~30 held out.
+      - The dev set is frozen at 55 rows for phase 1 (2026-10-19). New
+        photos go to the held-out set only, ~30 of them.
       - Split by garment: no garment on both sides. Held-out photos come only
         from new garments, one photo per garment-side.
       - Every format family, `si_alpha` included, plus a few negatives, in the
