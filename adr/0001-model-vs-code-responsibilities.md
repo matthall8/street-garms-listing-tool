@@ -1,8 +1,8 @@
 # ADR-0001: The model transcribes evidence; code interprets it
 
 - **Status:** Accepted. *Pending decisions* and the `<N>`/`<rate>` placeholders
-  under *Success criteria* stay Proposed until the full-manifest baseline
-  after run 0.
+  under *Success criteria* stay Proposed until the last baseline recorded
+  before run 1.
 - **Date:** 2026-10-09. Terms moved to `GLOSSARY.md` 2026-10-18. Amended
   2026-10-19: thresholds from the full-manifest baseline.
 

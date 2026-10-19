@@ -425,6 +425,11 @@ put it in the `--note`.
   records the model must handle both shapes.
 - Is the Flask app localhost-only or reachable? Decides whether the missing
   rate limit and auth on `POST /` matter.
+- **Is `si_alpha` in phase 1?** Either `si_alpha` dev photos are required
+  before step 5's paid run (one baseline, no freeze exception), or `si_alpha`
+  is out of phase 1 and its listings always go to review. Decide in the
+  `phase-1-acceptance` ADR; it also settles which tag a second baseline runs
+  at.
 
 ## Decision rule for prompt changes
 
@@ -457,8 +462,8 @@ every count below straight from the report's *per photo* table: its `missed`,
   questions). Revisit it if every listing gets human review.
 - **For the contract v2 runs** (chain step 7), this rule still decides
   `missed` and the guardrails. ADR-0001 adds wrong-and-unflagged, counted per
-  garment-side, as the primary metric; its thresholds are set from the full-manifest
-  baseline after run 0 (chain step 5).
+  garment-side, as the primary metric; its thresholds are set from the last baseline
+  recorded before run 1 (chain step 5).
   Photo numbers in this section refer to the archived set.
 
 **Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos
