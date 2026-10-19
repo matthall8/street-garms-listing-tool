@@ -68,7 +68,8 @@ passes if wins (missed → not missed) beat losses on a two-sided sign test at
 p < 0.05: 6–0, 8–1 or 10–2, with 3 or more losses rejecting it. Two guardrails
 reject it regardless: any invented code declared `clear`, or a photo newly
 overconfident in at least 2 of 3 reads. The current prompt passed 8–0 (p ≈ 0.008).
-The rule's out-of-sample check was waived for this merge.
+The rule's out-of-sample check was waived for this merge. Full rule:
+[ADR-0006](adr/0006-decision-rule-for-prompt-changes.md).
 
 **Scope.** Every photo gave the same read on all 3 repeats, so in effect this is
 one sample per photo: 12 were read correctly and 6 were missed. The results are
@@ -109,7 +110,7 @@ and 266 pass with it.
   It runs the privacy hooks' check over the branch and its commit messages, and
   reports privacy as pass/fail only, never counts or values. Ground truth is gitignored,
   so it never appears in a diff; the reviewer hashes the manifest and compares it
-  with the md5 ledger kept by hand in `TODO.md`. A verdict of Ready to merge
+  with the md5 ledger kept by hand in `evals/BASELINES.md`. A verdict of Ready to merge
   requires a clean tree, so the report matches the commit it describes.
 - **Pull requests** follow `CLAUDE.md`: one topic per branch, the reviewer before
   the PR opens (skipped for a diff that only touches the md5 ledger), and a
@@ -137,7 +138,7 @@ and 266 pass with it.
   (format examples, placeholder image names), never the values; a hash of a
   short code can be reversed by brute force, so only non-private values belong
   there. The pre-commit hook also blocks a manifest whose md5 isn't the last
-  row of its ledger table in `TODO.md`; the held-out set has its own table. A
+  row of its ledger table in `evals/BASELINES.md`; the held-out set has its own table. A
   manifest with a header and no rows blocks every commit, so a new manifest's
   first row and its first ledger row go in together. A missing catalogue or
   dev manifest only prints a notice, which `/open-pr` and the code-reviewer

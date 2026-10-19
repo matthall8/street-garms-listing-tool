@@ -167,9 +167,9 @@ its filenames and expected codes as private, as it does the dev set's.
 - One photo per garment-side, so no repeat shots or rotated copies, which
   the dev set allows.
 - Every row is labelled by eye before any run.
-- It runs once, at the end of a phase, and each use is recorded in `TODO.md`.
+- It runs once, at the end of a phase, and each use is recorded in `evals/BASELINES.md`.
   Studying its failures turns those photos into dev data.
-- Its md5 has its own ledger table in `TODO.md`, headed
+- Its md5 has its own ledger table in `evals/BASELINES.md`, headed
   `| date | holdout md5 | what changed |`. The hook blocks every commit while
   the manifest has a header and no rows, so write its first row and commit the
   matching ledger row together. Once that table has a row, the hook also
@@ -199,6 +199,21 @@ branch.
 A read that fails — a missing photo, an API error, a call that stalls past the
 60 s timeout — goes in the **Case Failures** table and is left out of every
 score. An outage can't masquerade as bad transcription.
+
+### Eval run procedure
+
+`--repeat 3 --workers 1` on a clean tree. Run `uv sync --locked` first, so
+the environment is the tagged commit's `uv.lock`. Save the manifest's photo
+hashes and `uv pip freeze` (`.pip-freeze.txt`) beside the report: the
+freeze shows the sync was run. Baselines from before `uv.lock` existed are
+rebuilt from their own saved `.pip-freeze.txt`. Record the manifest md5
+before and after any edit. Hash only the manifest's photos, not the whole folder:
+`tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`.
+Broken (the manifest now starts with `id`; a filename has a space): don't
+use; see TODO.md's *Replace the photo-hash recipe*.
+Serial running is a precaution against a suspected pydantic-ai concurrency
+stall, never reproduced. `--workers` isn't recorded in the report header, so
+put it in the `--note`.
 
 ## What to look at
 
@@ -327,7 +342,7 @@ Things that make a comparison meaningless:
 - **A different `manifest` fingerprint, for a scored reason.** The runs
   scored different photos or different expected values. A note or an unscored
   column changes the fingerprint too; the md5 ledger's "what changed" column
-  in `TODO.md` says which it was.
+  in `evals/BASELINES.md` says which it was.
 - **One run each.** The same photo can read correctly on one run and not the
   next. With 15 photos a single flip moves exact match by about 7 points, so
   use `--repeat 3` before trusting a difference.

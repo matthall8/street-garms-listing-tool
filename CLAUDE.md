@@ -122,7 +122,7 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   Commit, then run; a dirty report's fingerprint points at code you didn't test.
 - Change one variable per eval run.
 - Prompt or model changes require a run against the current baseline
-  (path: `TODO.md`).
+  (`evals/BASELINES.md`).
 - Never weaken, skip or delete a test, and never alter eval ground truth, to
   make a result pass. `evals/manifest.csv` is hand-checked by eye.
 - Adding a manifest column: commit its classification in `MANIFEST_COLUMNS`
@@ -139,15 +139,13 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   | fact | home |
   |---|---|
   | decisions and the rules they set | the ADR in `adr/` |
-  | decision rule for prompt changes | an ADR (`TODO.md` until the todo split moves it) |
+  | decision rule for prompt changes | `adr/0006-decision-rule-for-prompt-changes.md` |
   | terms | `GLOSSARY.md` |
   | invariants and working rules | `CLAUDE.md` |
   | harness and procedure | `evals/README.md` |
-  | eval run procedure | `evals/README.md` (`TODO.md` until the todo split moves it) |
-  | results, baselines and md5 ledgers | `evals/BASELINES.md` (`TODO.md` until it exists) |
+  | eval run procedure | `evals/README.md` |
+  | results, baselines and md5 ledgers | `evals/BASELINES.md` |
   | status and next steps | `TODO.md` |
-
-  The todo split is `TODO.md`'s *Split and scrub this file*.
 
   Elsewhere, link to the home instead of restating it; a one-line pointer
   naming the home is fine. `README.md` is the public overview: it may
@@ -190,7 +188,8 @@ the PR. (The skill numbers its own steps separately.)
 
 ## Where to look
 
-- `TODO.md` — current state, gaps, open questions, baseline
+- `TODO.md` — current state, gaps, open questions
+- `evals/BASELINES.md` — baselines and md5 ledgers
 - `GLOSSARY.md` — every term, what is not in code yet, and what was renamed
 - `evals/README.md` — the harness, every flag, how to compare two runs
 - `labels/art_number.py:1-13` — the four ART format families and their provenance
