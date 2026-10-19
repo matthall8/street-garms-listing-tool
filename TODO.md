@@ -149,7 +149,11 @@ Starts now; each item blocks only what it names.
       (`evals/README.md`, *Held-out set*). The split:
       - `si_alpha` (`K1S…`) garments join the dev set before chain step 5's
         paid run. Once that baseline is recorded, the dev set is frozen for
-        phase 1 and new photos go to the held-out set only, ~30 of them.
+        phase 1 and new photos go to the held-out set only, ~30 of them. The
+        one exception: `si_alpha` garments found after step 5 but before run 1
+        starts join the dev set, followed by the second paid baseline
+        *Widen format coverage* describes. After run 1 starts, late `si_alpha`
+        photos go to the held-out set.
       - Split by garment: no garment on both sides. Held-out photos come only
         from new garments, one photo per garment-side.
       - Every format family, `si_alpha` included, plus a few negatives, in the
@@ -192,8 +196,10 @@ Neither blocks nor is blocked by the sequence above.
       (`K1S…`, 86 catalogue rows), which the eval has never tested. Add them
       before chain step 5's paid run, so that baseline covers them and no
       separate re-baseline is needed. If the `K1S…` labels can't be found in
-      time, step 5 runs without them and a second paid baseline follows once
-      they're added.
+      time, step 5 runs without them; if they turn up before run 1 starts, a
+      second paid baseline follows once they're added (the one exception to
+      the freeze, in *Photos*). After run 1 starts, they go to the held-out
+      set.
 
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
       season, not the parser.** `labels/pipeline.py:24-25` takes year/season
