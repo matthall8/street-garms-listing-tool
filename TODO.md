@@ -131,7 +131,7 @@ Starts now; each item blocks only what it names.
       Settle the Stone Island numeric era length table from bare-looking rows:
       it is frozen data, so a person decides it. Blocks only the era table and
       the uninspected-pairs decision.
-- [ ] **Photos.** `K1S…` labels, which decide whether `S0…` codes print on the
+- [ ] **Photos, and the held-out set.** `K1S…` labels, which decide whether `S0…` codes print on the
       ART line; more front labels, to confirm the Certilogo tag sits level
       with the EAC label that carries the ART number (2 of 2 so far); new
       garments for a held-out set, not looked at while tuning
@@ -233,9 +233,9 @@ Neither blocks nor is blocked by the sequence above.
       synthetic-catalogue pattern so it runs in CI; decide whether
       `resolved_key` should carry the suffix.
 
-- [ ] **Preprocessing experiment, for the six remaining misses.** The prompt
+- [ ] **Preprocessing experiment: crop and resolution.** The prompt
       change fixed most of what looked like a resolution problem (see Known
-      issues); six photos still come back `not_visible`, five of them
+      issues); six archived-set photos still came back `not_visible`, five of them
       1200x1600. `labels/transcribe.py` passes raw bytes to `BinaryContent`
       with no crop and no resize, so nothing here is measured or controlled.
       Test order: re-shoot those labels at full resolution (free, no code),
@@ -267,19 +267,21 @@ Neither blocks nor is blocked by the sequence above.
       assertions until after the 71-row triage, or you encode the bug as the
       expected value.
 
-- [ ] **`ArtNumberReading`'s docstring still says "framed on the ART number
-      tag"** (`labels/schemas.py`). **The fingerprint fix is needed before
-      chain step 7, run 1:** runs 2–4 add output fields, which change only the
-      schema, so without it their report headers would show an unchanged
-      prompt. Unlike a function docstring, it reaches
-      the model: pydantic puts it in the output schema sent with every call.
-      So updating it to match the whole-label prompt is a behaviour change —
-      make it on its own and measure it. Related gap: the eval's `prompt`
-      fingerprint hashes only `ART_PROMPT`, so a schema-description edit
-      moves nothing in the report header; consider hashing
-      `ArtNumberReading.model_json_schema()` into it too.
+- [ ] **Schema fingerprint fix, and `ArtNumberReading`'s stale docstring.**
+      - The eval's `prompt` fingerprint hashes only `ART_PROMPT`, so a
+        schema-description edit moves nothing in the report header; consider
+        hashing `ArtNumberReading.model_json_schema()` into it too. **Needed
+        before chain step 7, run 1:** runs 2–4 add output fields, which
+        change only the schema, so without it their report headers would
+        show an unchanged prompt.
+      - `ArtNumberReading`'s docstring (`labels/schemas.py`) still says
+        "framed on the ART number tag". Unlike a function docstring, it
+        reaches the model: pydantic puts it in the output schema sent with
+        every call. So updating it to match the whole-label prompt is a
+        behaviour change — make it on its own and measure it.
 
-- [ ] **Capture usage and cost per call.** `.usage()` is discarded in
+- [ ] **Capture usage, cost and the returned model per call; set retries
+      explicitly.** `.usage()` is discarded in
       `transcribe_art`. One JSONL line per call:
       timestamp, model, prompt fingerprint, tokens in/out, latency, stop reason.
       One call per listing, so this is a unit-economics number. Also capture
