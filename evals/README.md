@@ -116,13 +116,13 @@ record both as printed so either is possible.
 This is the rule for the legacy `expected_art_number`, which the harness still
 scores; new labelling follows the section above.
 
-Expected values are compared ignoring spacing and case, so `05CMSH022A 004275A`
-and `05cmsh022a004275a` both count as correct. Every other difference counts as
+Expected values are compared ignoring spacing and case, so a code with a space
+in it and the same code in lower case with no space both count as correct. Every other difference counts as
 a miss.
 
 `expected_art_number` is the ART number as printed, **plus its colour suffix**
 if one is printed attached to it. In the catalogue that is a slash followed by
-2–4 digits or a single letter (`581540846/181`), or a hyphen followed by a
+2–4 digits or a single letter (for example a slash and three digits), or a hyphen followed by a
 single letter. Leave out:
 
 - the `ART` / `ART.` caption
@@ -345,7 +345,7 @@ Aim for 10–15 with a spread, not a hundred of the same thing:
   near the importer text at the bottom of the care label
 - Faded, garment-dyed pieces where the print is genuinely marginal
 - At least one of each format family — numeric, alphanumeric `K1S…`, C.P.
-  modern `03CMOW…`, and one with a trailing colour code like `581540846/181`
+  modern `03CMOW…`, and one with a trailing colour code
 
 Include a couple you expect to fail. A set where everything passes cannot tell
 you whether a change helped.
