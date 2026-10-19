@@ -281,7 +281,7 @@ garment don't skew them.
 **For each run to be accepted**, compared with the current baseline:
 
 - no garment-side is newly wrong and unflagged (hard rule);
-- the guardrails in TODO.md's *Decision rule for prompt changes* hold.
+- the guardrails in ADR-0006 (*Decision rule for prompt changes*) hold.
 
 **For launch**, on a held-out set of at least `<N>` garments that played no
 part in tuning:
