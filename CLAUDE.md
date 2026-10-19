@@ -2,7 +2,7 @@
 
 Takes photos of Stone Island / C.P. Company garment labels and produces
 structured listing data. A vision call transcribes the ART number, a
-deterministic decoder parses it, and a private catalogue resolves it to a real
+deterministic parser reads it, and a private catalogue resolves it to a real
 product. Pre-launch, one developer, no users.
 
 Not an agent loop: `Agent` is pydantic-ai's constrained-extraction wrapper,
@@ -44,7 +44,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/flask --app app run` |
 | privacy check | `.venv/bin/python hooks/check_private.py --range main...HEAD` — what the commit hooks run, over a branch; needs the private data to be complete |
-| decoder score | `.venv/bin/python tests/report_art_number.py` |
+| parser score | `.venv/bin/python tests/report_art_number.py` |
 | eval, offline | `.venv/bin/python tests/eval_transcription.py --model test --no-save` |
 | eval, real | `.venv/bin/python tests/eval_transcription.py --repeat 3 --note "..."` |
 
@@ -62,9 +62,9 @@ rule at runtime.
 
 **Transcription only transcribes** (`labels/transcribe.py`, `ART_PROMPT`). It
 must not identify, authenticate, infer or correct. Correction belongs downstream
-in `catalogue.py`, where it gets recorded. What the model returns, what code
-derives from it, and the terms for each stage (`art_line`, `style_code`, …) are
-in `adr/0001-model-vs-code-responsibilities.md`.
+in `catalogue.py`, where it gets recorded. What the model returns and what code
+derives from it are in `adr/0001-model-vs-code-responsibilities.md`; the terms
+for each stage (`art_line`, `art_base`, …) are in `GLOSSARY.md`.
 
 **Unreadable characters become `?`, never a guess.** `not_visible` means no ART
 number is present in the photo; `illegible` means one is present but unreadable.
@@ -163,6 +163,7 @@ the PR. (The skill numbers its own steps separately.)
 ## Where to look
 
 - `TODO.md` — current state, gaps, open questions, baseline
+- `GLOSSARY.md` — every term, what is not in code yet, and what was renamed
 - `evals/README.md` — the harness, every flag, how to compare two runs
 - `labels/art_number.py:1-13` — the four ART format families and their provenance
 - `tests/test_resolve.py`, `TestCorrectionSafety` — why correction safety is the
