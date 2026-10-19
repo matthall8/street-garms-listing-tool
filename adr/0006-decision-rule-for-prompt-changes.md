@@ -45,14 +45,12 @@ every count below straight from the report's *per photo* table: its `missed`,
   recorded before run 1 (TODO.md's chain step 5).
   Photo numbers in this section refer to the archived set.
 
-**Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos
-01, 05, 07, 11, 13, 14, 15, 16, eight different garments — and 0 losses
-(p ≈ 0.008). No photo newly overconfident; fabricated-and-clear 0 of 12, and
-no fabrication of any kind.
+The result of the 2026-09-25 whole-label prompt change, the merge the waiver
+below refers to, is in `evals/BASELINES.md`, *Previous baselines (archived set)*.
 
 The rule as first written also required confirming a pass on photos outside
 this set before merging, because a pass here is in-sample. That condition was
 **waived for this merge** by decision, on confidence that the change is better
-generally. It still applies in spirit: when new photos are added (see *Add
-C.P. photos*), run the previous and current baselines on them and check the
+generally. It still applies in spirit: when new photos are added (see TODO.md's
+*Widen format coverage in the eval set*), run the previous and current baselines on them and check the
 gain holds.

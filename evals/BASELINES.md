@@ -22,14 +22,14 @@ the record of contract v1.
 
 | rate | value |
 |---|---|
-| missed | 25.0% |
+| missed | 25.0% (21 of 84 positive reads) |
 | exact, positives | 46.4% (39 of 84) |
-| overconfident | 28.6% |
-| clear but wrong | 38.1% |
-| flagged but correct | 0% |
-| fabricated on no-code photos | 0% |
-| fabricated and declared clear | 0% |
-| wrong and unflagged (replay through parser, catalogue and gate; not in the report) | 21% |
+| overconfident | 28.6% (24 of 84) |
+| clear but wrong | 38.1% (24 of 63 `clear` reads) |
+| flagged but correct | 0% (0 of 84) |
+| fabricated on no-code photos | 0% (0 of 15 negative reads) |
+| fabricated and declared clear | 0% (0 of 15) |
+| wrong and unflagged (replay through parser, catalogue and gate; not in the report) | 21% (18 of 84 positive reads; ADR-0001, *Evidence*; replay output not saved) |
 
 The largest failure was neighbouring codes joined onto the ART number and
 declared `clear` (ADR-0001, *Evidence*). 31 of 33 photos returned the same
@@ -57,13 +57,13 @@ invented codes.
 
 | rate | value | previous baseline |
 |---|---|---|
-| missed | **33.3%** (18 of 54 positive reads) | 77.8% |
-| exact, positives | **66.7%** (36 of 54) | 22.2% |
-| overconfident | 0% | 0% |
-| clear but wrong | 0% (of 36 `clear` reads) | 0% (of 9) |
-| flagged but correct | 0% | 0% |
-| fabricated on no-code photos | 0% (0 of 12) | 0% |
-| fabricated and declared clear | 0% | 0% |
+| missed | **33.3%** (18 of 54 positive reads) | 77.8% (42 of 54) |
+| exact, positives | **66.7%** (36 of 54) | 22.2% (12 of 54) |
+| overconfident | 0% (0 of 54) | 0% (0 of 54) |
+| clear but wrong | 0% (0 of 36 `clear` reads) | 0% (0 of 9) |
+| flagged but correct | 0% (0 of 54) | 0% (0 of 54) |
+| fabricated on no-code photos | 0% (0 of 12) | 0% (0 of 12) |
+| fabricated and declared clear | 0% (0 of 12) | 0% (0 of 12) |
 
 Every photo returned the identical read on all three repeats — no run-to-run
 noise, but in effect one sample per photo. Treat x/3 counts accordingly:
@@ -75,13 +75,20 @@ noise, but in effect one sample per photo. Treat x/3 counts accordingly:
 Every read the model attempted was correct, so the clean confidence rates now
 rest on 36 real attempts rather than on the model declining.
 
+Judged by ADR-0006's decision rule:
+
+**Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos
+01, 05, 07, 11, 13, 14, 15, 16, eight different garments — and 0 losses
+(p ≈ 0.008). No photo newly overconfident; fabricated-and-clear 0 of 12, and
+no fabrication of any kind.
+
 ### Previous baseline
 
 2026-09-25, the earlier `ART_PROMPT` (framed-tag wording) at tag
 `eval-baseline-2026-09-25` → `3a6a45e`. Report
 `evals/results/20260925T163049Z-anthropic_claude-sonnet-5.json`. Same set,
-same settings, 66 of 66 reads scored. Missed 77.8%, exact 22.2% (12 of 54,
-from photos 02, 03, 04, 18 only); every confidence rate 0%, mostly because 42
+same settings, 66 of 66 reads scored. Missed 77.8% (42 of 54), exact 22.2% (12 of 54,
+from photos 02, 03, 04, 18 only); every confidence rate 0% (counts in the table above), mostly because 42
 of 54 positive reads were `not_visible`. Photo 03's three correct reads were
 labelled `partial`.
 

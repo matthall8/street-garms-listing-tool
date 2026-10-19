@@ -51,7 +51,8 @@ main.py  /  app/routes.py
 
 ## Evaluation
 
-**Baseline, 2026-09-25:** `anthropic:claude-sonnet-5`, tag `eval-baseline-2026-09-25b`.
+**Archived baseline, 2026-09-25,** on the archived eval set (the current baseline is in
+[evals/BASELINES.md](evals/BASELINES.md)): `anthropic:claude-sonnet-5`, tag `eval-baseline-2026-09-25b`.
 18 positive photos (14 distinct codes) and 4 photos with no ART number, each read
 3 times; all 66 reads scored. Harness: [evals/README.md](evals/README.md).
 
@@ -62,14 +63,11 @@ main.py  /  app/routes.py
 | wrong, of reads declared `clear` | 0 of 36 | 0 of 9 |
 | code invented on a no-code photo | 0 of 12 | 0 of 12 |
 
-**Decision rule, committed before the first baseline.** The unit is the photo,
-which counts as missed if at least 2 of its 3 reads return nothing. A change
-passes if wins (missed → not missed) beat losses on a two-sided sign test at
-p < 0.05: 6–0, 8–1 or 10–2, with 3 or more losses rejecting it. Two guardrails
-reject it regardless: any invented code declared `clear`, or a photo newly
-overconfident in at least 2 of 3 reads. The current prompt passed 8–0 (p ≈ 0.008).
-The rule's out-of-sample check was waived for this merge. Full rule:
-[ADR-0006](adr/0006-decision-rule-for-prompt-changes.md).
+**Decision rule.** Fixed before the first baseline: a prompt change wins on a
+sign test over photos moving out of or into *missed*, and two guardrails on
+invented and overconfident reads can reject it regardless. Full rule:
+[ADR-0006](adr/0006-decision-rule-for-prompt-changes.md); its results are in
+[evals/BASELINES.md](evals/BASELINES.md).
 
 **Scope.** Every photo gave the same read on all 3 repeats, so in effect this is
 one sample per photo: 12 were read correctly and 6 were missed. The results are
@@ -156,7 +154,7 @@ and 266 pass with it.
 
 ## Known limitations
 
-- 6 of 18 positive photos are missed on every read, 5 of them at 1200x1600.
+- On the archived eval set, 6 of 18 positive photos are missed on every read, 5 of them at 1200x1600.
   Images are sent uncropped and unresized. Two eval photos share one expected code.
 - Parser seasons agree with the catalogue on 2,288 of 2,359 checkable rows. The
   71 disagreements are untriaged, so that ground truth is unverified.
