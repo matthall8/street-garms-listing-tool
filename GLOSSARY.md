@@ -80,7 +80,7 @@ under a different product name may be exceptions.
 | `side` | Manifest column: the label face shown. `front` carries brand text; `back` is the "Art." tag. |
 | garment-side | One garment's one side: the unit results are counted in. |
 | `expected_<term>` | A hand-labelled manifest column: `expected_art_line`, `expected_art_base`. Never produced by the parser. |
-| `expected_art_number` | Legacy column, kept so older reports stay comparable. Today the manifest's only expected column, and what the harness scores. |
+| `expected_art_number` | Legacy column, kept so older reports stay comparable. Until the step-5 scorer, the only expected column the harness scores. |
 | wrong-and-unflagged | The primary metric: would publish an `art_base` other than `expected_art_base` (any code, on a negative) with `needs_review` false. A garment-side counts if any of its reads does (proposed). |
 | base-exact | `art_base` equals `expected_art_base`. |
 | line-exact | `art_line` equals `expected_art_line`; isolates the model. |

@@ -469,8 +469,8 @@ v1.
   (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
 - Code: tag `eval-baseline-2026-10-08` → `6cede38`, `dirty: False`; prompt
   fingerprint `4fc3298aa412`.
-- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; only notes have
-  changed since. `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
+- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; only notes and unscored
+  columns have changed since (md5 ledger, 2026-10-09 and 2026-10-19). `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
   positive (28 photos of 10 garments) and 15 negative.
 
 | rate | value |
