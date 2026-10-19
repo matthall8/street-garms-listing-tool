@@ -51,6 +51,7 @@ from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art
 EVALS = Path(__file__).parent.parent / "evals"
 MANIFEST = EVALS / "manifest.csv"
 NO_ART_NUMBER = "NONE"
+UNKNOWN = "UNKNOWN"  # a marker for the run 0 columns, never a legacy value
 PHOTOS = EVALS / "photos"
 RESULTS = EVALS / "results"
 
@@ -235,6 +236,10 @@ def load_manifest() -> list[Case]:
             if not expected:
                 print(f"skipping {photo}: no expected_art_number "
                       f"(use {NO_ART_NUMBER} if the photo has no ART number)")
+                continue
+            if normalise(expected) == UNKNOWN:
+                print(f"skipping {photo}: {UNKNOWN} in expected_art_number "
+                      "would be scored as a code (leave it blank instead)")
                 continue
             cases.append(Case(
                 name=photo,

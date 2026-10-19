@@ -509,6 +509,15 @@ class TestLoadManifest:
         assert metadata is not None
         assert metadata["note"] == "faded garment dyed"
 
+    def test_unknown_in_the_legacy_column_is_skipped_with_a_warning(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """UNKNOWN belongs to the run 0 columns. Scored here, it would be a
+        code no read can match."""
+        self.write(tmp_path, monkeypatch, "a,UNKNOWN,\nb,123456789,\n")
+        assert [c.name for c in load_manifest()] == ["b"]
+        assert "skipping a" in capsys.readouterr().out
+
     def test_columns_it_does_not_score_change_nothing(self, tmp_path, monkeypatch):
         """Run 0's columns, filled or blank, leave the cases as they were."""
         legacy = "a,123456789,faded\nb,NONE,\nc,,\n"
