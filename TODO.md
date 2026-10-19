@@ -84,9 +84,12 @@ gitignored, so this file is their only audit trail.
         the pipeline, and line-exact against `expected_art_line`, counted per
         garment-side as well as per photo. Reads both `art_number_raw` and
         `art_line`.
-      - Merge, tag, and replay the 2026-10-08 baseline's saved reads. Record
-        the result as the **new baseline**. The 2026-10-08 report stays as the
-        record of contract v1: superseded, not deleted.
+      - Merge, tag, and replay the 2026-10-08 baseline's saved reads. They
+        cover only `p01`–`p33`, so the replay measures the new code on the old
+        reads and nothing more. Then a paid `--repeat 3` run on the full
+        manifest at the same tag; record that as the **new baseline**. The
+        2026-10-08 report stays as the record of contract v1: superseded, not
+        deleted.
       - From the replay: set ADR-0001's success thresholds; decide its pending
         items (atypical length plus a miss, confusion-pair neighbours,
         uninspected pairs); draft ADR-0003 and ADR-0004. ADR-0004 changes
