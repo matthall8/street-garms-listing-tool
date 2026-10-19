@@ -67,7 +67,7 @@ MANIFEST_COLUMNS = {
     "garment": "public",
     "side": "public",
 }
-NO_CODE = {"", "NONE"}
+NO_CODE = {"", "NONE", "UNKNOWN"}  # no code in the photo; labelled, no safe value
 MIN_NAME_WORDS = 3
 
 ASCII_UPPER = str.maketrans("abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")

@@ -311,6 +311,14 @@ class TestManifestColumns:
         repo.stage("notes.md", f"{column} {value} is blurred\n")
         assert repo.check().returncode == 0
 
+    @pytest.mark.parametrize("marker", ["NONE", "UNKNOWN"])
+    def test_markers_are_not_codes(self, repo, marker):
+        """A marker in an expected column is not a private value, so docs
+        that explain it pass."""
+        self.with_column(repo, "expected_art_base", marker)
+        repo.stage("notes.md", f"write {marker} when no value is safe\n")
+        assert repo.check().returncode == 0
+
     @pytest.mark.parametrize("column", ["expected_line", "expected_style"])
     def test_names_before_the_glossary_block(self, repo, column):
         """Renamed in GLOSSARY.md; a manifest still using them must not pass."""
