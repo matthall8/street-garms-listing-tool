@@ -134,6 +134,21 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   permissions, pytest at the end of each turn, `ruff check` after each Python
   edit (the hooks need `jq`, built into macOS; without it they do nothing).
   A denied call is a rule, not an obstacle: don't route around it; ask.
+- **One home per fact.** Each kind of fact lives in one file:
+
+  | fact | home |
+  |---|---|
+  | decisions and the rules they set | the ADR in `adr/` |
+  | terms | `GLOSSARY.md` |
+  | invariants and working rules | `CLAUDE.md` |
+  | harness and procedure | `evals/README.md` |
+  | results, baselines and md5 ledgers | `evals/BASELINES.md` (`TODO.md` until it exists) |
+  | status and next steps | `TODO.md` |
+
+  Elsewhere, link to the home instead of restating it; a one-line pointer
+  naming the home is fine. Current-state docs hold no history: that's in
+  git and the ledgers. Say each thing once, in the shortest form that
+  stays exact.
 
 ## Pull requests
 

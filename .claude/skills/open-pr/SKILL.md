@@ -43,7 +43,7 @@ and their description, skip the reviewer and the rest of this step; go
 to step 4. Decide from the diff, never from the title, branch name or
 commit messages. It is ledger-only only if both hold:
 - `git diff main...HEAD --name-only` lists one file, the one holding the
-  md5 ledgers (`TODO.md` or `evals/BASELINES.md`, whichever holds them).
+  md5 ledgers (CLAUDE.md, *One home per fact*).
 - Every added or removed line in `git diff -U0 main...HEAD` is in the
   *Manifest md5* or *Held-out manifest md5* ledger: a table row, or the
   heading or paragraph describing that table.

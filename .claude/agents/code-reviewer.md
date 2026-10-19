@@ -150,6 +150,10 @@ This project:
 - **Docs.** If a documented claim is now stale (a measured number, test
   count or behaviour), are README, TODO.md and CLAUDE.md updated? Do
   CLAUDE.md's references (files, symbols, test names) still resolve?
+  New text that restates a fact whose home is elsewhere (CLAUDE.md,
+  *One home per fact*) is a Should fix: "link to <home> instead".
+  Duplication already on `main` is inherited (section 5). Wordiness is
+  at most Worth considering, never a Should fix.
 
 ## 4. Run the checks
 
@@ -188,7 +192,10 @@ run: list it under Validation gaps with the skip reasons.
   from `main`. It stays out of the report, since section 6 keeps private
   data already on `main` out of it: before the report, write one line,
   `Stop: inherited privacy problem at <file:line>, not for the PR body`,
-  and nothing else about it.
+  and nothing else about it. If an open `TODO.md` item already covers it
+  (for example, *Split and scrub this file* covers private data in
+  `TODO.md`), write nothing about it and carry on: that item is the fix
+  branch.
 - If the only fix is a plan change beyond the branch's topic
   (`git log main..HEAD`), as CLAUDE.md's *No plan changes in passing*
   defines it, the fix sentence proposes a separate branch, not an edit.
