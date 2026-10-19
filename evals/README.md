@@ -71,7 +71,7 @@ it never puts a line on a photo that doesn't show one. A photo with no ART
 line in it is `NONE`, whatever the other photos of its garment-side show, so
 a `front` Certilogo crop is `NONE` beside a positive EAC photo of the same
 face. Never guess a character: if no photo shows it clearly,
-leave the cell blank and say why in `note`. Never fill a cell by running the
+write `UNKNOWN` and say why in `note`. Never fill a cell by running the
 parser; a parser bug would then score as correct.
 
 `expected_art_line` is the whole printed line containing the ART number:
@@ -89,7 +89,7 @@ parser; a parser bug would then score as correct.
 - without the caption, a colour suffix (attached by a slash or a hyphen, or
   after a space), a lot code or anything else on the line
 - if you can't tell where it ends, say a suffix typed on with no separator,
-  leave it blank and say why in `note`
+  write `UNKNOWN` and say why in `note`
 
 So the two differ from `expected_art_number` on purpose. For a line printed
 as `ART. <code>/<suffix>`, `expected_art_line` is that whole line, `expected_art_base`
@@ -98,7 +98,9 @@ is `<code>`, and `expected_art_number` was `<code>/<suffix>`. Row `p04` of
 
 `NONE` and blank mean the same in both columns as in `expected_art_number`:
 no ART number in the photo, and not labelled yet. They are explained under
-[Negative cases](#negative-cases).
+[Negative cases](#negative-cases). `UNKNOWN` is a third state, for these two
+columns only: labelled, but no value is safe. A blank cell is always work
+still to do; an `UNKNOWN` one is finished, and its `note` says why.
 
 Every row keeps an `expected_art_number`, new rows included, until the scorer
 reads these two columns: the harness skips a row where it is blank. How

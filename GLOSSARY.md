@@ -75,7 +75,7 @@ under a different product name may be exceptions.
 
 | Term | Meaning |
 |---|---|
-| positive / negative | A photo with or without an ART number. Negatives expect `NONE`; blank means not labelled yet. |
+| positive / negative | A photo with or without an ART number. Negatives expect `NONE`; blank means not labelled yet; `UNKNOWN` (in `expected_art_line` and `expected_art_base` only) means labelled, but no value is safe, with the reason in `note`. |
 | `garment` | Manifest column: an opaque id per garment. The dev/held-out split is by garment. *(not in the manifest yet)* |
 | `side` | Manifest column: the label face shown. `front` carries brand text; `back` is the "Art." tag. *(not in the manifest yet)* |
 | garment-side | One garment's one side: the unit results are counted in. |
