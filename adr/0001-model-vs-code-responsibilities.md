@@ -1,8 +1,10 @@
 # ADR-0001: The model transcribes evidence; code interprets it
 
 - **Status:** Accepted. *Pending decisions* and the `<N>`/`<rate>` placeholders
-  under *Success criteria* stay Proposed until run 0.
-- **Date:** 2026-10-09. Terms moved to `GLOSSARY.md` 2026-10-18.
+  under *Success criteria* stay Proposed until the last baseline recorded
+  before run 1.
+- **Date:** 2026-10-09. Terms moved to `GLOSSARY.md` 2026-10-18. Amended
+  2026-10-19: thresholds from the full-manifest baseline.
 
 ## Context
 
@@ -242,7 +244,7 @@ manifest md5 table before it runs.
 
 | Run | Change | Manifest columns needed |
 |---|---|---|
-| 0 | Code only, no API calls: the split, review reasons, and a replay over the baseline's saved reads. The catalogue stays as it is (index: ADR-0003) | `expected_line`, `expected_style` |
+| 0 | Code only, no API calls: the split, review reasons, and a replay over the baseline's saved reads, which cover only the rows that baseline scored. The catalogue stays as it is (index: ADR-0003). After it, a paid `--repeat 3` run on the full manifest at the same tag becomes the new baseline, which later runs compare against | `expected_line`, `expected_style` |
 | 1 | The contract change: the one-line rule; `art_number_raw` renamed to `art_line`; `ambiguous_characters` positions counted along `art_line`; the `/181` example dropped; the lot-code rule reworded to match the line rule | `expected_line`, `expected_style` |
 | 2 | `text_orientation`, in first position. If the ART read gets worse, retry it in last position. | `orientation` |
 | 3 | `next_line` | `expected_next_line` |
@@ -253,8 +255,10 @@ This order is fixed before any result exists.
 
 ## Pending decisions (status: Proposed)
 
-The first three are catalogue rules, drafted in ADR-0004 from the run 0 replay;
-ADR-0004 changes CLAUDE.md's "misses do NOT flag" invariant. ADR-0003 covers the
+The first three are catalogue rules, drafted in ADR-0004 from the full-manifest
+baseline recorded after run 0; if a second baseline follows before run 1, they
+are re-checked against it and change only if it contradicts them. ADR-0004
+changes CLAUDE.md's "misses do NOT flag" invariant. ADR-0003 covers the
 catalogue index they read from. The last two are settled by amending this ADR.
 
 - Flagging an atypical length combined with a catalogue miss.
@@ -285,8 +289,9 @@ part in tuning:
 - correct reads sent to review stay at or below `<rate>`, a level one person
   can clear.
 
-`<N>` and `<rate>` are set when the run 0 baseline is recorded: `<rate>` from
-how many listings can be reviewed in a day.
+`<N>` and `<rate>` are set from the last full-manifest baseline recorded before
+run 1, so a second baseline re-sets them: `<rate>` from how many listings can
+be reviewed in a day.
 
 **Revisit** if wrong-line selection makes up most of the remaining errors
 (consider the OCR cross-check), or if the review rate becomes unmanageable

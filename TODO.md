@@ -12,7 +12,7 @@ number's whole printed line, and code does the interpreting:
 `adr/0001-model-vs-code-responsibilities.md` holds the decision, the gate
 and the rollout; the terms (`art_line`, `art_base`, …) are in `GLOSSARY.md`. A local scan found a
 Data Matrix on newer Stone Island back tags that carries the ART number, `V`
-code and size. Only 4 of 33 photos carry one (all 4 decode), so it becomes an
+code and size. Only 4 of the first 33 photos carry one (all 4 decode; `p34`–`p55` not scanned yet), so it becomes an
 optional stage (ADR-0002, to write), not the core. The catalogue is frozen while the
 reading is the focus. *The chain* below is the plan of record.
 
@@ -84,12 +84,21 @@ gitignored, so this file is their only audit trail.
         the pipeline, and line-exact against `expected_art_line`, counted per
         garment-side as well as per photo. Reads both `art_number_raw` and
         `art_line`.
-      - Merge, tag, and replay the 2026-10-08 baseline's saved reads. Record
-        the result as the **new baseline**. The 2026-10-08 report stays as the
-        record of contract v1: superseded, not deleted.
-      - From the replay: set ADR-0001's success thresholds; decide its pending
-        items (atypical length plus a miss, confusion-pair neighbours,
-        uninspected pairs); draft ADR-0003 and ADR-0004. ADR-0004 changes
+      - Merge, tag, and replay the 2026-10-08 baseline's saved reads. They
+        cover only `p01`–`p33`, so the replay measures the new code on the old
+        reads and nothing more. Then a paid `--repeat 3` run on the full
+        manifest at the same tag; record that as the **new baseline**. The
+        2026-10-08 report stays as the record of contract v1: superseded, not
+        deleted.
+      - Set ADR-0001's success thresholds (`<N>`, `<rate>`) from the last
+        baseline recorded before run 1, so step 7 compares against the numbers
+        they were set on: a second baseline (the `si_alpha` exception in
+        *Photos*) re-sets them. From the first new baseline, decide ADR-0001's
+        pending items (atypical length plus a miss, confusion-pair neighbours,
+        uninspected pairs) and draft ADR-0003 and ADR-0004; a second baseline
+        re-checks them, and a decision changes only if it contradicts it. The
+        step 6 rotation run's result stands for the set it was measured on.
+        ADR-0004 changes
         CLAUDE.md's "misses do NOT flag" invariant, so accepting it updates
         CLAUDE.md in the same PR.
 
@@ -143,7 +152,13 @@ Starts now; each item blocks only what it names.
       with the EAC label that carries the ART number (2 of 2 so far); new
       garments for a held-out set, not looked at while tuning
       (`evals/README.md`, *Held-out set*). The split:
-      - ~100 images: ~70 dev (including the current 33), ~30 held out.
+      - `si_alpha` (`K1S…`) garments join the dev set before chain step 5's
+        paid run. Once that baseline is recorded, the dev set is frozen for
+        phase 1 and new photos go to the held-out set only, ~30 of them. The
+        one exception: `si_alpha` garments found after step 5 but before run 1
+        starts join the dev set, followed by the second paid baseline
+        *Widen format coverage* describes. After run 1 starts, late `si_alpha`
+        photos go to the held-out set.
       - Split by garment: no garment on both sides. Held-out photos come only
         from new garments, one photo per garment-side.
       - Every format family, `si_alpha` included, plus a few negatives, in the
@@ -153,7 +168,7 @@ Starts now; each item blocks only what it names.
         it into dev data.
       - The harness needs a `--holdout` flag (separate branch). `.gitignore`
         and the privacy hook already cover `evals/holdout/`.
-- [x] **Positive count.** 28 is right: the manifest has 28 positive rows,
+- [x] **Positive count.** 28 is right: the 2026-10-08 set had 28 positive rows,
       and the report's `.photos.sha256` lists 33 photos. The 27 in the
       2026-10-08 run note and the `4f298e…` md5 row was a miscount, not a
       ground-truth edit; whether that version had 27 rows can no longer be
@@ -183,8 +198,13 @@ Neither blocks nor is blocked by the sequence above.
 - [ ] **Widen format coverage in the eval set.** Partly done 2026-10-08:
       `cp_modern` (2 garments, 3 positive rows) and a trailing colour code
       (`5215M226/2525`, 2 rows) are now covered. Still missing: `si_alpha`
-      (`K1S…`, 86 catalogue rows), which the eval has never tested. Re-baseline
-      after, since the manifest fingerprint changes.
+      (`K1S…`, 86 catalogue rows), which the eval has never tested. Add them
+      before chain step 5's paid run, so that baseline covers them and no
+      separate re-baseline is needed. If the `K1S…` labels can't be found in
+      time, step 5 runs without them; if they turn up before run 1 starts, a
+      second paid baseline follows once they're added (the one exception to
+      the freeze, in *Photos*). After run 1 starts, they go to the held-out
+      set.
 
 - [ ] **Precedence fix: on an exact catalogue match, the catalogue supplies the
       season, not the parser.** `labels/pipeline.py:24-25` takes year/season
@@ -405,6 +425,11 @@ put it in the `--note`.
   records the model must handle both shapes.
 - Is the Flask app localhost-only or reachable? Decides whether the missing
   rate limit and auth on `POST /` matter.
+- **Is `si_alpha` in phase 1?** Either `si_alpha` dev photos are required
+  before step 5's paid run (one baseline, no freeze exception), or `si_alpha`
+  is out of phase 1 and its listings always go to review. Decide in the
+  `phase-1-acceptance` ADR; it also settles which tag a second baseline runs
+  at.
 
 ## Decision rule for prompt changes
 
@@ -437,7 +462,8 @@ every count below straight from the report's *per photo* table: its `missed`,
   questions). Revisit it if every listing gets human review.
 - **For the contract v2 runs** (chain step 7), this rule still decides
   `missed` and the guardrails. ADR-0001 adds wrong-and-unflagged, counted per
-  garment-side, as the primary metric; its thresholds are set from run 0.
+  garment-side, as the primary metric; its thresholds are set from the last baseline
+  recorded before run 1 (chain step 5).
   Photo numbers in this section refer to the archived set.
 
 **Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos
@@ -456,15 +482,17 @@ gain holds.
 
 **2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
 (contract v1).** It stops being the comparison point once chain step 5
-records the replay under the new scorer; it stays as the record of contract
-v1.
+records the full-manifest `--repeat 3` run as the new baseline; it stays as
+the record of contract v1.
 
 - Report: `evals/results/20261008T154722Z-anthropic_claude-sonnet-5.json`
   (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
 - Code: tag `eval-baseline-2026-10-08` → `6cede38`, `dirty: False`; prompt
   fingerprint `4fc3298aa412`.
-- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; only notes and unscored
-  columns have changed since (md5 ledger, 2026-10-09 and 2026-10-19). `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
+- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; it scored `p01`–`p33` only. Those
+  rows have changed only in notes and unscored columns since (md5 ledger,
+  2026-10-09 and the first 2026-10-19 row); `p34`–`p55` (the second
+  2026-10-19 row) are not in it. `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
   positive (28 photos of 10 garments) and 15 negative.
 
 | rate | value |
@@ -544,7 +572,8 @@ labelled `partial`.
 | 2026-10-08 | `4f298e4ceb31d67d8d7c8180a332a50a` | New eval set: 27 positives + 5 negatives, 10 garments, none shared with the archived set; first C.P. photos (2 `cp_modern` garments, 1 new negative) and `_rotated` variants. The four Certilogo negatives carried over byte for byte. Not run: 13 paths did not match the files on disk. |
 | 2026-10-08 | `02cfa7cb2065ae27e6944b62731651bc` | Paths fixed to match files on disk (13 rows: zero-padding, `.JPG` case, space in `cp_art_number_photo_2 rotated.jpg`). `5215M226` → `5215M226/2525` on both photo-7 rows: the suffix is printed attached with a slash, per the `evals/README.md` rule; checked by eye. `si_art_number_photo_14_rotated.jpg` re-saved as a real 270° rotation; it had been byte-identical to the original. Expected values of photos 1, 4, 5, 9, 10, 14 and both C.P. positives re-checked by eye. Baseline `eval-baseline-2026-10-08` ran on this. |
 | 2026-10-09 | `1a83e41cb8059ab1b2624a683818a487` | Notes only: `back of label` added to photos 5 and 19, both of which show the back "Art." tag (checked by eye). No photo or expected value changed, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs, so `--baseline` will report it as changed. |
-| 2026-10-19 | `769a3e4639b11da01f1fcd4ae606b36e` | `id`, `garment`, `side`, `expected_art_line` and `expected_art_base` added in one edit, checked by eye: 33 rows, 15 garments, 21 garment-sides. The id-only version was not saved, so it has no row. Stale `upside down` note on `p15` removed: the photo is upright. `expected_art_number` unchanged, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs. **Current.** |
+| 2026-10-19 | `769a3e4639b11da01f1fcd4ae606b36e` | `id`, `garment`, `side`, `expected_art_line` and `expected_art_base` added in one edit, checked by eye: 33 rows, 15 garments, 21 garment-sides. The id-only version was not saved, so it has no row. Stale `upside down` note on `p15` removed: the photo is upright. `expected_art_number` unchanged, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs. |
+| 2026-10-19 | `94d41fd31287b33459f781fcef9672ae` | 22 rows added (`p34`–`p55`), checked by eye: 20 positives + 2 negatives, 15 new garments (`g16`–`g34`, some ids unused), 21 garment-sides, none shared with earlier rows. Whole set now 55 rows (48 positives + 7 negatives), 30 garments, 42 garment-sides. `p44`'s `expected_art_line` is `UNKNOWN`: the end of the lot code is under a thumb. Earlier rows unchanged. The new rows are scored, so the 2026-10-08 baseline no longer covers the whole set. **Current.** |
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.
