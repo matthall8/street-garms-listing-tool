@@ -20,7 +20,7 @@ dev = [
 # Notebooks and barcode scanning. Opt-in: `uv sync --group explore`.
 # Not needed by the app, tests or CI; zbar-py builds from source.
 explore = [
-    "notebook==7.6.2",
+    "notebook==7.6.3",
     "opencv-python==5.0.0.93",
     "pyzbar==0.1.9",
     "zbar-py==1.0.4",
