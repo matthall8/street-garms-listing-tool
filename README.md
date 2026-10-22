@@ -12,7 +12,10 @@ a proof of concept that moves on when it meets the phase 1 gate
 
 ## The problem
 
-Each listing starts with the ART number, the product code on the label. Reading it by eye and then identifying the product and season is slow, and one misread character can point to a different garment. It represents an area for automation and efficeny using a combination of AI and code.
+Each listing starts with the ART number, the product code on the label.
+Reading it by eye and then identifying the product and season is slow, and one
+misread character can point to a different garment. It represents an area for
+automation and efficiency using a combination of AI and code.
 
 ## The key decision: the model only transcribes
 
@@ -59,27 +62,9 @@ silent error (wrong but shown as *looks right*), and at least 80% of correct
 in-catalogue sides are unflagged. Full gate and set rules:
 [ADR-0002](adr/0002-phase-1-acceptance.md).
 
-**Current baseline, 2026-10-08:** `anthropic:claude-sonnet-5`, tag
-`eval-baseline-2026-10-08`. 28 positive photos of 10 garments and 5 photos with
-no ART number, each read 3 times.
-
-| rate | value |
-|---|---|
-| exact match | 39 of 84 positive reads (46.4%) |
-| missed (no code returned) | 21 of 84 (25.0%) |
-| wrong, of reads declared `clear` | 24 of 63 (38.1%) |
-| code invented on a no-code photo | 0 of 15 |
-| wrong and unflagged, replayed through parser, catalogue and gate | 18 of 84 (21%) |
-
-The largest failure is neighbouring codes joined onto the ART number and
-declared `clear`. Run 0 targets it: the parser splits the read into parts and
-flags anything that matches no known shape. Its checkpoint, replayed on these
-same reads, is at most 9 of 84 wrong and unflagged.
-
-**Scope.** The positives are out-of-sample for the current prompt, but the set
-is small and lopsided: `si_numeric` and `cp_modern` only, with no `si_alpha`
-(86 catalogue rows); one garment is 6 of the 28 positives; one capture size; and
-all five negatives are Certilogo-only labels. Results, earlier baselines and
+**Current baseline, 2026-10-08:** 46% of positive reads were exact, and 18 of
+84 would have been published wrong without review; run 0's checkpoint is at
+most 9. The set is small and has no `si_alpha`. Results, earlier baselines and
 the decision rule for prompt changes
 ([ADR-0006](adr/0006-decision-rule-for-prompt-changes.md)) are in
 [evals/BASELINES.md](evals/BASELINES.md); the harness is in

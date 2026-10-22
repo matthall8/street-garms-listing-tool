@@ -3,14 +3,16 @@
 - **Status:** Accepted
 - **Date:** 2026-10-22
 - **Supersedes:** ADR-0001's launch criteria (*For launch*, under *Success
-  criteria*; its per-run rules still apply).
+  criteria*; its per-run rules still apply), and moves runs 3–4 of its
+  *Rollout* out of phase 1.
 - **Terms:** see `GLOSSARY.md`.
 
 ## Context
 
 The app is currently at proof of concept stage. To move to the next stage
-(staff using it as a prototype when list products), it needs to read the ART number correctly
-in at least 80% of cases. Below that, it costs staff more time than it saves.
+(staff using it as a prototype when listing products), it needs to read the
+ART number correctly in at least 80% of cases. Below that, it costs staff
+more time than it saves.
 The 80% is an estimate.
 
 The correct rate alone isn't enough. A wrong answer that looks right is
@@ -38,26 +40,29 @@ all of these are true:
 Phase 1 covers every ART format family, `si_alpha` included, so both sets
 include all of them.
 
-About 100 garments' photos are split by garment, so no garment is in both
-sets: the development set (about 70 photos, including all existing photos)
-and the 30 test garments. Development results are for tuning only and
-don't count towards the gate.
+Photos are split by garment, so no garment is in both sets: the development
+set (about 70 photos, including all existing photos) and the 30 test
+garments. Development results are for tuning only and don't count towards
+the gate.
 
 Each garment-side is read 3 times. It's correct if at least 2 of the 3 reads
-are correct, and a silent error if any read is.
+are correct, and a silent error if any read is. A correct garment-side
+counts as unflagged when at least 2 of its 3 reads are correct and
+unflagged.
 
-In this case "correct" means the `art_base` matches the one in the manifest,
-and the catalogue result is right for it:
+In this case a read is "correct" when the catalogue result is right for the
+manifest's `expected_art_base`:
 
-- **The product is in the catalogue** (its `art_base` is a catalogue key):
-  the lookup finds its row. A miss counts as a failure, even when the read
-  itself was right.
-- **The product isn't in the catalogue:** the result is "not in catalogue",
-  so those products aren't penalised. Products catalogued only under a
-  longer compound key count as not in the catalogue until ADR-0003's index
-  exists.
-- A read resolved through the catalogue (`corrected`) counts as correct, but
-  it is flagged, so it counts against the unflagged bar.
+- **The product is in the catalogue** (`expected_art_base` is a catalogue
+  key): the read's `resolved_key` equals `expected_art_base`. A miss counts
+  as a failure, even when the read itself was right.
+- **The product isn't in the catalogue:** the result is `no_key` and the
+  read's parsed `art_base` equals `expected_art_base`, so those products
+  aren't penalised. Products catalogued only under a longer compound key
+  count as not in the catalogue until ADR-0003's index exists.
+- A read resolved through the catalogue (`corrected`) is correct when its
+  `resolved_key` is the expected one, but it is flagged, so it counts
+  against the unflagged bar.
 
 Whether a product is in the catalogue is worked out when scoring, from the
 manifest's `art_base` and the catalogue, so it needs no extra label.

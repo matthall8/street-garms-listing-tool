@@ -44,8 +44,7 @@ every count below straight from the report's *per photo* table: its `missed`,
   review.
 - **For the contract v2 runs** (ADR-0001's *Rollout*), this rule still decides
   `missed` and the guardrails. ADR-0001 adds wrong-and-unflagged, counted per
-  garment-side, as the primary metric; its thresholds are set from the last baseline
-  recorded before run 1 (TODO.md, *Runs*).
+  garment-side, as the primary metric; ADR-0002 sets the phase 1 gate on it.
   Photo numbers in this section refer to the archived set.
 
 The result of the 2026-09-25 whole-label prompt change, the merge the waiver

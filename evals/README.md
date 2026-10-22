@@ -213,7 +213,7 @@ rebuilt from their own saved `.pip-freeze.txt`. Record the manifest md5
 before and after any edit. Hash only the manifest's photos, not the whole folder:
 `tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`.
 Broken (the manifest now starts with `id`; a filename has a space): don't
-use; the harness will hash the photos itself (TODO.md, *Eval provenance*).
+use; the harness will hash the photos itself (TODO.md's *Eval provenance* item).
 Serial running is a precaution against a suspected pydantic-ai concurrency
 stall, never reproduced. `--workers` isn't recorded in the report header, so
 put it in the `--note`.

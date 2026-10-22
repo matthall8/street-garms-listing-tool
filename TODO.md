@@ -9,7 +9,7 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
 or model is a run under *Runs*, one per run.
 
 ### Photos
-- [ ] Photo session: reach ~70 development and ~30 test garments (one photo
+- [ ] Photo session: reach ~70 development photos and ~30 test garments (one photo
       per garment-side for test). Run the timing study at the same session.
 - [ ] Label every photo by eye: `garment`, `side`, `expected_art_line`,
       `expected_art_base`, and new `expected_legibility` (readable /
@@ -29,16 +29,20 @@ or model is a run under *Runs*, one per run.
       precedence fix (*Later*) decides the source on a catalogue hit
 - [ ] ADR-0004: a misread that misses the catalogue never shows "looks right"
       (leaning: every miss flags in phase 1). Same PR: `review_reasons`,
-      CLAUDE.md's invariant, `test_catalogue_miss_does_not_flag`
+      CLAUDE.md's invariant, `test_catalogue_miss_does_not_flag`. Lands after
+      the checkpoint and run 0's baseline: it is drafted from that baseline
+      (ADR-0001, *Pending decisions*), and the checkpoint replays run 0 alone
 - [ ] Split `extract_bytes()`: `transcribe()`, then a pure
       `from_reading(reading) -> Extraction`, so the app, eval and replay run
       the same code
 - [ ] Scorer, per read (`Evaluator`): run `from_reading()` on the saved read;
-      correct = `art_base` matches and the catalogue result is right
-      (`resolved_key` is the expected base if it's a catalogue key, else
-      `no_key`); flagged; silent error = wrong and not flagged
+      correct = the catalogue result is right for `expected_art_base`
+      (`resolved_key` equals it if it's a catalogue key, else `no_key` and
+      the parsed `art_base` equals it; ADR-0002); flagged; silent error =
+      wrong and not flagged
 - [ ] Scorer, per garment-side (`ReportEvaluator`, like `PerPhotoCounts`):
-      correct if 2 of 3 reads are, silent error if any read is; the three
+      correct if 2 of 3 reads are, silent error if any read is, unflagged if
+      2 of 3 reads are correct and unflagged; the three
       ADR-0002 bars and the excluded count. Needs `garment`, `side` and the
       by-eye label in case metadata. Keep line-exact and base-exact per photo
       for dev diagnosis
