@@ -6,9 +6,9 @@ Results, baselines and the manifest md5 ledgers. How to run an eval:
 ## Current baseline
 
 **2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
-(contract v1).** It stops being the comparison point once TODO.md's chain
-step 5 records the full-manifest `--repeat 3` run as the new baseline; it stays as
-the record of contract v1.
+(contract v1).** It stops being the comparison point once run 0's paid
+full-manifest `--repeat 3` run (TODO.md, *Runs*) is recorded as the new
+baseline; it stays as the record of contract v1.
 
 - Report: `evals/results/20261008T154722Z-anthropic_claude-sonnet-5.json`
   (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
