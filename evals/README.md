@@ -167,16 +167,19 @@ its filenames and expected codes as private, as it does the dev set's.
 - One photo per garment-side, so no repeat shots or rotated copies, which
   the dev set allows.
 - Every row is labelled by eye before any run.
-- It runs once, at the end of a phase, and each use is recorded in `evals/BASELINES.md`.
-  Studying its failures turns those photos into dev data.
+- It runs only for a gate attempt, and each use is recorded in
+  `evals/BASELINES.md`. Studying its failures turns those photos into dev
+  data. Phase 1's run limit, tagged-commit and totals-only rules, and what
+  happens on a fail, are in
+  [ADR-0002](../adr/0002-phase-1-acceptance.md).
 - Its md5 has its own ledger table in `evals/BASELINES.md`, headed
   `| date | holdout md5 | what changed |`. The hook blocks every commit while
   the manifest has a header and no rows, so write its first row and commit the
   matching ledger row together. Once that table has a row, the hook also
   blocks every commit in a clone where the held-out manifest is missing.
 
-The harness doesn't read it yet: a `--holdout` flag is planned on its own
-branch.
+The harness doesn't read it yet: a `--holdout` flag that prints totals only
+is planned (TODO.md, *Code*).
 
 ## Running
 
@@ -210,7 +213,7 @@ rebuilt from their own saved `.pip-freeze.txt`. Record the manifest md5
 before and after any edit. Hash only the manifest's photos, not the whole folder:
 `tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`.
 Broken (the manifest now starts with `id`; a filename has a space): don't
-use; see TODO.md's *Replace the photo-hash recipe*.
+use; the harness will hash the photos itself (TODO.md's *Eval provenance* item).
 Serial running is a precaution against a suspected pydantic-ai concurrency
 stall, never reproduced. `--workers` isn't recorded in the report header, so
 put it in the `--note`.

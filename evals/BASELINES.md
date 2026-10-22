@@ -6,9 +6,9 @@ Results, baselines and the manifest md5 ledgers. How to run an eval:
 ## Current baseline
 
 **2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
-(contract v1).** It stops being the comparison point once TODO.md's chain
-step 5 records the full-manifest `--repeat 3` run as the new baseline; it stays as
-the record of contract v1.
+(contract v1).** It stops being the comparison point once run 0's paid
+full-manifest `--repeat 3` run (TODO.md, *Runs*) is recorded as the new
+baseline; it stays as the record of contract v1.
 
 - Report: `evals/results/20261008T154722Z-anthropic_claude-sonnet-5.json`
   (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
@@ -35,6 +35,14 @@ The largest failure was neighbouring codes joined onto the ART number and
 declared `clear` (ADR-0001, *Evidence*). 31 of 33 photos returned the same
 read on all three repeats; one upside-down photo returned three different
 invented codes.
+
+**Scope.** The set measures a narrower surface than "OCR": `si_numeric` and
+`cp_modern` only, no `si_alpha`; five negatives, all Certilogo-only labels.
+It is lopsided: one garment is 6 of 28 positives and four more have 4 rows
+each, so headline rates are weighted towards a few garments. Judge on the
+*per photo* table, and expect wins and losses to cluster by garment. Unlike
+the archived set, the positives are out-of-sample for the current prompt, and
+they are a single capture regime (1536x2048).
 
 ### Previous baselines (archived set)
 
@@ -69,11 +77,37 @@ Every photo returned the identical read on all three repeats — no run-to-run
 noise, but in effect one sample per photo. Treat x/3 counts accordingly:
 
 - **Read correctly 3/3:** 01–05, 07, 11, 13–16, 18 — 12 photos, all `clear`.
-- **Missed 3/3:** 06, 08, 09, 10, 12, 17 (see TODO.md's *Known issues*).
+- **Missed 3/3:** 06, 08, 09, 10, 12, 17 (see *The six misses* below).
 - **Negatives:** all 12 reads returned no code.
 
 Every read the model attempted was correct, so the clean confidence rates now
 rest on 36 real attempts rather than on the model declining.
+
+**The six misses.** Until 2026-09-25 every 1200x1600 photo failed on every
+date, which pointed at capture resolution. The whole-label prompt change
+overturned most of that: 6 of the 11 now read correctly on every read, so the
+prompt, which assumed a tightly framed tag while these labels print the code
+bare and uncaptioned, was the larger cause. Resolution still correlates: 5 of
+the 6 remaining misses are 1200x1600. The change bundled several edits (whole
+label, bare code, nearby numbers to avoid), so which of them did the work isn't
+isolated.
+
+| photos | resolution | 2026-09-16 (archived) | 2026-09-24 (probe) | 2026-09-25, old prompt | 2026-09-25, current prompt |
+|---|---|---|---|---|---|
+| 01-04 | 4032x3024 | 2 of 4 | 3 of 4 | 3 of 4 | **4 of 4** |
+| 05-15 | 1200x1600 | 0 of 10 (photo 13 errored) | 0 of 11 | 0 of 11 | **6 of 11** |
+| 16-18 | 4032x3024 care labels | — | — | 1 of 3 | **2 of 3** |
+
+09-24 figures are from unsaved probe runs; both 09-25 columns are saved
+reports, 3 reads per photo.
+
+The misses are `art_legible="not_visible"`: the model says no ART number is
+present at all, rather than misreading one. Attribution under concurrency was
+checked and is correct: each successful read matched its own photo. Photo 12
+shares its expected code with 07, which reads; whether it is a second shot of
+the same label was never settled before the set was archived. Photo 17 is the
+care label of 01's garment, a different label from 01's tag. The cheapest test
+for all six is a re-shoot at full phone resolution.
 
 Judged by ADR-0006's decision rule:
 

@@ -2,13 +2,15 @@
 
 - **Status:** Accepted.
 - **Date:** 2026-09-25. Moved from `TODO.md` 2026-10-19, word for word.
+  Links to `TODO.md` sections updated 2026-10-22 after ADR-0002; the rule is
+  unchanged.
 
 ## Context
 
 A prompt change needs a rule for when its eval result counts as a win, fixed
 before any result exists so the result can't move it. Whether this rule
 becomes the general policy for shipping prompt changes is an open question in
-`TODO.md`.
+`TODO.md` (*Later*).
 
 ## Decision
 
@@ -37,12 +39,12 @@ every count below straight from the report's *per photo* table: its `missed`,
   - fabricated-and-clear stays at 0 across every negative read. Hard line.
   - no photo is *newly* overconfident in 2 or more of its 3 reads:
     `clear`, wrong, and no ambiguous characters flagged.
-- The second guardrail assumes clean reads may be auto-accepted (see TODO.md's
-  *Open questions*). Revisit it if every listing gets human review.
-- **For the contract v2 runs** (TODO.md's chain step 7), this rule still decides
+- The second guardrail assumes clean reads may be auto-accepted, a question
+  ADR-0002 moves to a later phase. Revisit it if every listing gets human
+  review.
+- **For the contract v2 runs** (ADR-0001's *Rollout*), this rule still decides
   `missed` and the guardrails. ADR-0001 adds wrong-and-unflagged, counted per
-  garment-side, as the primary metric; its thresholds are set from the last baseline
-  recorded before run 1 (TODO.md's chain step 5).
+  garment-side, as the primary metric; ADR-0002 sets the phase 1 gate on it.
   Photo numbers in this section refer to the archived set.
 
 The result of the 2026-09-25 whole-label prompt change, the merge the waiver
@@ -51,6 +53,6 @@ below refers to, is in `evals/BASELINES.md`, *Previous baselines (archived set)*
 The rule as first written also required confirming a pass on photos outside
 this set before merging, because a pass here is in-sample. That condition was
 **waived for this merge** by decision, on confidence that the change is better
-generally. It still applies in spirit: when new photos are added (see TODO.md's
-*Widen format coverage in the eval set*), run the previous and current baselines on them and check the
+generally. It still applies in spirit: when new photos are added (TODO.md,
+*Photos*), run the previous and current baselines on them and check the
 gain holds.
