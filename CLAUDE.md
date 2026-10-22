@@ -144,6 +144,7 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   | harness and procedure | `evals/README.md` |
   | eval run procedure | `evals/README.md` |
   | results, baselines and md5 ledgers | `evals/BASELINES.md` |
+  | how the privacy hooks work | `hooks/README.md` |
   | status and next steps | `TODO.md` |
 
   Elsewhere, link to the home instead of restating it; a one-line pointer

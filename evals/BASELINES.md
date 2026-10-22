@@ -36,6 +36,14 @@ declared `clear` (ADR-0001, *Evidence*). 31 of 33 photos returned the same
 read on all three repeats; one upside-down photo returned three different
 invented codes.
 
+**Scope.** The set measures a narrower surface than "OCR": `si_numeric` and
+`cp_modern` only, no `si_alpha`; five negatives, all Certilogo-only labels.
+It is lopsided: one garment is 6 of 28 positives and four more have 4 rows
+each, so headline rates are weighted towards a few garments. Judge on the
+*per photo* table, and expect wins and losses to cluster by garment. Unlike
+the archived set, the positives are out-of-sample for the current prompt, and
+they are a single capture regime (1536x2048).
+
 ### Previous baselines (archived set)
 
 **2026-09-25 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`.**

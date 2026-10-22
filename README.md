@@ -2,25 +2,24 @@
 
 ![Street Garms Logo](assets/logosg.png)
 
-Turns photos of Stone Island and C.P. Company garment labels into structured
-listing data (product name, season, garment type) for a reseller of
-second-hand pieces. A vision model transcribes the label, a deterministic parser
-parses the ART number, and a private catalogue resolves it to a real product.
-Pre-launch, one developer, no users.
+Reads the ART number from photos of Stone Island and C.P. Company garment
+labels, the first step towards structured listing data (product name, season,
+garment type) for a reseller of second-hand pieces. A vision model transcribes
+the label, a deterministic parser parses the ART number, and a private
+catalogue resolves it to a real product. Pre-launch, one developer, no users:
+a proof of concept that moves on when it meets the phase 1 gate
+([ADR-0002](adr/0002-phase-1-acceptance.md)).
 
 ## The problem
 
-Each listing starts with the ART number, the product code on the label. It is often
-faded or garment-dyed, and often printed with no caption among importer text,
-phone numbers and dates. Reading it by eye and then identifying the product and
-season is slow, and one misread character can point to a different garment.
+Each listing starts with the ART number, the product code on the label. Reading it by eye and then identifying the product and season is slow, and one misread character can point to a different garment. It represents an area for automation and efficeny using a combination of AI and code.
 
 ## The key decision: the model only transcribes
 
 - **Transcribe** (`labels/transcribe.py`): one vision call for the ART number. The prompt
   forbids identifying, inferring or correcting. An unreadable character becomes
   `?`, never a guess.
-- **Decode** (`labels/art_number.py`): pure code with no I/O. It identifies the
+- **Parse** (`labels/art_number.py`): pure code with no I/O. It identifies the
   format family and decodes season and brand from lookup tables.
 - **Resolve** (`labels/catalogue.py`): exact catalogue lookup. On a miss it tries
   single-character OCR confusions (0/O, 1/I, 5/S, 8/B, 6/G). Only `exact` is confident.
@@ -37,8 +36,6 @@ misreads, 0 are corrected to the wrong garment and 12,819 are recovered. The oth
 10 land on another real code and resolve as `exact`. On an otherwise clean read,
 those 10 would publish under the wrong title without review.
 
-## Flow
-
 ```
 main.py  /  app/routes.py
   └─ labels/pipeline.py    extract_bytes() — the only join point
@@ -49,33 +46,74 @@ main.py  /  app/routes.py
                                  labels/schemas.py → Extraction
 ```
 
-## Evaluation
+Terms: [GLOSSARY.md](GLOSSARY.md).
 
-**Archived baseline, 2026-09-25,** on the archived eval set (the current baseline is in
-[evals/BASELINES.md](evals/BASELINES.md)): `anthropic:claude-sonnet-5`, tag `eval-baseline-2026-09-25b`.
-18 positive photos (14 distinct codes) and 4 photos with no ART number, each read
-3 times; all 66 reads scored. Harness: [evals/README.md](evals/README.md).
+## Where it stands
 
-| rate | current prompt | previous prompt |
-|---|---|---|
-| missed (no code returned) | 18 of 54 (33.3%) | 42 of 54 (77.8%) |
-| exact match | 36 of 54 (66.7%) | 12 of 54 (22.2%) |
-| wrong, of reads declared `clear` | 0 of 36 | 0 of 9 |
-| code invented on a no-code photo | 0 of 12 | 0 of 12 |
+Phase 1 has not been attempted yet. The run 0 code changes, a paid baseline
+and a held-out set of 30 garments come first ([TODO.md](TODO.md)).
 
-**Decision rule.** Fixed before the first baseline: a prompt change wins on a
-sign test over photos moving out of or into *missed*, and two guardrails on
-invented and overconfident reads can reject it regardless. Full rule:
-[ADR-0006](adr/0006-decision-rule-for-prompt-changes.md); its results are in
-[evals/BASELINES.md](evals/BASELINES.md).
+**Phase 1 gate.** Phase 1 passes on a held-out set of 30 garments, read 3
+times each, when at least 80% of readable garment-sides are correct, none is a
+silent error (wrong but shown as *looks right*), and at least 80% of correct
+in-catalogue sides are unflagged. Full gate and set rules:
+[ADR-0002](adr/0002-phase-1-acceptance.md).
 
-**Scope.** Every photo gave the same read on all 3 repeats, so in effect this is
-one sample per photo: 12 were read correctly and 6 were missed. The results are
-in-sample, because the change was accepted on this same set. They cover Stone
-Island only, and two parser formats (`si_numeric`, `si_namespace`). The catalogue's
-489 C.P. modern and 86 Stone Island alphanumeric rows use formats the eval has never
-tested. All 4 no-code photos are Certilogo-type (one care label, three crops), and
-3 positives are care labels of garments already in the set.
+**Current baseline, 2026-10-08:** `anthropic:claude-sonnet-5`, tag
+`eval-baseline-2026-10-08`. 28 positive photos of 10 garments and 5 photos with
+no ART number, each read 3 times.
+
+| rate | value |
+|---|---|
+| exact match | 39 of 84 positive reads (46.4%) |
+| missed (no code returned) | 21 of 84 (25.0%) |
+| wrong, of reads declared `clear` | 24 of 63 (38.1%) |
+| code invented on a no-code photo | 0 of 15 |
+| wrong and unflagged, replayed through parser, catalogue and gate | 18 of 84 (21%) |
+
+The largest failure is neighbouring codes joined onto the ART number and
+declared `clear`. Run 0 targets it: the parser splits the read into parts and
+flags anything that matches no known shape. Its checkpoint, replayed on these
+same reads, is at most 9 of 84 wrong and unflagged.
+
+**Scope.** The positives are out-of-sample for the current prompt, but the set
+is small and lopsided: `si_numeric` and `cp_modern` only, with no `si_alpha`
+(86 catalogue rows); one garment is 6 of the 28 positives; one capture size; and
+all five negatives are Certilogo-only labels. Results, earlier baselines and
+the decision rule for prompt changes
+([ADR-0006](adr/0006-decision-rule-for-prompt-changes.md)) are in
+[evals/BASELINES.md](evals/BASELINES.md); the harness is in
+[evals/README.md](evals/README.md).
+
+## How AI coding agents are used
+
+- **`CLAUDE.md` is the rule set.** It covers architecture, domain invariants and
+  working rules: commit before an eval run, change one variable per run, and never
+  weaken a test or edit ground truth to pass. `TODO.md` holds current state;
+  decisions are ADRs in `adr/`.
+- **A reviewer subagent** (`.claude/agents/code-reviewer.md`), told not to
+  edit, commit or push, reviews each branch against `main`, `CLAUDE.md` and the
+  ADRs. It runs the suite with the private catalogue present, checks the branch
+  for private data, and compares the manifest's md5 with the hand-kept ledger,
+  since ground truth never appears in a diff.
+- **Pull requests**: one topic per branch. `/open-pr`
+  (`.claude/skills/open-pr/SKILL.md`) runs the reviewer, writes the body with
+  its report, and stops for the maintainer to read it before pushing. Agents
+  never merge.
+- **Enforcement.** A GitHub ruleset on `main` is the hard limit: every change
+  arrives by PR with a green CI run, with no force pushes or deletion.
+  `.claude/settings.json` adds agent limits on top: it denies or asks before
+  reading private data, editing ground truth, pushing and merging, and hooks
+  run pytest and `ruff check` after an agent's edits.
+- **Privacy hooks** (`hooks/`) check every commit locally against the real
+  private values, which CI never sees, and report findings without the value.
+  How they work: [hooks/README.md](hooks/README.md).
+- **These are pattern matches, not a guarantee.** A command phrased another
+  way, or a read through the shell, gets past them. So the private-data rules
+  stay in `CLAUDE.md` as instructions too, and the reviewer flags every change
+  to `hooks/` or the settings for the maintainer.
+- **CI** (`.github/workflows/tests.yml`) runs `ruff check`, `pyright` and
+  `pytest -rs` on pushes and PRs to `main`, with no catalogue or API key.
 
 ## Running it
 
@@ -83,92 +121,48 @@ tested. All 4 no-code photos are Certilogo-type (one care label, three crops), a
 uv sync                                             # needs uv; creates .venv from uv.lock
 cp .env.example .env                                # add ANTHROPIC_API_KEY
 git config core.hooksPath hooks                     # privacy hooks, once per clone
-.venv/bin/python main.py <label.jpg>                  # CLI, prints JSON
+.venv/bin/python main.py <label.jpg>                # CLI, prints JSON
 .venv/bin/flask --app app run                       # web upload form
 .venv/bin/python -m pytest                          # offline, no API key
 .venv/bin/ruff check .                              # lint, rules in pyproject.toml
 .venv/bin/pyright                                   # types, basic mode
 .venv/bin/python tests/report_art_number.py         # parser score, needs catalogue
 .venv/bin/python tests/eval_transcription.py --model test --no-save   # harness, no API calls
-.venv/bin/python tests/eval_transcription.py --repeat 3 --workers 1 --note "..."  # as baseline
+.venv/bin/python tests/eval_transcription.py --repeat 3 --workers 1 --note "..."  # paid: real API calls
 ```
 
-The catalogue, eval photos and manifest are private and gitignored. Tests that need
-the catalogue skip rather than fail: currently 229 pass and 37 skip on a fresh clone,
-and 266 pass with it.
-
-## How AI coding agents are used
-
-- **`CLAUDE.md` is the rule set.** It covers architecture, domain invariants and
-  working rules: commit before an eval run, change one variable per run, and never
-  weaken a test or edit ground truth to pass. `TODO.md` holds current state.
-- **`.claude/agents/code-reviewer.md`** is a reviewer subagent, instructed not to
-  edit, commit or push. It reviews the branch against `main`, `CLAUDE.md` and the
-  ADRs, and runs the test suite locally, where the private catalogue is present.
-  It runs the privacy hooks' check over the branch and its commit messages, and
-  reports privacy as pass/fail only, never counts or values. Ground truth is gitignored,
-  so it never appears in a diff; the reviewer hashes the manifest and compares it
-  with the md5 ledger kept by hand in `evals/BASELINES.md`. A verdict of Ready to merge
-  requires a clean tree, so the report matches the commit it describes.
-- **Pull requests** follow `CLAUDE.md`: one topic per branch, the reviewer before
-  the PR opens (skipped for a diff that only touches the md5 ledger), and a
-  body written from `.github/pull_request_template.md` that includes the
-  reviewer's report and is read by the maintainer before it is published. `/open-pr` (`.claude/skills/open-pr/SKILL.md`) runs that flow and
-  stops before pushing. Agents never merge.
-- **Enforcement.** A GitHub ruleset on `main` is the hard limit: no direct or
-  force pushes, no deletion, and every change arrives by PR with a green CI
-  run. `.claude/settings.json` (tracked, so changes are reviewed) adds agent
-  limits on top: it denies reading `.env`, editing ground truth, photos or
-  results, `gh pr merge`, and the common forms of pushing or force-pushing
-  to `main`; it asks before any other push and before reading private data.
-  Hooks run pytest when an agent ends its turn and `ruff check` after each
-  Python edit, and hand any failure back to it. These rules match command
-  patterns, and Read rules don't cover shell commands, so the private-data
-  rules in `CLAUDE.md` remain instructions as well.
-- **Privacy hooks** (`hooks/`, installed with `git config core.hooksPath hooks`)
-  check every commit locally against the real private values, which CI never
-  sees: catalogue keys and product names, photo filenames and expected codes
-  from both eval manifests (dev and held-out), plus the reviewer's code-shaped
-  and image-filename patterns. A value blocks when a file's added lines hold it
-  more often than its removed lines, so a swapped code blocks too. Findings
-  print as type plus `file:line`, never the value; any error blocks the commit.
-  `hooks/allowed.sha256` holds hashes of the values allowed to appear anyway
-  (format examples, placeholder image names), never the values; a hash of a
-  short code can be reversed by brute force, so only non-private values belong
-  there. The pre-commit hook also blocks a manifest whose md5 isn't the last
-  row of its ledger table in `evals/BASELINES.md`; the held-out set has its own table. A
-  manifest with a header and no rows blocks every commit, so a new manifest's
-  first row and its first ledger row go in together. A missing catalogue or
-  dev manifest only prints a notice, which `/open-pr` and the code-reviewer
-  treat as a failed check. A missing held-out manifest prints a notice they
-  ignore, since the set doesn't exist yet, so once its ledger table has a row
-  the hook blocks instead. Agents are denied
-  `git commit --no-verify`/`-n` and changing `core.hooksPath`, and are asked
-  before editing `hooks/`. These are pattern matches, not a guarantee:
-  `--no-verify` placed where a pattern doesn't expect it, `chmod -x` or an edit
-  through Bash gets past them, so the code-reviewer flags every change under
-  `hooks/` or to these settings for the maintainer, and runs the same check
-  over the branch.
-- **CI** (`.github/workflows/tests.yml`) runs `ruff check`, `pyright` and `pytest -rs` on pushes and PRs
-  to `main`, with no catalogue or API key, so it is currently the 229-pass, 37-skip run.
+The catalogue, eval photos and manifest are private and gitignored. Tests that
+need the catalogue skip rather than fail, so a fresh clone and CI run green
+without it.
 
 ## Known limitations
 
-- On the archived eval set, 6 of 18 positive photos are missed on every read, 5 of them at 1200x1600.
-  Images are sent uncropped and unresized. Two eval photos share one expected code.
-- Parser seasons agree with the catalogue on 2,288 of 2,359 checkable rows. The
-  71 disagreements are untriaged, so that ground truth is unverified.
-- On an exact match the season comes from the parser, not the catalogue, so the
-  title and season can disagree unflagged. Which source wins is undecided.
-- CI runs only 1 of the 8 `needs_review` tests, because the rest need the catalogue.
-  The parser has no unit tests. There is no per-call cost tracking or eval spend cap.
-- `claude-sonnet-5` has no dated snapshot, so a silent model update can't be told
-  apart from other changes in a run diff.
-  The CLI shows a traceback on API failure, and the web form has no auth or rate limit.
+Most serious first.
+
+- **Silent wrong titles.** A misread that lands on another real code resolves
+  `exact` and isn't flagged (10 of the 12,829 synthetic misreads above). On an
+  exact match the season comes from the parser, not the catalogue, so title and
+  season can disagree unflagged; which source wins is undecided.
+- **Unverified ground.** The eval has never tested `si_alpha`. Parser seasons
+  agree with the catalogue on 2,288 of 2,359 checkable rows; the 71
+  disagreements are untriaged, so that ground truth is unverified.
+- **Thin test coverage in CI.** CI runs only 1 of the 8 `needs_review` tests,
+  because the rest need the catalogue. The parser has no unit tests.
+- **Recognition.** Images are sent uncropped and unresized. On the archived set,
+  5 of the 6 photos missed on every read were 1200x1600
+  ([evals/BASELINES.md](evals/BASELINES.md)).
+- **Operations.** There is no per-call cost tracking or eval spend cap.
+  `claude-sonnet-5` has no dated snapshot, so a silent model update can't be
+  told apart from other changes in a run diff. The web form has no auth or
+  rate limit.
+- **The CLI** shows a traceback on API failure.
 
 ## Deliberate choices and open questions
 
 - **Catalogue misses don't set `needs_review`.** Flagging every miss would make the flag meaningless.
+  Pending: ADR-0002 requires that a misread that misses the catalogue never shows
+  *looks right*; ADR-0004 will decide how.
 - **Not an agent loop.** pydantic-ai's `Agent` is a constrained-extraction wrapper, called once per listing.
 - **No care-label read.** Only the ART number is read, one call per listing. The earlier care-label details read (size, composition, origin, CLG, colour) was removed; it is kept at the `parked/details-read` tag.
-- **Open:** whether clean reads auto-publish or every listing gets human review.
+- **Later:** whether clean reads auto-publish or every listing gets human review.
+  Staff don't use phase 1, so ADR-0002 moves this to a later phase.
