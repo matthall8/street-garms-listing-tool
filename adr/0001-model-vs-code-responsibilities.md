@@ -2,7 +2,7 @@
 
 - **Status:** Accepted. *Pending decisions* and the `<N>`/`<rate>` placeholders
   under *Success criteria* stay Proposed until the last baseline recorded
-  before run 1.
+  before run 1. The launch criteria are superseded by ADR-0002.
 - **Date:** 2026-10-09. Terms moved to `GLOSSARY.md` 2026-10-18. Amended
   2026-10-19: thresholds from the full-manifest baseline.
 

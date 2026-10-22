@@ -69,6 +69,7 @@ under a different product name may be exceptions.
 |---|---|
 | `art_legible` | The model's rating of the read (of the `art_line` from run 1): `clear`, `partial` (some characters unreadable), `illegible` (an ART number is there but unreadable) or `not_visible` (no ART number in the photo). Anything but `clear` is a signal; `clear` proves nothing. |
 | `needs_review` | The gate: true means a person checks the listing before it publishes. |
+| *looks right* / *check this* | How a listing shows: `needs_review` false / true. |
 | `review_reasons` | Why `needs_review` is set. *(not in code yet)* |
 
 ## Evaluation
@@ -81,7 +82,10 @@ under a different product name may be exceptions.
 | garment-side | One garment's one side: the unit results are counted in. |
 | `expected_<term>` | A hand-labelled manifest column: `expected_art_line`, `expected_art_base`. Never produced by the parser. |
 | `expected_art_number` | Legacy column, kept so older reports stay comparable. Until the step-5 scorer, the only expected column the harness scores. |
-| wrong-and-unflagged | The primary metric: would publish an `art_base` other than `expected_art_base` (any code, on a negative) with `needs_review` false. A garment-side counts if any of its reads does (proposed). |
+| wrong-and-unflagged | The primary metric: would publish an `art_base` other than `expected_art_base` (any code, on a negative) with `needs_review` false. A garment-side counts if any of its reads does (ADR-0002). |
+| silent error | A wrong-and-unflagged garment-side: wrong, but shown as *looks right*. |
+| readable / illegible / absent | The by-eye label of a photo before any run (ADR-0002): every character of the ART number can be read; some can't; there is none (a negative). Separate from the model's `art_legible`. *(not in the manifest yet)* |
+| in the catalogue | The product's `expected_art_base` is a catalogue key. Products catalogued only under a compound key aren't, until ADR-0003's index. |
 | base-exact | `art_base` equals `expected_art_base`. |
 | line-exact | `art_line` equals `expected_art_line`; isolates the model. |
 | missed | Positives: no characters returned. |
