@@ -1,17 +1,14 @@
 # CLAUDE.md
 
-Takes photos of Stone Island / C.P. Company garment labels and produces
-structured listing data. A vision call transcribes the ART number, a
+Takes photos of Stone Island / C.P. Company garment labels and reads the ART
+number, the first part of a listing. A vision call transcribes it, a
 deterministic parser reads it, and a private catalogue resolves it to a real
-product. Pre-launch, one developer, no users.
-
-Not an agent loop: `Agent` is pydantic-ai's constrained-extraction wrapper,
-called once per listing. The care-label details read was removed; it is kept
-at the `parked/details-read` tag.
+product. Pre-launch, one developer, no users. A proof of concept: to move on,
+it must meet the phase 1 gate in `adr/0002-phase-1-acceptance.md`.
 
 This file describes stable architecture, domain invariants and working
-constraints. `TODO.md` describes what is currently changing — gaps, in-flight
-work, current scores.
+constraints. `TODO.md` describes what is currently changing — gaps and
+in-flight work; results are in `evals/BASELINES.md`.
 
 ## Flow
 
@@ -78,7 +75,9 @@ A `corrected` resolution is a silent substitution, so it forces
 **Catalogue misses deliberately do NOT flag** (`tests/test_pipeline.py`,
 `TestNeedsReview::test_catalogue_miss_does_not_flag`). Flagging every miss
 would make the flag meaningless. This is not a bug — don't "fix" it without
-changing the product semantics.
+changing the product semantics. Pending: ADR-0002 requires that a misread
+that misses the catalogue never shows *looks right*, and ADR-0004 will decide
+how. Its PR replaces this rule and that test together.
 
 **Private data never enters git** (`.gitignore:229-239`). Catalogue, photos,
 manifest, results — photos can carry live Certilogo codes. Never commit them,
