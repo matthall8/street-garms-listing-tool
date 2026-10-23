@@ -10,6 +10,7 @@ would have no effect.
 import pytest
 
 from labels import pipeline
+from labels.art_number import parse
 from labels.pipeline import extract_bytes
 from labels.schemas import (
     AmbiguousCharacter,
@@ -17,6 +18,7 @@ from labels.schemas import (
     ArtNumberReading,
     LabelReading,
 )
+from tests import synthetic as s
 
 PHOTO = (b"not-really-an-image", "image/png")
 
@@ -43,7 +45,7 @@ def run(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 1. needs_review — six clauses, each able to fire on its own
+# 1. needs_review — six clauses; all but `format is None` can fire on their own
 # ---------------------------------------------------------------------------
 
 
@@ -91,6 +93,155 @@ class TestNeedsReview:
         missing = clean_code[:-1] + ("Z" if clean_code[-1] != "Z" else "Y")
         result = run(missing)
         assert result.catalogue_match == "miss"
+        assert result.needs_review is False
+
+
+class TestNeedsReviewSynthetic:
+    """Test Needs Review using synthetic data, to allow for CI testing without making
+    private data public.
+    """
+    # One clean code per format family: an exact hit that decodes with a
+    # format, a year and no flags
+    BASELINES = [
+        s.GATE_SI_NUMERIC, s.GATE_SI_ALPHA, s.GATE_CP_TRANSITIONAL, s.GATE_CP_MODERN,
+    ]
+
+    FAKE = {
+        s.GATE_SI_NUMERIC: {"ART": s.GATE_SI_NUMERIC, "Product Name": "GATE_SI_NUMERIC"},
+        s.GATE_SI_ALPHA: {"ART": s.GATE_SI_ALPHA, "Product Name": "GATE_SI_ALPHA"},
+        s.GATE_CP_TRANSITIONAL: {"ART": s.GATE_CP_TRANSITIONAL, "Product Name": "GATE_CP_TRANSITIONAL"},
+        s.GATE_CP_MODERN: {"ART": s.GATE_CP_MODERN, "Product Name": "GATE_CP_MODERN"},
+        s.GATE_COUNTERFEIT_MARKER: {"ART": s.GATE_COUNTERFEIT_MARKER, "Product Name": "GATE_COUNTERFEIT_MARKER"},
+        s.GATE_COLLAB_LINE: {"ART": s.GATE_COLLAB_LINE, "Product Name": "GATE_COLLAB_LINE"},
+        s.GATE_NO_YEAR: {"ART": s.GATE_NO_YEAR, "Product Name": "GATE_NO_YEAR"},
+        s.GATE_CORRECTED_KEY: {"ART": s.GATE_CORRECTED_KEY, "Product Name": "GATE_CORRECTED_KEY"},
+        s.GATE_AMBIGUOUS_KEY_A: {"ART": s.GATE_AMBIGUOUS_KEY_A, "Product Name": "GATE_AMBIGUOUS_KEY_A"},
+        s.GATE_AMBIGUOUS_KEY_B: {"ART": s.GATE_AMBIGUOUS_KEY_B, "Product Name": "GATE_AMBIGUOUS_KEY_B"},
+        s.GATE_UNKNOWN_BRAND_GARMENT: {"ART": s.GATE_UNKNOWN_BRAND_GARMENT, "Product Name": "GATE_UNKNOWN_BRAND_GARMENT"},
+    }
+
+    @pytest.fixture(autouse=True)
+    def use_synthetic_catalogue(self, monkeypatch):
+        monkeypatch.setattr(
+            "labels.catalogue.load_catalogue", lambda *a, **k: self.FAKE
+        )
+
+    @pytest.mark.parametrize("code", BASELINES)
+    def test_clean_read_does_not_flag(self, run, code):
+        """The baseline. If this flags, every other test here is meaningless."""
+        result = run(code)
+
+        assert result.matched_art == code
+        assert result.catalogue_match == "exact"
+        assert result.legibility == "clear"
+        assert result.all_reads == []
+        assert result.flags == []
+        assert result.year is not None
+        assert result.decoded != "Unrecognised"
+        assert result.needs_review is False
+
+    @pytest.mark.parametrize("legibility", ["partial", "illegible", "not_visible"])
+    def test_any_legibility_short_of_clear_flags(self, run, legibility):
+        assert run(s.GATE_SI_ALPHA, legibility=legibility).needs_review is True
+
+    def test_ambiguous_characters_flag(self, run):
+        assert run(
+            s.GATE_SI_NUMERIC,
+            ambiguous=[AmbiguousCharacter(position=1, reading="0", alternative="O")],
+        ).needs_review is True
+
+    @pytest.mark.parametrize("code, flag", [
+        (s.GATE_COUNTERFEIT_MARKER, "possible-counterfeit-marker"),
+        (s.GATE_COLLAB_LINE, "collab-or-special-line-verify-season"),
+    ])
+    def test_a_parser_flag_alone_flags(self, run, code, flag):
+        """A flag on a code that otherwise decodes cleanly: a format, a year
+        and an exact hit, so only the flags clause can fire."""
+        result = run(code)
+
+        assert result.catalogue_match == "exact"
+        assert result.year is not None
+        assert result.flags == [flag]
+        assert result.needs_review is True
+
+    def test_no_year_on_a_recognised_format_flags(self, run):
+        """A season key outside the frozen table: the format is recognised but
+        there is no year, and no flag."""
+        result = run(s.GATE_NO_YEAR)
+
+        assert parse(s.GATE_NO_YEAR).format == "cp_modern"
+        assert result.catalogue_match == "exact"
+        assert result.flags == []
+        assert result.year is None
+        assert result.needs_review is True
+
+    @pytest.mark.parametrize(
+        "code", [s.GATE_UNRECOGNISED, s.GATE_TRUNCATED, s.GATE_TRUNCATED_CP]
+    )
+    def test_no_format_flags_but_never_alone(self, run, code):
+        """`format is None` can't fire on its own: every branch of parse() that
+        returns no format also adds a flag. One code per such branch."""
+        result = run(code)
+
+        assert parse(code).format is None
+        assert result.flags != []
+        assert result.needs_review is True
+
+    def test_correction_flags_even_when_everything_else_is_clean(self, run):
+        """A correction is a silent substitution and must be surfaced."""
+        result = run(s.GATE_CORRECTED_READ)
+
+        assert result.catalogue_match == "corrected"
+        assert result.matched_art == s.GATE_CORRECTED_KEY
+        assert result.product_name == "GATE_CORRECTED_KEY"
+        assert result.flags == []
+        assert result.year is not None
+        assert result.needs_review is True
+
+    def test_ambiguous_catalogue_match_flags(self, run):
+        """The read is one confusion from two keys, so nothing can choose
+        between them. Constructed, like `TestResolveAmbiguous`."""
+        result = run(s.GATE_AMBIGUOUS_READ)
+
+        assert result.catalogue_match == "ambiguous"
+        assert result.matched_art is None
+        assert result.flags == []
+        assert result.year is not None
+        assert result.needs_review is True
+
+    def test_pin_catalogue_miss_does_not_flag(self, run):
+        """Pins current behaviour, which ADR-0002 will change: a misread that
+        misses the catalogue must not show as *looks right*. The PR that
+        implements that rule changes this test."""
+        result = run(s.GATE_MISS)
+
+        assert result.catalogue_match == "miss"
+        assert result.product_name is None
+        assert result.flags == []
+        assert result.year is not None
+        assert result.needs_review is False
+
+    def test_pin_unknown_brand_and_garment_do_not_flag(self, run):
+        """Pins current behaviour: brand and garment are for display and not in
+        the gate. Which parser checks become review reasons is decided after
+        the parser split (TODO.md)."""
+        result = run(s.GATE_UNKNOWN_BRAND_GARMENT)
+
+        assert result.catalogue_match == "exact"
+        assert result.brand is None
+        assert result.garment is None
+        assert result.flags == []
+        assert result.needs_review is False
+
+    def test_pin_unreadable_mark_in_a_clear_read_does_not_flag(self, run):
+        """Pins current behaviour, which ADR-0002 will change. A known silent
+        error (TODO.md, parser split): a `?` past the decoded prefix never
+        resolves, so the read misses, and a clear read passes unflagged."""
+        result = run(s.GATE_UNREADABLE_MARK)
+
+        assert result.legibility == "clear"
+        assert result.catalogue_match == "miss"
+        assert result.flags == []
         assert result.needs_review is False
 
 
