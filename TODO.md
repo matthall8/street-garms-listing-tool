@@ -19,9 +19,10 @@ or model is a run under *Runs*, one per run.
 - [ ] Both sets cover every format family, `si_alpha` included (ADR-0002)
 
 ### Code
-- [ ] Gate tests pinning current behaviour (synthetic catalogue, so they run in CI)
 - [ ] Parse art_line per format family: art_base, art_suffix, art_lot,
-      art_unmatched (colour code, LOT number etc. all handled the same way)
+      art_unmatched (colour code, LOT number etc. all handled the same way).
+      Known silent error: a `clear` read with `?` past the decoded prefix
+      never resolves, so it misses, and passes the gate unflagged (ADR-0002)
 - [ ] Decide which parser checks stay review reasons once the split lands:
       `format is None` becomes unknown-format; `decoded.flags` stay;
       `year is None` stops flagging? (costs ADR-0002's third bar). Season,
@@ -90,8 +91,6 @@ or model is a run under *Runs*, one per run.
       model change can't be told from a prompt change in a run diff
 - [ ] Set the client's and the agent's output retries explicitly, log the
       request count per call, record worst-case latency in CLAUDE.md
-- [ ] Gate clauses with no test: a catalogue `ambiguous` result, and
-      `year is None` on a recognised format
 - [ ] Prompt-change policy: does ADR-0006's rule (with ADR-0001's
       wrong-and-unflagged for the contract v2 runs) become the general gate
       for shipping a prompt change? Which metric, what margin, how many repeats
