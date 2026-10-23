@@ -16,7 +16,7 @@ in-flight work; results are in `evals/BASELINES.md`.
 main.py  /  app/routes.py
   └─ labels/pipeline.py    extract_bytes() = transcribe(), then from_reading()
        ├─ labels/transcribe.py   1 vision call → LabelReading    (only module that calls an API)
-       └─ from_reading()         the only join point; no API call, so replays run it on saved reads
+       └─ from_reading()         the only join point; no API call, so replays can run it on saved reads
             ├─ labels/art_number.py   parse() → Art              (pure, no I/O)
             └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
                                           ↓

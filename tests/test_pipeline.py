@@ -368,19 +368,35 @@ class TestFromReading:
         s.GATE_CORRECTED_KEY: {"ART": s.GATE_CORRECTED_KEY, "Product Name": "GATE_CORRECTED_KEY"},
     }
 
-    # One read per kind of result: exact, flagged, corrected, miss, nothing read
+    # One read per kind of result, with the catalogue status and gate verdict
+    # it must give, so a change to the synthetic data can't quietly drop one
     READINGS = [
-        ArtNumberReading(art_number_raw=s.GATE_SI_NUMERIC, art_legible="clear"),
-        ArtNumberReading(
-            art_number_raw=s.GATE_SI_NUMERIC,
-            art_legible="partial",
-            ambiguous_characters=[
-                AmbiguousCharacter(position=4, reading="5", alternative="S")
-            ],
+        pytest.param(
+            ArtNumberReading(art_number_raw=s.GATE_SI_NUMERIC, art_legible="clear"),
+            "exact", False, id="exact",
         ),
-        ArtNumberReading(art_number_raw=s.GATE_CORRECTED_READ, art_legible="clear"),
-        ArtNumberReading(art_number_raw=s.GATE_MISS, art_legible="clear"),
-        ArtNumberReading(art_legible="not_visible"),
+        pytest.param(
+            ArtNumberReading(
+                art_number_raw=s.GATE_SI_NUMERIC,
+                art_legible="partial",
+                ambiguous_characters=[
+                    AmbiguousCharacter(position=4, reading="5", alternative="S")
+                ],
+            ),
+            "exact", True, id="flagged",
+        ),
+        pytest.param(
+            ArtNumberReading(art_number_raw=s.GATE_CORRECTED_READ, art_legible="clear"),
+            "corrected", True, id="corrected",
+        ),
+        pytest.param(
+            ArtNumberReading(art_number_raw=s.GATE_MISS, art_legible="clear"),
+            "miss", False, id="miss",
+        ),
+        pytest.param(
+            ArtNumberReading(art_legible="not_visible"),
+            "no_art_number", True, id="nothing-read",
+        ),
     ]
 
     @pytest.fixture(autouse=True)
@@ -396,19 +412,23 @@ class TestFromReading:
             raise AssertionError("from_reading() called transcribe()")
 
         monkeypatch.setattr(pipeline, "transcribe", no_transcribe)
-        result = from_reading(self.READINGS[0], source="saved.json")
+        reading = ArtNumberReading(art_number_raw=s.GATE_SI_NUMERIC, art_legible="clear")
+        result = from_reading(reading, source="saved.json")
 
         assert result.catalogue_match == "exact"
         assert result.source_image == "saved.json"
 
-    @pytest.mark.parametrize("reading", READINGS)
-    def test_gives_what_extract_bytes_gives(self, monkeypatch, reading):
+    @pytest.mark.parametrize("reading, status, needs_review", READINGS)
+    def test_gives_what_extract_bytes_gives(
+        self, monkeypatch, reading, status, needs_review
+    ):
         """One gate, two entry points: a replay of a saved read must get what
         the app got from the same read."""
         monkeypatch.setattr(
             pipeline, "transcribe", lambda art: LabelReading(art=reading)
         )
+        replayed = from_reading(reading, source="test.png")
 
-        assert asdict(from_reading(reading, source="test.png")) == asdict(
-            extract_bytes(art=PHOTO, source="test.png")
-        )
+        assert replayed.catalogue_match == status
+        assert replayed.needs_review is needs_review
+        assert asdict(replayed) == asdict(extract_bytes(art=PHOTO, source="test.png"))

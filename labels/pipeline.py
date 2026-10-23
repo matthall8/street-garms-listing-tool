@@ -14,8 +14,8 @@ Photo = tuple[bytes, str]  # (image_bytes, media_type)
 def from_reading(art_read: ArtNumberReading, source: str = "") -> Extraction:
     """Parse, resolve and gate one ART read: everything after transcription.
 
-    Makes no API call, so the eval replay and scorer run it on saved reads,
-    the same code the app runs. Not pure: resolve() reads the catalogue.
+    Makes no API call, so the eval replay and scorer can run it on saved
+    reads: the same code the app runs. Not pure: resolve() reads the catalogue.
     """
     decoded = parse(art_read.art_number_raw or "")
     matched = resolve(art_read.art_number_raw, art_read.art_legible)
