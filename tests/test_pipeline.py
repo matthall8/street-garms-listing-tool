@@ -7,11 +7,13 @@ transcribe`, which binds the name at import time, so patching the source module
 would have no effect.
 """
 
+from dataclasses import asdict
+
 import pytest
 
 from labels import pipeline
 from labels.art_number import parse
-from labels.pipeline import extract_bytes
+from labels.pipeline import extract_bytes, from_reading
 from labels.schemas import (
     AmbiguousCharacter,
     ArtLegibility,
@@ -350,3 +352,83 @@ class TestOneRead:
         T.transcribe(art=PHOTO)
 
         assert calls == [PHOTO]
+
+
+# ---------------------------------------------------------------------------
+# 5. from_reading() — what the eval replay and scorer call on a saved read
+# ---------------------------------------------------------------------------
+
+
+class TestFromReading:
+    """from_reading() must be the app's gate, reachable without an API call.
+    Synthetic catalogue, so these run in CI."""
+
+    FAKE = {
+        s.GATE_SI_NUMERIC: {"ART": s.GATE_SI_NUMERIC, "Product Name": "GATE_SI_NUMERIC"},
+        s.GATE_CORRECTED_KEY: {"ART": s.GATE_CORRECTED_KEY, "Product Name": "GATE_CORRECTED_KEY"},
+    }
+
+    # One read per kind of result, with the catalogue status and gate verdict
+    # it must give, so a change to the synthetic data can't quietly drop one
+    READINGS = [
+        pytest.param(
+            ArtNumberReading(art_number_raw=s.GATE_SI_NUMERIC, art_legible="clear"),
+            "exact", False, id="exact",
+        ),
+        pytest.param(
+            ArtNumberReading(
+                art_number_raw=s.GATE_SI_NUMERIC,
+                art_legible="partial",
+                ambiguous_characters=[
+                    AmbiguousCharacter(position=4, reading="5", alternative="S")
+                ],
+            ),
+            "exact", True, id="flagged",
+        ),
+        pytest.param(
+            ArtNumberReading(art_number_raw=s.GATE_CORRECTED_READ, art_legible="clear"),
+            "corrected", True, id="corrected",
+        ),
+        pytest.param(
+            ArtNumberReading(art_number_raw=s.GATE_MISS, art_legible="clear"),
+            "miss", False, id="miss",
+        ),
+        pytest.param(
+            ArtNumberReading(art_legible="not_visible"),
+            "no_art_number", True, id="nothing-read",
+        ),
+    ]
+
+    @pytest.fixture(autouse=True)
+    def use_synthetic_catalogue(self, monkeypatch):
+        monkeypatch.setattr(
+            "labels.catalogue.load_catalogue", lambda *a, **k: self.FAKE
+        )
+
+    def test_makes_no_api_call(self, monkeypatch):
+        """The replay runs it over saved reads, so it must never transcribe."""
+
+        def no_transcribe(art):
+            raise AssertionError("from_reading() called transcribe()")
+
+        monkeypatch.setattr(pipeline, "transcribe", no_transcribe)
+        reading = ArtNumberReading(art_number_raw=s.GATE_SI_NUMERIC, art_legible="clear")
+        result = from_reading(reading, source="saved.json")
+
+        assert result.catalogue_match == "exact"
+        assert result.source_image == "saved.json"
+
+    @pytest.mark.parametrize("reading, status, needs_review", READINGS)
+    def test_gives_what_extract_bytes_gives(
+        self, monkeypatch, reading, status, needs_review
+    ):
+        """One gate, two entry points: a replay of a saved read must get what
+        the app got from the same read."""
+        monkeypatch.setattr(
+            pipeline, "transcribe", lambda art: LabelReading(art=reading)
+        )
+        replayed = from_reading(reading, source="test.png")
+
+        assert replayed.catalogue_match == status
+        assert replayed.needs_review is needs_review
+        assert asdict(replayed) == asdict(extract_bytes(art=PHOTO, source="test.png"))

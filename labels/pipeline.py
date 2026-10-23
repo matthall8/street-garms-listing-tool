@@ -5,15 +5,18 @@ from pathlib import Path
 
 from labels.art_number import parse
 from labels.catalogue import resolve
-from labels.schemas import Extraction
+from labels.schemas import ArtNumberReading, Extraction
 from labels.transcribe import transcribe
 
 Photo = tuple[bytes, str]  # (image_bytes, media_type)
 
 
-def extract_bytes(art: Photo, source: str = "") -> Extraction:
-    """Full pipeline over raw image bytes — the form web uploads arrive in."""
-    art_read = transcribe(art=art).art
+def from_reading(art_read: ArtNumberReading, source: str = "") -> Extraction:
+    """Parse, resolve and gate one ART read: everything after transcription.
+
+    Makes no API call, so the eval replay and scorer can run it on saved
+    reads: the same code the app runs. Not pure: resolve() reads the catalogue.
+    """
     decoded = parse(art_read.art_number_raw or "")
     matched = resolve(art_read.art_number_raw, art_read.art_legible)
 
@@ -40,6 +43,12 @@ def extract_bytes(art: Photo, source: str = "") -> Extraction:
             or matched.status in ("corrected", "ambiguous")
         ),
     )
+
+
+def extract_bytes(art: Photo, source: str = "") -> Extraction:
+    """Full pipeline over raw image bytes — the form web uploads arrive in."""
+    art_read = transcribe(art=art).art
+    return from_reading(art_read, source)
 
 
 def _photo(path: Path) -> Photo:

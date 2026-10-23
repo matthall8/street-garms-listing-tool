@@ -254,7 +254,7 @@ overconfident.)
 **overconfident** — the model said `clear`, got the code wrong, and flagged no
 characters as ambiguous. This is the closest thing here to a "silently wrong"
 rate, but read it carefully: **it is not the rate at which a wrong listing gets
-published.** That gate is `needs_review` (`labels/pipeline.py:34-41`), which
+published.** That gate is `needs_review` (`labels/pipeline.py:37-44`), which
 also consults the parser and the catalogue, so this number is wrong in both
 directions:
 
@@ -265,9 +265,9 @@ directions:
   number cannot distinguish it from the flagged kind, so it **understates** the
   failure that actually matters.
 
-To get the publish-gate number, replay `parse` + `resolve` over a saved report
-and count reads that are wrong with `needs_review` False. That costs no API
-calls.
+To get the publish-gate number, run `from_reading()` (`labels/pipeline.py`) on
+each read in a saved report and count reads that are wrong with `needs_review`
+False. It's the app's own gate, and costs no API calls.
 
 **clear but wrong** is the same failure measured only over reads the model
 called `clear` — how far `clear` can be trusted. It's omitted when no read was

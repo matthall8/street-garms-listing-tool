@@ -41,12 +41,13 @@ those 10 would publish under the wrong title without review.
 
 ```
 main.py  /  app/routes.py
-  └─ labels/pipeline.py    extract_bytes() — the only join point
+  └─ labels/pipeline.py    extract_bytes() = transcribe(), then from_reading()
        ├─ labels/transcribe.py   1 vision call → LabelReading    (only module that calls an API)
-       ├─ labels/art_number.py   parse() → Art                   (pure, no I/O)
-       └─ labels/catalogue.py    resolve() → Resolution          (reads the private CSV)
-                                     ↓
-                                 labels/schemas.py → Extraction
+       └─ from_reading()         the only join point; no API call, so replays can run it on saved reads
+            ├─ labels/art_number.py   parse() → Art              (pure, no I/O)
+            └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
+                                          ↓
+                                      labels/schemas.py → Extraction
 ```
 
 Terms: [GLOSSARY.md](GLOSSARY.md).
