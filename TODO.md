@@ -33,9 +33,6 @@ or model is a run under *Runs*, one per run.
       CLAUDE.md's invariant, `test_catalogue_miss_does_not_flag`. Lands after
       the checkpoint and run 0's baseline: it is drafted from that baseline
       (ADR-0001, *Pending decisions*), and the checkpoint replays run 0 alone
-- [ ] Split `extract_bytes()`: `transcribe()`, then a pure
-      `from_reading(reading) -> Extraction`, so the app, eval and replay run
-      the same code
 - [ ] Scorer, per read (`Evaluator`): run `from_reading()` on the saved read;
       correct = the catalogue result is right for `expected_art_base`
       (`resolved_key` equals it if it's a catalogue key, else `no_key` and

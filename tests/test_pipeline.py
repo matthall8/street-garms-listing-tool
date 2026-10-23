@@ -7,11 +7,13 @@ transcribe`, which binds the name at import time, so patching the source module
 would have no effect.
 """
 
+from dataclasses import asdict
+
 import pytest
 
 from labels import pipeline
 from labels.art_number import parse
-from labels.pipeline import extract_bytes
+from labels.pipeline import extract_bytes, from_reading
 from labels.schemas import (
     AmbiguousCharacter,
     ArtLegibility,
@@ -350,3 +352,63 @@ class TestOneRead:
         T.transcribe(art=PHOTO)
 
         assert calls == [PHOTO]
+
+
+# ---------------------------------------------------------------------------
+# 5. from_reading() — what the eval replay and scorer call on a saved read
+# ---------------------------------------------------------------------------
+
+
+class TestFromReading:
+    """from_reading() must be the app's gate, reachable without an API call.
+    Synthetic catalogue, so these run in CI."""
+
+    FAKE = {
+        s.GATE_SI_NUMERIC: {"ART": s.GATE_SI_NUMERIC, "Product Name": "GATE_SI_NUMERIC"},
+        s.GATE_CORRECTED_KEY: {"ART": s.GATE_CORRECTED_KEY, "Product Name": "GATE_CORRECTED_KEY"},
+    }
+
+    # One read per kind of result: exact, flagged, corrected, miss, nothing read
+    READINGS = [
+        ArtNumberReading(art_number_raw=s.GATE_SI_NUMERIC, art_legible="clear"),
+        ArtNumberReading(
+            art_number_raw=s.GATE_SI_NUMERIC,
+            art_legible="partial",
+            ambiguous_characters=[
+                AmbiguousCharacter(position=4, reading="5", alternative="S")
+            ],
+        ),
+        ArtNumberReading(art_number_raw=s.GATE_CORRECTED_READ, art_legible="clear"),
+        ArtNumberReading(art_number_raw=s.GATE_MISS, art_legible="clear"),
+        ArtNumberReading(art_legible="not_visible"),
+    ]
+
+    @pytest.fixture(autouse=True)
+    def use_synthetic_catalogue(self, monkeypatch):
+        monkeypatch.setattr(
+            "labels.catalogue.load_catalogue", lambda *a, **k: self.FAKE
+        )
+
+    def test_makes_no_api_call(self, monkeypatch):
+        """The replay runs it over saved reads, so it must never transcribe."""
+
+        def no_transcribe(art):
+            raise AssertionError("from_reading() called transcribe()")
+
+        monkeypatch.setattr(pipeline, "transcribe", no_transcribe)
+        result = from_reading(self.READINGS[0], source="saved.json")
+
+        assert result.catalogue_match == "exact"
+        assert result.source_image == "saved.json"
+
+    @pytest.mark.parametrize("reading", READINGS)
+    def test_gives_what_extract_bytes_gives(self, monkeypatch, reading):
+        """One gate, two entry points: a replay of a saved read must get what
+        the app got from the same read."""
+        monkeypatch.setattr(
+            pipeline, "transcribe", lambda art: LabelReading(art=reading)
+        )
+
+        assert asdict(from_reading(reading, source="test.png")) == asdict(
+            extract_bytes(art=PHOTO, source="test.png")
+        )
