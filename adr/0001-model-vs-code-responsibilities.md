@@ -115,7 +115,7 @@ It does everything with a right answer that can be written down.
   any `art_suffix` or `art_lot` using family rules. Anything unrecognised
   becomes `art_trailing`.
 - Gives spaces no meaning: it strips them, and splits by fixed family length or
-  at a printed slash, never at a space.
+  at a printed slash, never at a space. Superseded in part by ADR-0005.
 - Validates format, resolves the `style_code` against the catalogue, and gates
   publication.
 - Surfaces any correction it makes. A corrected result is flagged for review.
