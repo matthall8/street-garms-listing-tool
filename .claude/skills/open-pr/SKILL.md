@@ -132,9 +132,9 @@ every section short; the whole body should fit on one screen with the
   `<details>` block is deleted.
 - **Eval:** "None" unless something sent to the model changed (prompt,
   the schemas sent to it, model strings, MODEL_SETTINGS). Those schemas
-  are `ArtNumberReading`, `AmbiguousCharacter` and `LabelReading`;
-  `Extraction` and other `schemas.py` code the model never sees need no
-  eval. Then give the eval tag, fingerprint and decision-rule result. The
+  are `ArtNumberReading` and the types inside it (`AmbiguousCharacter`,
+  `ArtLegibility`); `LabelReading`, `Extraction` and other `schemas.py`
+  code the model never sees need no eval. Then give the eval tag, fingerprint and decision-rule result. The
   only exception is a change to those schemas' code (not their
   descriptions or field names) proven not to alter `model_json_schema()`:
   "None. Schema unchanged (checked, see <sha>)". Any change to prompt text
