@@ -2,8 +2,9 @@
 
 - **Status:** Accepted, provisional until run 1.
 - **Date:** 2026-10-26
-- **Supersedes:** in part, ADR-0001's rule that code gives spaces no meaning
-  and never splits at a space (*Decision*, *Code*).
+- **Supersedes:** in part, ADR-0001's rule for where the base ends (strip
+  spaces; split by fixed family length or at a printed slash; never at a
+  space) (*Decision*, *Code*).
 - **Terms:** see `GLOSSARY.md`.
 
 ## Context
@@ -113,7 +114,8 @@ Changing a value is a product decision.
 | a failed split (candidate lookup) | always |
 | a character outside the allowed set | always |
 | an unknown season key | always |
-| no season in the code (`season_not_in_code`) | ADR-0004 |
+| no season in the code (`season_not_in_code`) | always, as today (ADR-0001's decoder row); ADR-0004 decides whether a confident hit relaxes it |
+| every other existing parser flag (`truncated`, `unrecognised`, `possible-counterfeit-marker`, `collab-or-special-line-verify-season`, `reorder-prefix-no-season`, …) | always, as today (ADR-0001, decoder row) |
 | `art_lot` | never |
 | an `ambiguous_characters` position outside `art_line`, or a reading that doesn't match the character there | never (any entry already flags: ADR-0001) |
 
@@ -142,7 +144,8 @@ Changing a value is a product decision.
 - Catalogue misses, including an SI 8↔9 change that misses.
 - The confusion-pair margin: an exact hit one swap from another key.
 - Bare/compound pairs, fused pairs included.
-- Whether no season in the code flags unless the hit is confident.
+- No season in the code: always flags, as today (ADR-0001's decoder row);
+  ADR-0004 decides whether a confident hit relaxes it.
 
 ## Alternatives considered
 
@@ -161,7 +164,9 @@ Changing a value is a product decision.
 
 ## Consequences
 
-- ADR-0001's spaces rule is superseded in part; the rest of *Code* stands.
+- ADR-0001's rule for where the base ends (strip spaces; split by fixed
+  family length or at a printed slash; never at a space) is superseded; the
+  rest of *Code* stands.
 - The rules live here; `GLOSSARY.md` links to them.
 - The measured effect comes from the checkpoint replay (ADR-0002) on the
   branch that wires the split into the gate. The implementation order is in
