@@ -25,22 +25,8 @@ wherever it is held: on a label, in the manifest or in a catalogue key.
 
 ### Parsing rules
 
-The target for the split (TODO.md, *Code*). *(not in code yet)*
-
-- **Base end:** C.P. Company bases have a fixed length. Stone Island numeric
-  bases end at their era's length (the length for their range of seasons)
-  once that table is settled. Until then they end only at a printed slash,
-  so a base followed by a numeric code with no slash runs on, fails its
-  shape and flags.
-- **Separators:** `/` and `-` between parts are discarded; no shape contains
-  either. Spaces mean nothing; parts are found by shape.
-- **`?`:** stands for exactly one character. A code that a `?` makes fit two
-  shapes becomes `art_unmatched`; the rest of the line parses as usual.
-- **Flags:** the split adds two: any `art_unmatched` and any `?`. The
-  parser's existing format flags (`truncated`, `unrecognised`, …) stay; the
-  rest are in the gate (ADR-0001).
-- **Not yet decided (the split):** which code is the `art_base` when several
-  could be, and which shape wins when a code fits two without a `?`.
+The split's rules and flags are in [ADR-0005](adr/0005-art-line-split.md).
+*(not in code yet)*
 
 `ART NO. <base>/<suffix> <lot> <unmatched>` gives `art_caption` `ART NO.`,
 `art_base` `<base>`, `art_suffix` `<suffix>`, `art_lot` `<lot>` and
@@ -61,7 +47,7 @@ under a different product name may be exceptions.
 | compound key | An `art_base` plus a suffix, *separated* (`<base>/<suffix>`) or *fused* (`<base><suffix>`). Fused keys aren't separated, because a fused suffix may not be an `art_suffix` (ADR-0003). |
 | confusion pair | Characters a misread swaps, such as `0`/`O`; listed in `CONFUSIONS` in `labels/catalogue.py`. |
 | `resolved_key` | The key a lookup resolved to. *(not in code yet: `matched_art`)* |
-| catalogue outcome | `Resolution.status`: `exact`, `corrected` (one confusion-pair swap from one key), `ambiguous` (from several), `no_key` *(not in code yet: `miss`)* or `no_art_number`. Only `exact` is confident; `corrected` and `ambiguous` flag, `no_key` deliberately doesn't. Looked up: the raw read (`art_number_raw`) until the split, then the `art_base`. From then, a design catalogued only under compound keys is `no_key`: a known gap, for ADR-0003. |
+| catalogue outcome | `Resolution.status`: `exact`, `corrected` (one confusion-pair swap from one key), `ambiguous` (from several), `no_key` *(not in code yet: `miss`)* or `no_art_number`. Only `exact` is confident; `corrected` and `ambiguous` flag, `no_key` deliberately doesn't. Looked up: the raw read (`art_number_raw`) until the split, then the `art_base` (a candidate when the split fails: ADR-0005). From then, a design catalogued only under compound keys is `no_key`: a known gap, for ADR-0003. |
 
 ## Review
 

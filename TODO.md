@@ -19,20 +19,35 @@ or model is a run under *Runs*, one per run.
 - [ ] Both sets cover every format family, `si_alpha` included (ADR-0002)
 
 ### Code
-- [ ] Parse art_line per format family: art_base, art_suffix, art_lot,
-      art_unmatched (colour code, LOT number etc. all handled the same way).
-      Known silent error: a `clear` read with `?` past the decoded prefix
-      never resolves, so it misses, and passes the gate unflagged (ADR-0002)
-- [ ] Decide which parser checks stay review reasons once the split lands:
-      `format is None` becomes unknown-format; `decoded.flags` stay;
-      `year is None` stops flagging? (costs ADR-0002's third bar). Season,
-      year, brand and garment decoding stay for display; the season
-      precedence fix (*Later*) decides the source on a catalogue hit
-- [ ] ADR-0004: a misread that misses the catalogue never shows "looks right"
-      (leaning: every miss flags in phase 1). Same PR: `review_reasons`,
-      CLAUDE.md's invariant, `test_catalogue_miss_does_not_flag`. Lands after
-      the checkpoint and run 0's baseline: it is drafted from that baseline
-      (ADR-0001, *Pending decisions*), and the checkpoint replays run 0 alone
+- [ ] The split (ADR-0005), one branch per step:
+      1. split structure, not wired into the gate
+      2. split tails
+      3. wiring: changes the gate, measured by the checkpoint replay
+      4. product decisions, one per branch
+      5. renames
+      Known silent error until the wiring: a `clear` read with `?` past the
+      decoded prefix never resolves, so it misses, and passes the gate
+      unflagged (ADR-0002)
+- [ ] multi_line (a newline in the read): undecided, unconfirmed in reads
+- [ ] Whether the possible-counterfeit flag stays a review reason, now that
+      the split checks it in `art_base` only. Season, year, brand and
+      garment decoding stay for display; the season precedence fix (*Later*)
+      decides the source on a catalogue hit
+- [ ] ADR-0004, the catalogue rules (ADR-0001, *Pending decisions*):
+      catalogue misses, so a misread that misses never shows "looks right"
+      (leaning: every miss flags in phase 1); the confusion-pair margin;
+      bare/compound pairs, fused pairs included; whether no season in the
+      code (`season_not_in_code`) flags unless the hit is confident. Same PR:
+      `review_reasons`, CLAUDE.md's invariant, and the tests it inverts:
+      `test_catalogue_miss_does_not_flag` and the split's pin tests
+      `test_pin_si_insertion_8_to_9_does_not_flag`,
+      `test_pin_si_end_truncation_9_to_8_does_not_flag`,
+      `test_pin_si_front_truncation_does_not_flag`,
+      `test_pin_exact_hit_one_swap_from_another_key`,
+      `test_pin_bare_and_compound_pair` and
+      `test_pin_fused_catalogue_key_misses`. Lands after the checkpoint and
+      run 0's baseline: it is drafted from that baseline (ADR-0001, *Pending
+      decisions*), and the checkpoint replays run 0 alone
 - [ ] Scorer, per read (`Evaluator`): run `from_reading()` on the saved read;
       correct = the catalogue result is right for `expected_art_base`
       (`resolved_key` equals it if it's a catalogue key, else `no_key` and
@@ -101,13 +116,13 @@ or model is a run under *Runs*, one per run.
 - [ ] Capture guidance in the web UI: back tag with the square code in frame,
       decode on upload, prompt for a retake if nothing decodes
 - [ ] ADR-0001 runs 3 (`next_line`) and 4 (size, brand, colour)
-- [ ] Catalogue index and confusion-pair margin (ADR-0003)
+- [ ] Catalogue index (ADR-0003)
 - [ ] Catalogue inspection: bare/compound duplicates, keys with a suffix
-      typed on, odd-length rows; settles the Stone Island numeric era length
-      table (frozen data, decided by a person)
+      typed on, odd-length rows. The Stone Island numeric era-length table
+      only on ADR-0005's trigger
 - [ ] Parser unit tests beyond the split: format detection, the `len(s) >= 8`
-      guard, the `/181` strip, the `222` flag, the `0`→`O` repair, the `'10'`
-      carve-out. Season assertions wait for the 71-row triage
+      guard, the `/181` strip, the `222` flag, the `'10'` carve-out. Season
+      assertions wait for the 71-row triage
 - [ ] `ArtNumberReading`'s docstring still says "framed on the ART number
       tag"; it reaches the model, so change it on its own and measure it
 - [ ] Crop to the label region before the call (resizing is under *Runs*)
