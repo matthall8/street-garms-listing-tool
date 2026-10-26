@@ -131,11 +131,14 @@ every section short; the whole body should fit on one screen with the
   <passed>/<failed>/<skipped>, exit <code>", Findings is "None", and the
   `<details>` block is deleted.
 - **Eval:** "None" unless something sent to the model changed (prompt,
-  schemas, model strings, MODEL_SETTINGS). Then give the eval tag,
-  fingerprint and decision-rule result. The only exception is a change to
-  `schemas.py` code (not its descriptions or field names) proven not to
-  alter `model_json_schema()`: "None. Schema unchanged (checked, see
-  <sha>)". Any change to prompt text needs an eval.
+  the schemas sent to it, model strings, MODEL_SETTINGS). Those schemas
+  are `ArtNumberReading`, `AmbiguousCharacter` and `LabelReading`;
+  `Extraction` and other `schemas.py` code the model never sees need no
+  eval. Then give the eval tag, fingerprint and decision-rule result. The
+  only exception is a change to those schemas' code (not their
+  descriptions or field names) proven not to alter `model_json_schema()`:
+  "None. Schema unchanged (checked, see <sha>)". Any change to prompt text
+  needs an eval.
 - **Gate impact:** "None", or what changed in `needs_review` and the test
   covering it.
 - **Checks:** tick a box only if it's fully true. Otherwise leave it
