@@ -323,10 +323,10 @@ Every report records what produced it, shown in its header:
 To test a change:
 
 1. Run a baseline before changing anything:
-   `--repeat 3 --workers 1 --note "baseline: current prompt"`
+   `--repeat 3 --workers 1 --note "baseline: current prompt, workers 1"`
 2. Make **one** change — a prompt edit, a model swap.
 3. Run again against it:
-   `--repeat 3 --workers 1 --note "whole-label search" --baseline evals/results/<baseline>.json`
+   `--repeat 3 --workers 1 --note "whole-label search, workers 1" --baseline evals/results/<baseline>.json`
 
 The diff shows what changed in the header (`prompt: 8f1e… → 3a7c…`) and, per
 photo, results that flipped (`✔ → ✗`). With `--repeat` those flips pair
