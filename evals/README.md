@@ -2,8 +2,8 @@
 
 Photos, their manifest and run results stay local — label photos can carry live
 Certilogo authentication codes and scannable QR codes for specific garments, and
-saved reports contain the codes read from them. Only this README and
-`manifest.example.csv` are tracked.
+saved reports contain the codes read from them. Only this README,
+`BASELINES.md` and `manifest.example.csv` are tracked.
 
 The harness is built on [pydantic-evals](https://ai.pydantic.dev/evals/). Each
 photo is a case, each run produces a report, and reports are saved so a change
@@ -323,10 +323,10 @@ Every report records what produced it, shown in its header:
 To test a change:
 
 1. Run a baseline before changing anything:
-   `--repeat 3 --note "baseline: current prompt"`
+   `--repeat 3 --workers 1 --note "baseline: current prompt, workers 1"`
 2. Make **one** change — a prompt edit, a model swap.
 3. Run again against it:
-   `--repeat 3 --note "whole-label search" --baseline evals/results/<baseline>.json`
+   `--repeat 3 --workers 1 --note "whole-label search, workers 1" --baseline evals/results/<baseline>.json`
 
 The diff shows what changed in the header (`prompt: 8f1e… → 3a7c…`) and, per
 photo, results that flipped (`✔ → ✗`). With `--repeat` those flips pair
@@ -347,15 +347,16 @@ Things that make a comparison meaningless:
   column changes the fingerprint too; the md5 ledger's "what changed" column
   in `evals/BASELINES.md` says which it was.
 - **One run each.** The same photo can read correctly on one run and not the
-  next. With 15 photos a single flip moves exact match by about 7 points, so
-  use `--repeat 3` before trusting a difference.
+  next, so use `--repeat 3` before trusting a difference. Set sizes are in
+  [ADR-0002](../adr/0002-phase-1-acceptance.md).
 
 Reports saved before the move to pydantic-evals use an older format and can't
 be used as a baseline.
 
 ## Choosing photos
 
-Aim for 10–15 with a spread, not a hundred of the same thing:
+Set sizes are in [ADR-0002](../adr/0002-phase-1-acceptance.md). Aim for a
+spread, not many of the same thing:
 
 - C.P. Company pieces where one label carries everything
 - Stone Island where the ART number is on its own tag

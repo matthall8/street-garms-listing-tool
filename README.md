@@ -132,8 +132,9 @@ Most serious first.
 - **Unverified ground.** The eval has never tested `si_alpha`. Parser seasons
   agree with the catalogue on 2,288 of 2,359 checkable rows; the 71
   disagreements are untriaged, so that ground truth is unverified.
-- **Thin test coverage in CI.** CI runs only 1 of the 8 `needs_review` tests,
-  because the rest need the catalogue. The parser has no unit tests.
+- **Thin test coverage in CI.** CI runs 20 of the 27 `needs_review` test
+  cases, on a synthetic catalogue; the other 7 need the real one. The parser
+  has no unit tests.
 - **Recognition.** Images are sent uncropped and unresized. On the archived set,
   5 of the 6 photos missed on every read were 1200x1600
   ([evals/BASELINES.md](evals/BASELINES.md)).

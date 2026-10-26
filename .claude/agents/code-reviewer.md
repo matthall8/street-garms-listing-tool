@@ -192,11 +192,11 @@ run: list it under Validation gaps with the skip reasons.
   from `main`. It stays out of the report, since section 6 keeps private
   data already on `main` out of it: before the report, write one line,
   `Stop: inherited privacy problem at <file:line>, not for the PR body`,
-  and nothing else about it. If an open `TODO.md` item already covers it
-  (for example, *Split and scrub this file* covers private data in
-  `TODO.md`), write nothing about it and carry on: that item is the fix
-  branch. Do the same for a gap in a privacy check that `README.md`'s
-  *Known limitations* already documents.
+  and nothing else about it. If an open `TODO.md` item already covers it,
+  write nothing about it and carry on: that item is the fix branch. Do
+  the same for a gap in a privacy check that `README.md`'s *These are
+  pattern matches, not a guarantee* (under *How AI coding agents are
+  used*) already documents.
 - If the only fix is a plan change beyond the branch's topic
   (`git log main..HEAD`), as CLAUDE.md's *No plan changes in passing*
   defines it, the fix sentence proposes a separate branch, not an edit.

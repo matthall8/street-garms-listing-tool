@@ -20,17 +20,22 @@ or model is a run under *Runs*, one per run.
 
 ### Code
 - [ ] The split (ADR-0005), one branch per step:
-      1. split structure, not wired into the gate
+      1. split structure, not wired into the gate; turn the code-shaped
+         comments in `labels/art_number.py` outside the docstring into
+         shapes
       2. split tails
       3. wiring: changes the gate, measured by the checkpoint replay;
-         remove `parse()`'s `0`→`O` repair
+         remove `parse()`'s `0`→`O` repair; flips
+         `test_pin_unreadable_mark_in_a_clear_read_does_not_flag` (any `?`
+         flags: ADR-0005, *Flag table*)
       4. product decisions, one per branch
       5. renames
       Known silent error until the wiring: a `clear` read with `?` past the
       decoded prefix never resolves, so it misses, and passes the gate
       unflagged (ADR-0002)
 - [ ] multi_line (a newline in the read): undecided, unconfirmed in reads
-- [ ] Whether the possible-counterfeit flag stays a review reason. Season,
+- [ ] Whether the possible-counterfeit flag stays a review reason
+      (ADR-0005, *Flag table*). Season,
       year, brand and garment decoding stay for display; the season
       precedence fix (*Later*) decides the source on a catalogue hit
 - [ ] ADR-0004, the catalogue rules: catalogue misses, so a misread that
@@ -38,8 +43,11 @@ or model is a run under *Runs*, one per run.
       1); the confusion-pair margin; bare/compound pairs (ADR-0001, *Pending
       decisions*), fused pairs included; whether a confident hit relaxes no
       season in the code (`season_not_in_code`, ADR-0005). Same PR:
-      `review_reasons`, CLAUDE.md's invariant, and the tests it inverts:
-      `test_catalogue_miss_does_not_flag` and the split's pin tests
+      `review_reasons`, CLAUDE.md's invariant and its restatements
+      (GLOSSARY.md's catalogue outcome, "deliberately doesn't"; README.md,
+      *Deliberate choices*), and the tests it inverts:
+      `test_catalogue_miss_does_not_flag`,
+      `test_pin_catalogue_miss_does_not_flag` and the split's pin tests
       (ADR-0005's accepted costs), named when they're written. Lands after
       the checkpoint and run 0's baseline: it is drafted from that baseline
       (ADR-0001, *Pending decisions*), and the checkpoint replays run 0 alone
@@ -53,7 +61,8 @@ or model is a run under *Runs*, one per run.
       2 of 3 reads are correct and unflagged; the three
       ADR-0002 bars and the excluded count. Needs `garment`, `side` and the
       by-eye label in case metadata. Keep line-exact and base-exact per photo
-      for dev diagnosis
+      for dev diagnosis; dev garment-sides with several photos are also
+      reported per photo
 - [ ] Scorer tests on the synthetic catalogue, so they run in CI
 - [ ] Eval provenance: harness hashes photos (replaces the broken recipe)
 - [ ] Usage / cost capture (SG billing?): must land before the first paid run
@@ -68,12 +77,17 @@ or model is a run under *Runs*, one per run.
 ### Runs (development only)
 - [ ] Replay baseline on saved reads (free)
 - [ ] Checkpoint: the replay brings wrong-and-unflagged from 18 to at most 9
-      of 84 positive reads, or stop and revisit ADR-0001 (ADR-0002)
+      of 84 positive reads, or stop and revisit ADR-0001 (ADR-0002). The 18
+      was measured against `expected_art_number`, so the replay re-measures
+      it against `expected_art_base` before comparing
 - [ ] Run 0
 - [ ] Dev set freezes when that baseline is recorded; new photos go to test
 - [ ] Iterations: auto-rotate, image resizing?, compare models
-      (Sonnet, Opus, Haiku: check current versions), prompt describes all
-      known shapes, never catalogue values
+      (Sonnet, Opus, Haiku: check current versions), prompt gives
+      character classes, never lengths
+- [ ] Replace `ART_PROMPT`'s real examples with invented ones: 8–9
+      characters, one with a leading zero, checked not to be catalogue keys
+- [ ] Barcode guidance in the prompt
 
 ### Gate
 - [ ] Gate attempt on the test set, from a tagged commit; at most 3 in
@@ -101,9 +115,11 @@ or model is a run under *Runs*, one per run.
 - [ ] Prompt-change policy: does ADR-0006's rule (with ADR-0001's
       wrong-and-unflagged for the contract v2 runs) become the general gate
       for shipping a prompt change? Which metric, what margin, how many repeats
+- [ ] Privacy ADR: a Certilogo code is never shown as a code, never in an
+      identifying field and never logged; it is stored alongside the photo
 
 ### Out of phase 1
-- [ ] Data Matrix stage (new ADR number; 0002 is taken): decode, keep Data
+- [ ] Data Matrix ADR (new number; 0002 is taken) and stage: decode, keep Data
       Matrix only, parse `ART-Vnnnn-size-TOM…`. The payload's CLG tail is
       dropped at parse and never stored, logged or raised; QR and Code 128
       contents are never returned. The vision path must be complete when the
