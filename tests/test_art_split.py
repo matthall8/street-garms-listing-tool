@@ -366,3 +366,56 @@ class TestCharacters:
         """LINE-12: ASCII only, never normalised; anything else flags. A newline
         inside the line is outside the allowed set (ADR-0005, Characters)."""
         assert "disallowed_character" in split_art_line(line).problems
+
+
+def unmatched(line):
+    return ArtSplit(art_unmatched=(line,), problems=("art_unmatched",))
+
+
+class TestWrongLine:
+    def test_barcode_number_flags(self):
+        """LINE-01: it starts like an SI code, so only the length check catches it."""
+        assert split_art_line(s.SPLIT_BARCODE) == BAD_BASE
+
+    @pytest.mark.parametrize(
+        "line", ["Tg. M", s.SPLIT_NEXT_LINE], ids=["size_line", "variant_code"]
+    )
+    def test_back_tag_lines_flag(self, line):
+        """LINE-02: no family fits."""
+        assert split_art_line(line) == unmatched(line)
+
+    @pytest.mark.parametrize(
+        "line", [s.SPLIT_PHONE, s.SPLIT_PHONE.replace("-", "")], ids=["hyphenated", "digits_only"]
+    )
+    def test_phone_number_flags(self, line):
+        """LINE-03: a hyphen is never a separator, so the base runs on and fails its shape."""
+        assert split_art_line(line) == BAD_BASE
+
+    def test_manufacturing_date_flags(self):
+        """LINE-03: two digits then a slash fit no family's prefix."""
+        assert split_art_line(s.SPLIT_DATE) == unmatched(s.SPLIT_DATE)
+
+    @pytest.mark.parametrize(
+        "line, expected",
+        [(s.SPLIT_SI_9[:5], BAD_BASE), (s.SPLIT_SI_9[3:], unmatched(s.SPLIT_SI_9[3:]))],
+        ids=["end_cut_off", "start_cut_off"],
+    )
+    def test_cut_off_fragment_flags(self, line, expected):
+        """LINE-04: too short, or no family."""
+        assert split_art_line(line) == expected
+
+    @pytest.mark.parametrize(
+        "line, expected",
+        [
+            (s.SPLIT_CERTILOGO, BAD_BASE),
+            ("CLG " + s.SPLIT_CERTILOGO, unmatched("CLG " + s.SPLIT_CERTILOGO)),
+        ],
+        ids=["digits_only", "with_clg"],
+    )
+    def test_certilogo_number_flags(self, line, expected):
+        """LINE-05: 12 digits is no family's length; with CLG no family fits."""
+        assert split_art_line(line) == expected
+
+    def test_postcode_flags(self):
+        """LINE-05: too short."""
+        assert split_art_line(s.SPLIT_POSTCODE) == BAD_BASE
