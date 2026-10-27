@@ -343,3 +343,26 @@ class TestSpacing:
     def test_surrounding_whitespace_is_ignored(self, line, expected):
         """SPC-04"""
         assert split_art_line(line) == expected
+
+
+class TestCharacters:
+    @pytest.mark.parametrize(
+        "line",
+        [
+            s.SPLIT_SI_9[:6] + "\uff12" + s.SPLIT_SI_9[7:],
+            s.SPLIT_SI_9 + "\uff0f" + s.SPLIT_NEXT_LINE,
+            s.SPLIT_SI_9[:4] + "\u200b" + s.SPLIT_SI_9[4:],
+            s.SPLIT_CP_MODERN[:2] + "\u0421" + s.SPLIT_CP_MODERN[3:],
+            s.SPLIT_CP_MODERN + "\u00a0" + s.SPLIT_CP_FABRIC,
+            s.SPLIT_SI_9 + "\u00a0",
+            s.SPLIT_SI_9 + "\n" + s.SPLIT_NEXT_LINE,
+        ],
+        ids=[
+            "full_width_digit", "full_width_slash", "zero_width_space", "cyrillic_letter",
+            "non_breaking_space", "trailing_non_breaking_space", "newline_inside",
+        ],
+    )
+    def test_non_ascii_characters_flag(self, line):
+        """LINE-12: ASCII only, never normalised; anything else flags. A newline
+        inside the line is outside the allowed set (ADR-0005, Characters)."""
+        assert "disallowed_character" in split_art_line(line).problems
