@@ -3,20 +3,22 @@ import pytest
 from labels.art_number import ArtSplit, parse, split_art_line
 from tests import synthetic as s
 
+FAMILIES = pytest.mark.parametrize(
+    "code",
+    [
+        s.SPLIT_SI_9, s.SPLIT_SI_8, s.SPLIT_SI_NAMESPACE, s.SPLIT_SI_ALPHA,
+        s.SPLIT_CP_MODERN, s.SPLIT_CP_REORDER, s.SPLIT_CP_TRANSITIONAL,
+        s.SPLIT_CP_TRANSITIONAL_11,
+    ],
+    ids=[
+        "si_9", "si_8", "si_namespace", "si_alpha", "cp_modern",
+        "cp_reorder", "cp_transitional", "cp_transitional_11",
+    ],
+)
+
 
 class TestFamilies:
-    @pytest.mark.parametrize(
-        "code",
-        [
-            s.SPLIT_SI_9, s.SPLIT_SI_8, s.SPLIT_SI_NAMESPACE, s.SPLIT_SI_ALPHA,
-            s.SPLIT_CP_MODERN, s.SPLIT_CP_REORDER, s.SPLIT_CP_TRANSITIONAL,
-            s.SPLIT_CP_TRANSITIONAL_11,
-        ],
-        ids=[
-            "si_9", "si_8", "si_namespace", "si_alpha", "cp_modern",
-            "cp_reorder", "cp_transitional", "cp_transitional_11",
-        ],
-    )
+    @FAMILIES
     def test_family_table(self, code):
         """CAP-01, BASE-01 to -06: a bare code of each family is the whole base."""
         assert split_art_line(code) == ArtSplit(art_base=code)
@@ -278,3 +280,66 @@ class TestQuestionMark:
     def test_one_question_mark_for_several_characters_flags(self, line):
         """BASE-26: the base comes out short and fails its length."""
         assert split_art_line(line) == ArtSplit(problems=("question_mark", "base_shape"))
+
+
+class TestSpacing:
+    @FAMILIES
+    def test_space_ends_the_base_in_every_family(self, code):
+        """SPC-01: a space marks a break; the rest waits for step 2's tails."""
+        assert split_art_line(code + " " + s.SPLIT_NEXT_LINE) == ArtSplit(
+            art_base=code, art_unmatched=(s.SPLIT_NEXT_LINE,), problems=("art_unmatched",)
+        )
+
+    def test_space_before_a_lot_code(self):
+        """SPC-01: a hyphen inside the LOT code is never a separator."""
+        tail = "/ " + s.SPLIT_LOT_SHORT
+        assert split_art_line(s.SPLIT_SI_9 + " " + tail) == ArtSplit(
+            art_base=s.SPLIT_SI_9, art_unmatched=(tail,), problems=("art_unmatched",)
+        )
+
+    def test_space_and_length_disagree_flags(self):
+        """SPC-01: the space ends the base, then its length is checked."""
+        line = s.SPLIT_CP_MODERN[:-1] + " " + s.SPLIT_CP_FABRIC
+        assert split_art_line(line) == BAD_BASE
+
+    @pytest.mark.parametrize(
+        "line, expected",
+        [
+            (s.SPLIT_CP_MODERN[:5] + " " + s.SPLIT_CP_MODERN[5:], BAD_BASE),
+            (s.SPLIT_CP_MODERN[:5] + "\t" + s.SPLIT_CP_MODERN[5:], BAD_BASE),
+            (
+                s.SPLIT_SI_9[:8] + " " + s.SPLIT_SI_9[8:],
+                ArtSplit(
+                    art_base=s.SPLIT_SI_9[:8],
+                    art_unmatched=(s.SPLIT_SI_9[8:],),
+                    problems=("art_unmatched",),
+                ),
+            ),
+        ],
+        ids=["cp_space", "cp_tab", "si_space_before_the_last_character"],
+    )
+    def test_space_inside_base_flags(self, line, expected):
+        """SPC-02: a tab counts as a space. Even after the 8th of 9 SI characters
+        it flags, because the last character is left as an unknown tail."""
+        assert split_art_line(line) == expected
+
+    @pytest.mark.parametrize(
+        "line",
+        [s.SPLIT_CP_MODERN + s.SPLIT_CP_FABRIC, s.SPLIT_SI_8 + s.SPLIT_NEXT_LINE],
+        ids=["cp_fabric", "si_next_line"],
+    )
+    def test_tail_typed_on_without_a_separator_flags(self, line):
+        """SPC-03: with no separator the base runs on and fails its length."""
+        assert split_art_line(line) == BAD_BASE
+
+    @pytest.mark.parametrize(
+        "line, expected",
+        [
+            ("  " + s.SPLIT_SI_9 + "\t ", ArtSplit(art_base=s.SPLIT_SI_9)),
+            (" ART. " + s.SPLIT_SI_9 + " ", ArtSplit(art_caption="ART.", art_base=s.SPLIT_SI_9)),
+        ],
+        ids=["bare", "caption"],
+    )
+    def test_surrounding_whitespace_is_ignored(self, line, expected):
+        """SPC-04"""
+        assert split_art_line(line) == expected
