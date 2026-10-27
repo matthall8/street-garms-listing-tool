@@ -364,8 +364,25 @@ class TestCharacters:
     )
     def test_non_ascii_characters_flag(self, line):
         """LINE-12: ASCII only, never normalised; anything else flags. A newline
-        inside the line is outside the allowed set (ADR-0005, Characters)."""
+        inside the line is outside the allowed set, so it flags here; whether it
+        also gets its own multi_line flag is undecided (TODO.md)."""
         assert "disallowed_character" in split_art_line(line).problems
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            s.SPLIT_SI_ALPHA[:2] + "\u017f" + s.SPLIT_SI_ALPHA[3:],
+            s.SPLIT_SI_8[:-1] + "\u00df",
+            "ART.\u00a0" + s.SPLIT_SI_9,
+        ],
+        ids=["long_s_upper_cases_to_s", "sharp_s_upper_cases_to_ss", "non_breaking_space_after_caption"],
+    )
+    def test_non_ascii_characters_are_never_normalised_into_a_base(self, line):
+        """LINE-12: no case mapping or stripping turns a non-ASCII character into
+        an ASCII one, so no base is stored from it."""
+        split = split_art_line(line)
+        assert split.art_base is None
+        assert "disallowed_character" in split.problems
 
 
 def unmatched(line):

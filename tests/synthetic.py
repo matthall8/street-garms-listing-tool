@@ -60,8 +60,9 @@ GATE_UNREADABLE_MARK = "4815Q?7342"     # ? past the decoded prefix
 UNKNOWN_COLUMN = "QZ4040V9090"
 
 # The split: invented codes, one per family at a real base length. Stone
-# Island ones use brand 99 and C.P. ones the garment code QZ, which no
-# catalogue key has, so none can be real
+# Island ones use brand 99 and C.P. modern ones the garment code QZ, which no
+# catalogue key has. The C.P. transitional ones have no such marker: like
+# every value here, the privacy hook's real-value check guards them
 SPLIT_SI_9 = "7899Q1234"                 # counter 78: length 9, DDDDADDDD
 SPLIT_SI_8 = "3999Q123"                  # counter 39: length 8, DDDDADDD
 SPLIT_SI_NAMESPACE = "109912345"         # counter 10: no season

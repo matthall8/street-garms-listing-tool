@@ -99,6 +99,8 @@ FAKE_MARKER = "222"  # commonly reported on counterfeit SI wash labels
 ART_CAPTIONS = ('ART.', 'ART NO.')
 
 DISALLOWED = re.compile(r"[^\t\x20-\x7e]")  # anything but a tab or printable ASCII (ADR-0005)
+# str.upper() maps some non-ASCII letters to ASCII ones; this never normalises
+ASCII_UPPER = str.maketrans(string.ascii_lowercase, string.ascii_uppercase)
 
 # The split's family prefixes (ADR-0005): shape only, never a season table, so
 # an unknown season still splits. The SI numeric counter covers '10' too.
@@ -202,7 +204,7 @@ def parse(raw: str) -> Art:
 
 def split_art_line(art_line: str) -> ArtSplit:
     art_line = art_line.strip(string.whitespace)  # ASCII only: never normalise the read
-    art_line_upper = art_line.upper()
+    art_line_upper = art_line.translate(ASCII_UPPER)
     art_caption, rest = None, art_line
     problems = ("question_mark",) if "?" in art_line else ()
     if DISALLOWED.search(art_line):
@@ -210,16 +212,16 @@ def split_art_line(art_line: str) -> ArtSplit:
     for caption in ART_CAPTIONS:
         if art_line_upper.startswith(caption):
             idx = len(caption)
-            art_caption, rest = art_line[:idx], art_line[idx:].lstrip()
+            art_caption, rest = art_line[:idx], art_line[idx:].lstrip(" \t")
             break
-    families = [name for name, prefix in FAMILY_PREFIXES.items() if prefix.match(rest.upper())]
+    families = [name for name, prefix in FAMILY_PREFIXES.items() if prefix.match(rest.translate(ASCII_UPPER))]
     if len(families) != 1:
         return ArtSplit(art_caption=art_caption, art_unmatched=(rest,) if rest else (),
                         problems=problems + ("art_unmatched",))
     base = re.split(r"[ \t/]", rest, maxsplit=1)[0]  # the base ends at the first separator
     tail = rest[len(base):].strip()
-    if not FAMILY_BASES[families[0]].fullmatch(base.upper()):
+    if not FAMILY_BASES[families[0]].fullmatch(base.translate(ASCII_UPPER)):
         return ArtSplit(art_caption=art_caption, problems=problems + ("base_shape",))
-    return ArtSplit(art_caption=art_caption, art_base=base.upper(),
+    return ArtSplit(art_caption=art_caption, art_base=base.translate(ASCII_UPPER),
                     art_unmatched=(tail,) if tail else (),
                     problems=problems + (("art_unmatched",) if tail else ()))
