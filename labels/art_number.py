@@ -214,6 +214,6 @@ def split_art_line(art_line: str) -> ArtSplit:
     tail = rest[len(base):].strip()
     if not FAMILY_BASES[families[0]].fullmatch(base.upper()):
         return ArtSplit(art_caption=art_caption, problems=("base_shape",))
-    return ArtSplit(art_caption=art_caption, art_base=base,
+    return ArtSplit(art_caption=art_caption, art_base=base.upper(),
                     art_unmatched=(tail,) if tail else (),
                     problems=("art_unmatched",) if tail else ())

@@ -128,3 +128,58 @@ class TestBase:
     def test_cp_transitional_length_follows_the_c(self, line):
         """BASE-04: 12 with the C printed, 11 without; the other length flags."""
         assert split_art_line(line) == WRONG_LENGTH
+
+    @pytest.mark.parametrize(
+        "line, expected",
+        [
+            (s.SPLIT_CP_MODERN[:-1], WRONG_LENGTH),
+            (s.SPLIT_CP_MODERN + "1", WRONG_LENGTH),
+            (
+                s.SPLIT_CP_MODERN + " " + s.SPLIT_CP_FABRIC,
+                ArtSplit(
+                    art_base=s.SPLIT_CP_MODERN,
+                    art_unmatched=(s.SPLIT_CP_FABRIC,),
+                    problems=("art_unmatched",),
+                ),
+            ),
+        ],
+        ids=["9", "11", "space_then_fabric"],
+    )
+    def test_cp_modern_base_is_10_characters(self, line, expected):
+        """BASE-05: the printed space and the fixed length agree; the fabric code waits for step 2."""
+        assert split_art_line(line) == expected
+
+    @pytest.mark.parametrize(
+        "line, expected",
+        [
+            (s.SPLIT_CP_REORDER, ArtSplit(art_base=s.SPLIT_CP_REORDER)),
+            ("RC" + s.SPLIT_CP_REORDER[2:], ArtSplit(art_base="RC" + s.SPLIT_CP_REORDER[2:])),
+            (s.SPLIT_CP_REORDER + "1", WRONG_LENGTH),
+        ],
+        ids=["rf", "rc", "11"],
+    )
+    def test_cp_reorder_prefix_is_cp_modern(self, line, expected):
+        """BASE-06: a reorder prefix splits like CP modern; no season isn't the split's problem."""
+        assert split_art_line(line) == expected
+
+    @pytest.mark.parametrize(
+        "code",
+        [s.SPLIT_SI_9, s.SPLIT_SI_LETTER_8, s.SPLIT_SI_LETTERS_END],
+        ids=["position_5", "position_8", "last_two"],
+    )
+    def test_si_numeric_letter_positions(self, code):
+        """BASE-08 to -10: after the four digits, letters may fall anywhere."""
+        assert split_art_line(code) == ArtSplit(art_base=code)
+
+    def test_leading_zero_is_kept(self):
+        """BASE-11"""
+        assert split_art_line(s.SPLIT_SI_LEADING_ZERO) == ArtSplit(
+            art_base=s.SPLIT_SI_LEADING_ZERO
+        )
+
+    @pytest.mark.parametrize(
+        "code", [s.SPLIT_SI_ALPHA, s.SPLIT_CP_MODERN], ids=["si_alpha", "cp_modern"]
+    )
+    def test_lower_case_is_uppercased(self, code):
+        """BASE-12: matching is in upper case, and art_base is upper case."""
+        assert split_art_line(code.lower()) == ArtSplit(art_base=code)
