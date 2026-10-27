@@ -95,6 +95,17 @@ CP_GARMENT = {
 
 FAKE_MARKER = "222"  # commonly reported on counterfeit SI wash labels
 
+ART_CAPTIONS = ('ART.', 'ART NO.')
+
+# The split's family prefixes (ADR-0005): shape only, never a season table, so
+# an unknown season still splits. The SI numeric counter covers '10' too.
+FAMILY_PREFIXES = {
+    "si_numeric": re.compile(r"[0-9]{4}"),                   # DDDD
+    "si_alpha": re.compile(r"[A-Z][0-9]S"),                  # ADS
+    "cp_modern": re.compile(r"([0-9]{2}|R[FC])C[MKSL]"),     # DD or RF/RC, C, line letter
+    "cp_transitional": re.compile(r"[0-9]{2}[SW]C?PU"),      # DD, S/W, optional C, PU
+}
+
 
 @dataclass
 class Art:
@@ -117,6 +128,14 @@ class Art:
         if self.garment:
             bits.append(self.garment)
         return " \u00b7 ".join(bits) if bits else "Unrecognised"
+
+
+@dataclass
+class ArtSplit:
+    art_caption: str | None = None
+    art_base: str | None = None
+    art_unmatched: tuple[str, ...] = ()
+    problems: tuple[str, ...] = ()
 
 
 def parse(raw: str) -> Art:
@@ -169,3 +188,17 @@ def parse(raw: str) -> Art:
     return Art(raw, None, flags=flags + ("unrecognised",))
 
 
+def split_art_line(art_line: str) -> ArtSplit:
+    art_line = art_line.strip()
+    art_line_upper = art_line.upper()
+    art_caption, rest = None, art_line
+    for caption in ART_CAPTIONS:
+        if art_line_upper.startswith(caption):
+            idx = len(caption)
+            art_caption, rest = art_line[:idx], art_line[idx:].lstrip()
+            break
+    families = [name for name, prefix in FAMILY_PREFIXES.items() if prefix.match(rest.upper())]
+    if not families:
+        return ArtSplit(art_caption=art_caption, art_unmatched=(rest,) if rest else (),
+                        problems=("art_unmatched",))
+    return ArtSplit(art_caption=art_caption, art_base=rest)
