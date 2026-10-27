@@ -219,7 +219,7 @@ def split_art_line(art_line: str) -> ArtSplit:
         return ArtSplit(art_caption=art_caption, art_unmatched=(rest,) if rest else (),
                         problems=problems + ("art_unmatched",))
     base = re.split(r"[ \t/]", rest, maxsplit=1)[0]  # the base ends at the first separator
-    tail = rest[len(base):].strip()
+    tail = rest[len(base):].strip(string.whitespace)
     if not FAMILY_BASES[families[0]].fullmatch(base.translate(ASCII_UPPER)):
         return ArtSplit(art_caption=art_caption, problems=problems + ("base_shape",))
     return ArtSplit(art_caption=art_caption, art_base=base.translate(ASCII_UPPER),

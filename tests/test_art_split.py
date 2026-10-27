@@ -384,6 +384,15 @@ class TestCharacters:
         assert split.art_base is None
         assert "disallowed_character" in split.problems
 
+    def test_tail_keeps_non_ascii_whitespace_as_read(self):
+        """LINE-12: only ASCII whitespace is stripped from a tail, as from the line."""
+        tail = s.SPLIT_NEXT_LINE + "\u00a0"
+        assert split_art_line(s.SPLIT_SI_9 + " " + tail) == ArtSplit(
+            art_base=s.SPLIT_SI_9,
+            art_unmatched=(tail,),
+            problems=("disallowed_character", "art_unmatched"),
+        )
+
 
 def unmatched(line):
     return ArtSplit(art_unmatched=(line,), problems=("art_unmatched",))
