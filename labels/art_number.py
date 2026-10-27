@@ -85,7 +85,7 @@ GARMENT = {
     "Q": "Jacket / outerwear",
 }
 
-# D. C.P. modern garment codes — characters 4-5 of e.g. 14CMOS045A.
+# D. C.P. modern garment codes — characters 4-5 of DDCAAADDDA.
 CP_GARMENT = {
     "OW": "Outerwear", "OS": "Overshirt", "SH": "Shirt / overshirt",
     "SS": "Sweatshirt / hoodie", "KN": "Knitwear", "TS": "T-shirt",
@@ -152,18 +152,18 @@ class ArtSplit:
 
 def parse(raw: str) -> Art:
     s = re.sub(r"[\s\-]", "", (raw or "").upper())
-    s = s.split("/")[0]                      # trailing colour code, e.g. 581540846/181
-    s = re.sub(r"(?<=C[MKSL])0(?=[A-Z])", "O", s)   # 12CM0W303A -> 12CMOW303A
+    s = s.split("/")[0]                      # trailing colour code: <base>/DDD
+    s = re.sub(r"(?<=C[MKSL])0(?=[A-Z])", "O", s)   # DDCA0ADDDA -> DDCAOADDDA: a 0 read for an O
     flags = ("possible-counterfeit-marker",) if FAKE_MARKER in s else ()
 
-    # B. SI alphanumeric: K1S154100067
+    # B. SI alphanumeric: ADADDDDDDDDD
     m = re.match(r"^([KL][12])S(.{2})(.)", s)
     if m and m.group(1) in SI_ALPHA_SEASON:
         yr, sn = SI_ALPHA_SEASON[m.group(1)]
         return Art(raw, "si_alpha", yr, sn,
                    BRAND.get(m.group(2)), GARMENT.get(m.group(3)), flags)
 
-    # D. CP modern: 14CMOS045A
+    # D. CP modern: DDAAAADDDA
     m = re.match(r"^(\d{2}|R[FC])C([MKSL])([A-Z]{2})", s)
     if m:
         yr, sn = CP_MODERN_SEASON.get(m.group(1), (None, None))
@@ -175,13 +175,13 @@ def parse(raw: str) -> Art:
         return Art(raw, "cp_modern", yr, sn, "C.P. Company",
                    CP_GARMENT.get(m.group(3)), f)
 
-    # C. CP transitional: 14SCPUB04669
+    # C. CP transitional: DDAAAAADDDDD
     m = re.match(r"^(\d{2})([SW])C?PU", s)
     if m:
         return Art(raw, "cp_transitional", 2000 + int(m.group(1)),
                    "SS" if m.group(2) == "S" else "AW", "C.P. Company", None, flags)
 
-    # A. SI numeric: 58154 0923  (min 8 chars — shorter means a truncated entry)
+    # A. SI numeric: DDDDD DDDD  (min 8 chars — shorter means a truncated entry)
     m = re.match(r"^(\d{2})(\d{2})([0-9A-Z])", s)
     if m and len(s) >= 8:
         pre, brand, garment = m.group(1), m.group(2), m.group(3)
