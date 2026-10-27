@@ -106,6 +106,15 @@ FAMILY_PREFIXES = {
     "cp_transitional": re.compile(r"[0-9]{2}[SW]C?PU"),      # DD, S/W, optional C, PU
 }
 
+# Full base shapes: each family's prefix, then letters or digits up to its
+# length (ADR-0005)
+FAMILY_BASES = {
+    "si_numeric": re.compile(r"[0-9]{4}[0-9A-Z]{4,5}"),
+    "si_alpha": re.compile(r"[A-Z][0-9]S[0-9A-Z]{9}"),
+    "cp_modern": re.compile(r"([0-9]{2}|R[FC])C[MKSL][0-9A-Z]{6}"),
+    "cp_transitional": re.compile(r"[0-9]{2}[SW]C?PU[0-9A-Z]{6}"),
+}
+
 
 @dataclass
 class Art:
@@ -201,4 +210,10 @@ def split_art_line(art_line: str) -> ArtSplit:
     if not families:
         return ArtSplit(art_caption=art_caption, art_unmatched=(rest,) if rest else (),
                         problems=("art_unmatched",))
-    return ArtSplit(art_caption=art_caption, art_base=rest)
+    base = re.split(r"[\s/]", rest, maxsplit=1)[0]  # the base ends at the first separator
+    tail = rest[len(base):].strip()
+    if not FAMILY_BASES[families[0]].fullmatch(base.upper()):
+        return ArtSplit(art_caption=art_caption, problems=("base_shape",))
+    return ArtSplit(art_caption=art_caption, art_base=base,
+                    art_unmatched=(tail,) if tail else (),
+                    problems=("art_unmatched",) if tail else ())

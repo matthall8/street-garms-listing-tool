@@ -71,3 +71,60 @@ class TestCaption:
         assert split_art_line(line) == ArtSplit(
             art_unmatched=(line,), problems=("art_unmatched",)
         )
+
+
+WRONG_LENGTH =ArtSplit(problems=("base_shape",))
+
+
+class TestBase:
+    @pytest.mark.parametrize(
+        "line",
+        [s.SPLIT_SI_8[:-1], s.SPLIT_SI_9 + "1"],
+        ids=["7", "10"],
+    )
+    def test_si_numeric_wrong_length_flags(self, line):
+        """BASE-01: an SI numeric base is 8 or 9 characters; one too few or too many flags."""
+        assert split_art_line(line) == WRONG_LENGTH
+
+    @pytest.mark.parametrize(
+        "separator", ["/", " ", " / "], ids=["slash", "space", "spaced_slash"]
+    )
+    def test_si_numeric_base_ends_at_a_separator(self, separator):
+        """BASE-01: the base runs to the first separator; the rest is art_unmatched until step 2."""
+        line = s.SPLIT_SI_9 + separator + s.SPLIT_NEXT_LINE
+        assert split_art_line(line) == ArtSplit(
+            art_base=s.SPLIT_SI_9,
+            art_unmatched=((separator + s.SPLIT_NEXT_LINE).strip(),),
+            problems=("art_unmatched",),
+        )
+
+    @pytest.mark.parametrize(
+        "line, expected",
+        [
+            (s.SPLIT_SI_NAMESPACE, ArtSplit(art_base=s.SPLIT_SI_NAMESPACE)),
+            (s.SPLIT_SI_NAMESPACE[:-1], ArtSplit(art_base=s.SPLIT_SI_NAMESPACE[:-1])),
+            (s.SPLIT_SI_NAMESPACE + "1", WRONG_LENGTH),
+        ],
+        ids=["9", "8", "10"],
+    )
+    def test_si_namespace_splits_like_si_numeric(self, line, expected):
+        """BASE-02: the namespace prefix has SI numeric's lengths; no season isn't the split's problem."""
+        assert split_art_line(line) == expected
+
+    @pytest.mark.parametrize(
+        "line",
+        [s.SPLIT_SI_ALPHA[:-1], s.SPLIT_SI_ALPHA + "1"],
+        ids=["11", "13"],
+    )
+    def test_si_alpha_base_is_12_characters(self, line):
+        """BASE-03"""
+        assert split_art_line(line) == WRONG_LENGTH
+
+    @pytest.mark.parametrize(
+        "line",
+        [s.SPLIT_CP_TRANSITIONAL[:-1], s.SPLIT_CP_TRANSITIONAL_11 + "1"],
+        ids=["c_printed_11", "no_c_12"],
+    )
+    def test_cp_transitional_length_follows_the_c(self, line):
+        """BASE-04: 12 with the C printed, 11 without; the other length flags."""
+        assert split_art_line(line) == WRONG_LENGTH
