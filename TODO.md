@@ -20,9 +20,7 @@ or model is a run under *Runs*, one per run.
 
 ### Code
 - [ ] The split (ADR-0005), one branch per step:
-      1. split structure, not wired into the gate; turn the code-shaped
-         comments in `labels/art_number.py` outside the docstring into
-         shapes
+      1. done: split structure (`split_art_line`), not wired into the gate
       2. split tails
       3. wiring: changes the gate, measured by the checkpoint replay;
          remove `parse()`'s `0`→`O` repair; flips
