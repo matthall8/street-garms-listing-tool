@@ -183,3 +183,31 @@ class TestBase:
     def test_lower_case_is_uppercased(self, code):
         """BASE-12: matching is in upper case, and art_base is upper case."""
         assert split_art_line(code.lower()) == ArtSplit(art_base=code)
+
+
+class TestQuestionMark:
+    @pytest.mark.parametrize(
+        "code",
+        [s.SPLIT_SI_9[:5] + "?" + s.SPLIT_SI_9[6:], s.SPLIT_CP_MODERN[:6] + "?" + s.SPLIT_CP_MODERN[7:]],
+        ids=["si_numeric", "cp_modern"],
+    )
+    def test_question_mark_in_base_flags(self, code):
+        """BASE-13: a ? stands for one character and stays where it falls; it always flags."""
+        assert split_art_line(code) == ArtSplit(art_base=code, problems=("question_mark",))
+
+    def test_question_mark_in_tail_flags(self):
+        """BASE-13: wherever it falls; the base is kept."""
+        tail = s.SPLIT_NEXT_LINE[:2] + "?" + s.SPLIT_NEXT_LINE[3:]
+        assert split_art_line(s.SPLIT_SI_9 + " " + tail) == ArtSplit(
+            art_base=s.SPLIT_SI_9,
+            art_unmatched=(tail,),
+            problems=("question_mark", "art_unmatched"),
+        )
+
+    @pytest.mark.parametrize("length", [9, 10, 12])
+    def test_all_question_marks_flag(self, length):
+        """BASE-14: every family fits, so none is picked; the whole line is art_unmatched."""
+        line = "?" * length
+        assert split_art_line(line) == ArtSplit(
+            art_unmatched=(line,), problems=("question_mark", "art_unmatched")
+        )

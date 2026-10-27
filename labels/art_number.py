@@ -100,19 +100,19 @@ ART_CAPTIONS = ('ART.', 'ART NO.')
 # The split's family prefixes (ADR-0005): shape only, never a season table, so
 # an unknown season still splits. The SI numeric counter covers '10' too.
 FAMILY_PREFIXES = {
-    "si_numeric": re.compile(r"[0-9]{4}"),                   # DDDD
-    "si_alpha": re.compile(r"[A-Z][0-9]S"),                  # ADS
-    "cp_modern": re.compile(r"([0-9]{2}|R[FC])C[MKSL]"),     # DD or RF/RC, C, line letter
-    "cp_transitional": re.compile(r"[0-9]{2}[SW]C?PU"),      # DD, S/W, optional C, PU
+    "si_numeric": re.compile(r"[0-9?]{4}"),                                 # DDDD
+    "si_alpha": re.compile(r"[A-Z?][0-9?][S?]"),                            # ADS
+    "cp_modern": re.compile(r"([0-9?]{2}|[R?][FC?])[C?][MKSL?]"),           # DD or RF/RC, C, line letter
+    "cp_transitional": re.compile(r"[0-9?]{2}[SW?][C?]?[P?][U?]"),          # DD, S/W, optional C, PU
 }
 
 # Full base shapes: each family's prefix, then letters or digits up to its
 # length (ADR-0005)
 FAMILY_BASES = {
-    "si_numeric": re.compile(r"[0-9]{4}[0-9A-Z]{4,5}"),
-    "si_alpha": re.compile(r"[A-Z][0-9]S[0-9A-Z]{9}"),
-    "cp_modern": re.compile(r"([0-9]{2}|R[FC])C[MKSL][0-9A-Z]{6}"),
-    "cp_transitional": re.compile(r"[0-9]{2}[SW]C?PU[0-9A-Z]{6}"),
+    "si_numeric": re.compile(r"[0-9?]{4}[0-9A-Z?]{4,5}"),
+    "si_alpha": re.compile(r"[A-Z?][0-9?][S?][0-9A-Z?]{9}"),
+    "cp_modern": re.compile(r"([0-9?]{2}|[R?][FC?])[C?][MKSL?][0-9A-Z?]{6}"),
+    "cp_transitional": re.compile(r"[0-9?]{2}[SW?][C?]?[P?][U?][0-9A-Z?]{6}"),
 }
 
 
@@ -201,19 +201,20 @@ def split_art_line(art_line: str) -> ArtSplit:
     art_line = art_line.strip()
     art_line_upper = art_line.upper()
     art_caption, rest = None, art_line
+    problems = ("question_mark",) if "?" in art_line else ()
     for caption in ART_CAPTIONS:
         if art_line_upper.startswith(caption):
             idx = len(caption)
             art_caption, rest = art_line[:idx], art_line[idx:].lstrip()
             break
     families = [name for name, prefix in FAMILY_PREFIXES.items() if prefix.match(rest.upper())]
-    if not families:
+    if len(families) != 1:
         return ArtSplit(art_caption=art_caption, art_unmatched=(rest,) if rest else (),
-                        problems=("art_unmatched",))
+                        problems=problems + ("art_unmatched",))
     base = re.split(r"[\s/]", rest, maxsplit=1)[0]  # the base ends at the first separator
     tail = rest[len(base):].strip()
     if not FAMILY_BASES[families[0]].fullmatch(base.upper()):
-        return ArtSplit(art_caption=art_caption, problems=("base_shape",))
+        return ArtSplit(art_caption=art_caption, problems=problems + ("base_shape",))
     return ArtSplit(art_caption=art_caption, art_base=base.upper(),
                     art_unmatched=(tail,) if tail else (),
-                    problems=("art_unmatched",) if tail else ())
+                    problems=problems + (("art_unmatched",) if tail else ()))
