@@ -1,6 +1,6 @@
 import pytest
 
-from labels.art_number import ArtSplit, split_art_line
+from labels.art_number import ArtSplit, parse, split_art_line
 from tests import synthetic as s
 
 
@@ -211,6 +211,17 @@ class TestBase:
             art_unmatched=(line,), problems=("art_unmatched",)
         )
 
+    @pytest.mark.parametrize(
+        "line",
+        ["99" + s.SPLIT_SI_9[2:], "Z" + s.SPLIT_SI_ALPHA[1:], "99" + s.SPLIT_CP_MODERN[2:]],
+        ids=["si_numeric", "si_alpha", "cp_modern"],
+    )
+    def test_unknown_season_still_splits(self, line):
+        """BASE-23: the family comes from the shape, never the season tables."""
+        assert parse(line).year is None  # the premise: parse() can't date it
+        assert split_art_line(line) == ArtSplit(art_base=line)
+
+
 class TestQuestionMark:
     @pytest.mark.parametrize(
         "code",
@@ -237,3 +248,33 @@ class TestQuestionMark:
         assert split_art_line(line) == ArtSplit(
             art_unmatched=(line,), problems=("question_mark", "art_unmatched")
         )
+
+    @pytest.mark.parametrize(
+        "line",
+        ["?" + s.SPLIT_SI_ALPHA[1:], s.SPLIT_CP_TRANSITIONAL[:3] + "?" + s.SPLIT_CP_TRANSITIONAL[4:]],
+        ids=["si_alpha_leading_letter", "cp_transitional_c"],
+    )
+    def test_question_mark_in_family_position_fitting_one_family(self, line):
+        """BASE-25: one family still fits, so the line splits as usual."""
+        assert split_art_line(line) == ArtSplit(art_base=line, problems=("question_mark",))
+
+    def test_question_mark_in_family_position_is_ambiguous(self):
+        """BASE-25: two families fit, so none is picked and the line is art_unmatched."""
+        line = s.SPLIT_CP_MODERN[:2] + "??" + s.SPLIT_CP_MODERN[4:]  # SI numeric or CP modern
+        assert split_art_line(line) == ArtSplit(
+            art_unmatched=(line,), problems=("question_mark", "art_unmatched")
+        )
+
+    def test_question_mark_where_a_separator_would_be_flags(self):
+        """BASE-25: a ? is never a separator, so the base runs on and fails its length."""
+        line = s.SPLIT_SI_9 + "?" + s.SPLIT_NEXT_LINE
+        assert split_art_line(line) == ArtSplit(problems=("question_mark", "base_shape"))
+
+    @pytest.mark.parametrize(
+        "line",
+        [s.SPLIT_SI_9[:5] + "?", s.SPLIT_CP_MODERN[:6] + "?"],
+        ids=["si_numeric", "cp_modern"],
+    )
+    def test_one_question_mark_for_several_characters_flags(self, line):
+        """BASE-26: the base comes out short and fails its length."""
+        assert split_art_line(line) == ArtSplit(problems=("question_mark", "base_shape"))
