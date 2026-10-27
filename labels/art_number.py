@@ -13,6 +13,7 @@ Four format families were found in the catalogue:
 """
 
 import re
+import string
 from dataclasses import dataclass
 
 # ---------------------------------------------------------------------------
@@ -84,7 +85,7 @@ GARMENT = {
     "Q": "Jacket / outerwear",
 }
 
-# D. C.P. modern garment codes — characters 4-5 of e.g. 14CMOS045A.
+# D. C.P. modern garment codes — characters 4-5 of DDCAAADDDA.
 CP_GARMENT = {
     "OW": "Outerwear", "OS": "Overshirt", "SH": "Shirt / overshirt",
     "SS": "Sweatshirt / hoodie", "KN": "Knitwear", "TS": "T-shirt",
@@ -94,6 +95,30 @@ CP_GARMENT = {
 }
 
 FAKE_MARKER = "222"  # commonly reported on counterfeit SI wash labels
+
+ART_CAPTIONS = ('ART.', 'ART NO.')
+
+DISALLOWED = re.compile(r"[^\t\x20-\x7e]")  # anything but a tab or printable ASCII (ADR-0005)
+# str.upper() maps some non-ASCII letters to ASCII ones; this never normalises
+ASCII_UPPER = str.maketrans(string.ascii_lowercase, string.ascii_uppercase)
+
+# The split's family prefixes (ADR-0005): shape only, never a season table, so
+# an unknown season still splits. The SI numeric counter covers '10' too.
+FAMILY_PREFIXES = {
+    "si_numeric": re.compile(r"[0-9?]{4}"),                                 # DDDD
+    "si_alpha": re.compile(r"[A-Z?][0-9?][S?]"),                            # ADS
+    "cp_modern": re.compile(r"([0-9?]{2}|[R?][FC?])[C?][MKSL?]"),           # DD or RF/RC, C, line letter
+    "cp_transitional": re.compile(r"[0-9?]{2}[SW?][C?]?[P?][U?]"),          # DD, S/W, optional C, PU
+}
+
+# Full base shapes: each family's prefix, then letters or digits up to its
+# length (ADR-0005)
+FAMILY_BASES = {
+    "si_numeric": re.compile(r"[0-9?]{4}[0-9A-Z?]{4,5}"),
+    "si_alpha": re.compile(r"[A-Z?][0-9?][S?][0-9A-Z?]{9}"),
+    "cp_modern": re.compile(r"([0-9?]{2}|[R?][FC?])[C?][MKSL?][0-9A-Z?]{6}"),
+    "cp_transitional": re.compile(r"[0-9?]{2}[SW?][C?]?[P?][U?][0-9A-Z?]{6}"),
+}
 
 
 @dataclass
@@ -119,20 +144,28 @@ class Art:
         return " \u00b7 ".join(bits) if bits else "Unrecognised"
 
 
+@dataclass
+class ArtSplit:
+    art_caption: str | None = None
+    art_base: str | None = None
+    art_unmatched: tuple[str, ...] = ()
+    problems: tuple[str, ...] = ()
+
+
 def parse(raw: str) -> Art:
     s = re.sub(r"[\s\-]", "", (raw or "").upper())
-    s = s.split("/")[0]                      # trailing colour code, e.g. 581540846/181
-    s = re.sub(r"(?<=C[MKSL])0(?=[A-Z])", "O", s)   # 12CM0W303A -> 12CMOW303A
+    s = s.split("/")[0]                      # trailing colour code: <base>/DDD
+    s = re.sub(r"(?<=C[MKSL])0(?=[A-Z])", "O", s)   # DDCA0ADDDA -> DDCAOADDDA: a 0 read for an O
     flags = ("possible-counterfeit-marker",) if FAKE_MARKER in s else ()
 
-    # B. SI alphanumeric: K1S154100067
+    # B. SI alphanumeric: ADADDDDDDDDD
     m = re.match(r"^([KL][12])S(.{2})(.)", s)
     if m and m.group(1) in SI_ALPHA_SEASON:
         yr, sn = SI_ALPHA_SEASON[m.group(1)]
         return Art(raw, "si_alpha", yr, sn,
                    BRAND.get(m.group(2)), GARMENT.get(m.group(3)), flags)
 
-    # D. CP modern: 14CMOS045A
+    # D. CP modern: DDAAAADDDA
     m = re.match(r"^(\d{2}|R[FC])C([MKSL])([A-Z]{2})", s)
     if m:
         yr, sn = CP_MODERN_SEASON.get(m.group(1), (None, None))
@@ -144,13 +177,13 @@ def parse(raw: str) -> Art:
         return Art(raw, "cp_modern", yr, sn, "C.P. Company",
                    CP_GARMENT.get(m.group(3)), f)
 
-    # C. CP transitional: 14SCPUB04669
+    # C. CP transitional: DDAAAAADDDDD
     m = re.match(r"^(\d{2})([SW])C?PU", s)
     if m:
         return Art(raw, "cp_transitional", 2000 + int(m.group(1)),
                    "SS" if m.group(2) == "S" else "AW", "C.P. Company", None, flags)
 
-    # A. SI numeric: 58154 0923  (min 8 chars — shorter means a truncated entry)
+    # A. SI numeric: DDDDD DDDD  (min 8 chars — shorter means a truncated entry)
     m = re.match(r"^(\d{2})(\d{2})([0-9A-Z])", s)
     if m and len(s) >= 8:
         pre, brand, garment = m.group(1), m.group(2), m.group(3)
@@ -169,3 +202,26 @@ def parse(raw: str) -> Art:
     return Art(raw, None, flags=flags + ("unrecognised",))
 
 
+def split_art_line(art_line: str) -> ArtSplit:
+    art_line = art_line.strip(string.whitespace)  # ASCII only: never normalise the read
+    art_line_upper = art_line.translate(ASCII_UPPER)
+    art_caption, rest = None, art_line
+    problems = ("question_mark",) if "?" in art_line else ()
+    if DISALLOWED.search(art_line):
+        problems += ("disallowed_character",)
+    for caption in ART_CAPTIONS:
+        if art_line_upper.startswith(caption):
+            idx = len(caption)
+            art_caption, rest = art_line[:idx], art_line[idx:].lstrip(" \t")
+            break
+    families = [name for name, prefix in FAMILY_PREFIXES.items() if prefix.match(rest.translate(ASCII_UPPER))]
+    if len(families) != 1:
+        return ArtSplit(art_caption=art_caption, art_unmatched=(rest,) if rest else (),
+                        problems=problems + ("art_unmatched",))
+    base = re.split(r"[ \t/]", rest, maxsplit=1)[0]  # the base ends at the first separator
+    tail = rest[len(base):].strip(string.whitespace)
+    if not FAMILY_BASES[families[0]].fullmatch(base.translate(ASCII_UPPER)):
+        return ArtSplit(art_caption=art_caption, problems=problems + ("base_shape",))
+    return ArtSplit(art_caption=art_caption, art_base=base.translate(ASCII_UPPER),
+                    art_unmatched=(tail,) if tail else (),
+                    problems=problems + (("art_unmatched",) if tail else ()))

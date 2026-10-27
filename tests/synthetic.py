@@ -59,6 +59,33 @@ GATE_UNREADABLE_MARK = "4815Q?7342"     # ? past the decoded prefix
 # message carrying it would leak
 UNKNOWN_COLUMN = "QZ4040V9090"
 
+# The split: invented codes, one per family at a real base length. Stone
+# Island ones use brand 99 and C.P. modern ones the garment code QZ, which no
+# catalogue key has. The C.P. transitional ones have no such marker: like
+# every value here, the privacy hook's real-value check guards them
+SPLIT_SI_9 = "7899Q1234"                 # counter 78: length 9, DDDDADDDD
+SPLIT_SI_8 = "3999Q123"                  # counter 39: length 8, DDDDADDD
+SPLIT_SI_NAMESPACE = "109912345"         # counter 10: no season
+SPLIT_SI_ALPHA = "K1S99Q123456"          # ADADDADDDDDD
+SPLIT_CP_MODERN = "19CMQZ123A"           # DDAAAADDDA
+SPLIT_CP_REORDER = "RFCMQZ123A"          # AAAAAADDDA: reorder prefix
+SPLIT_CP_TRANSITIONAL = "13SCPUQ12345"   # DDAAAAADDDDD
+SPLIT_CP_TRANSITIONAL_11 = "13SPUQ12345" # DDAAAADDDDD: no C
+SPLIT_CP_FABRIC = "123456Q"              # the same-line tail on C.P. labels
+SPLIT_LOT_SHORT = "LOTQ-12-34567"        # AAAA-DD-DDDDD
+SPLIT_LOT_LONG = "Q-12-LOTQ-1234-56789"  # A-DD-AAAA-DDDD-DDDDD
+SPLIT_NEXT_LINE = "Q1234"                # a next-line variant code, joined on
+SPLIT_SI_LETTER_8 = "7899123Q4"         # DDDDDDDAD: a letter at position 8
+SPLIT_SI_LETTERS_END = "7899123QZ"      # DDDDDDDAA: two letters at the end
+SPLIT_SI_LEADING_ZERO = "0599Q1234"     # counter 05: a leading zero
+
+# Other lines a model might pick instead of the ART line
+SPLIT_BARCODE = "789912345678"          # 12 digits, starting like an SI code
+SPLIT_PHONE = "0999-123456"             # hyphenated, starting like an SI code
+SPLIT_DATE = "12/2099"                  # DD/DDDD
+SPLIT_CERTILOGO = "111111111111"        # 12 digits, repeated so it can't be real
+SPLIT_POSTCODE = "99999"                # DDDDD
+
 ALL = [
     KEY, OTHER_KEY, COMPOUND_KEY, COMPOUND_PRINTED, NAME, SHORT_NAME, PHOTO,
     PHOTO_STEM, NEGATIVE_PHOTO, EXPECTED_CODE, HOLDOUT_PHOTO, HOLDOUT_PHOTO_STEM,
@@ -68,4 +95,10 @@ ALL = [
     GATE_TRUNCATED_CP, GATE_CORRECTED_KEY, GATE_CORRECTED_READ,
     GATE_AMBIGUOUS_READ, GATE_AMBIGUOUS_KEY_A, GATE_AMBIGUOUS_KEY_B, GATE_MISS,
     GATE_UNKNOWN_BRAND_GARMENT, GATE_UNREADABLE_MARK, UNKNOWN_COLUMN,
+    SPLIT_SI_9, SPLIT_SI_8, SPLIT_SI_NAMESPACE, SPLIT_SI_ALPHA,
+    SPLIT_CP_MODERN, SPLIT_CP_REORDER, SPLIT_CP_TRANSITIONAL,
+    SPLIT_CP_TRANSITIONAL_11, SPLIT_CP_FABRIC, SPLIT_LOT_SHORT, SPLIT_LOT_LONG,
+    SPLIT_NEXT_LINE, SPLIT_SI_LETTER_8, SPLIT_SI_LETTERS_END,
+    SPLIT_SI_LEADING_ZERO, SPLIT_BARCODE, SPLIT_PHONE, SPLIT_DATE,
+    SPLIT_CERTILOGO, SPLIT_POSTCODE,
 ]
