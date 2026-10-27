@@ -73,7 +73,7 @@ class TestCaption:
         )
 
 
-WRONG_LENGTH =ArtSplit(problems=("base_shape",))
+BAD_BASE = ArtSplit(problems=("base_shape",))
 
 
 class TestBase:
@@ -84,7 +84,7 @@ class TestBase:
     )
     def test_si_numeric_wrong_length_flags(self, line):
         """BASE-01: an SI numeric base is 8 or 9 characters; one too few or too many flags."""
-        assert split_art_line(line) == WRONG_LENGTH
+        assert split_art_line(line) == BAD_BASE
 
     @pytest.mark.parametrize(
         "separator", ["/", " ", " / "], ids=["slash", "space", "spaced_slash"]
@@ -103,7 +103,7 @@ class TestBase:
         [
             (s.SPLIT_SI_NAMESPACE, ArtSplit(art_base=s.SPLIT_SI_NAMESPACE)),
             (s.SPLIT_SI_NAMESPACE[:-1], ArtSplit(art_base=s.SPLIT_SI_NAMESPACE[:-1])),
-            (s.SPLIT_SI_NAMESPACE + "1", WRONG_LENGTH),
+            (s.SPLIT_SI_NAMESPACE + "1", BAD_BASE),
         ],
         ids=["9", "8", "10"],
     )
@@ -118,7 +118,7 @@ class TestBase:
     )
     def test_si_alpha_base_is_12_characters(self, line):
         """BASE-03"""
-        assert split_art_line(line) == WRONG_LENGTH
+        assert split_art_line(line) == BAD_BASE
 
     @pytest.mark.parametrize(
         "line",
@@ -127,13 +127,13 @@ class TestBase:
     )
     def test_cp_transitional_length_follows_the_c(self, line):
         """BASE-04: 12 with the C printed, 11 without; the other length flags."""
-        assert split_art_line(line) == WRONG_LENGTH
+        assert split_art_line(line) == BAD_BASE
 
     @pytest.mark.parametrize(
         "line, expected",
         [
-            (s.SPLIT_CP_MODERN[:-1], WRONG_LENGTH),
-            (s.SPLIT_CP_MODERN + "1", WRONG_LENGTH),
+            (s.SPLIT_CP_MODERN[:-1], BAD_BASE),
+            (s.SPLIT_CP_MODERN + "1", BAD_BASE),
             (
                 s.SPLIT_CP_MODERN + " " + s.SPLIT_CP_FABRIC,
                 ArtSplit(
@@ -154,7 +154,7 @@ class TestBase:
         [
             (s.SPLIT_CP_REORDER, ArtSplit(art_base=s.SPLIT_CP_REORDER)),
             ("RC" + s.SPLIT_CP_REORDER[2:], ArtSplit(art_base="RC" + s.SPLIT_CP_REORDER[2:])),
-            (s.SPLIT_CP_REORDER + "1", WRONG_LENGTH),
+            (s.SPLIT_CP_REORDER + "1", BAD_BASE),
         ],
         ids=["rf", "rc", "11"],
     )
@@ -184,6 +184,32 @@ class TestBase:
         """BASE-12: matching is in upper case, and art_base is upper case."""
         assert split_art_line(code.lower()) == ArtSplit(art_base=code)
 
+
+    @pytest.mark.parametrize(
+        "mark", [".", "'"], ids=["full_stop", "apostrophe"]
+    )
+    def test_punctuation_inside_base_flags(self, mark):
+        """BASE-18: never stripped; punctuation fails the base shape."""
+        assert split_art_line(s.SPLIT_SI_9[:5] + mark + s.SPLIT_SI_9[5:]) == BAD_BASE
+
+    @pytest.mark.parametrize(
+        "code", [s.SPLIT_SI_9, s.SPLIT_CP_MODERN], ids=["si_numeric", "cp_modern"]
+    )
+    def test_gap_inside_base_flags(self, code):
+        """BASE-19: a gap ends the base early, so it fails its length. With no
+        base there is nothing for a tail to follow, so the rest isn't kept."""
+        assert split_art_line(code[:4] + " " + code[4:]) == BAD_BASE
+
+    @pytest.mark.parametrize(
+        "line",
+        [s.GATE_TRUNCATED_CP, s.SPLIT_CP_TRANSITIONAL[2:]],
+        ids=["cp_modern", "cp_transitional"],
+    )
+    def test_cp_without_prefix_flags(self, line):
+        """BASE-21: with the season prefix missing, no family fits."""
+        assert split_art_line(line) == ArtSplit(
+            art_unmatched=(line,), problems=("art_unmatched",)
+        )
 
 class TestQuestionMark:
     @pytest.mark.parametrize(
