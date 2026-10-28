@@ -47,7 +47,7 @@ def run(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 1. needs_review — six clauses; all but `format is None` can fire on their own
+# 1. needs_review — seven clauses; all but `format is None` can fire on their own
 # ---------------------------------------------------------------------------
 
 

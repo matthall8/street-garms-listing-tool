@@ -6,7 +6,7 @@ not from web sources. Every table below is DATA, not arithmetic: unknown
 keys return None rather than extrapolating.
 
 Four format families were found in the catalogue:
-  A. SI numeric        58154 0923      -> shared with C.P. pre-2010 (brand 18)
+  A. SI numeric        581540923       -> shared with C.P. pre-2010 (brand 18)
   B. SI alphanumeric   K1S154100067    -> SS2025 onward
   C. CP transitional   14SCPUB04669    -> ~2011-2016
   D. CP modern         14CMOS045A      -> ~2017 onward
