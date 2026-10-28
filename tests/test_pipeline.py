@@ -47,7 +47,7 @@ def run(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 1. needs_review — six clauses; all but `format is None` can fire on their own
+# 1. needs_review — seven clauses; all but `format is None` can fire on their own
 # ---------------------------------------------------------------------------
 
 
@@ -182,10 +182,13 @@ class TestNeedsReviewSynthetic:
     )
     def test_no_format_flags_but_never_alone(self, run, code):
         """`format is None` can't fire on its own: every branch of parse() that
-        returns no format also adds a flag. One code per such branch."""
+        returns no format also adds a flag. One code per such branch, reached
+        by parse() on the code, as catalogue callers call it. In the pipeline
+        each fails the split, so parse() gets "" and flags it unrecognised."""
         result = run(code)
 
         assert parse(code).format is None
+        assert parse(code).flags
         assert result.flags != []
         assert result.needs_review is True
 
@@ -235,17 +238,16 @@ class TestNeedsReviewSynthetic:
         assert result.flags == []
         assert result.needs_review is False
 
-    def test_pin_unreadable_mark_in_a_clear_read_does_not_flag(self, run):
-        """Pins current behaviour, which the split's wiring changes (any `?`
-        flags: ADR-0005, *Flag table*). A known silent error: a `?` past the
-        decoded prefix never resolves, so the read misses, and a clear read
-        passes unflagged."""
+    def test_unreadable_mark_in_a_clear_read_flags(self, run):
+        """Any `?` flags (ADR-0005, *Flag table*). A `?` past the decoded
+        prefix never resolves, so the read misses; without the flag a clear
+        read would pass unflagged."""
         result = run(s.GATE_UNREADABLE_MARK)
 
         assert result.legibility == "clear"
         assert result.catalogue_match == "miss"
-        assert result.flags == []
-        assert result.needs_review is False
+        assert result.flags == ["question_mark"]
+        assert result.needs_review is True
 
 
 # ---------------------------------------------------------------------------
@@ -433,3 +435,125 @@ class TestFromReading:
         assert replayed.catalogue_match == status
         assert replayed.needs_review is needs_review
         assert asdict(replayed) == asdict(extract_bytes(art=PHOTO, source="test.png"))
+
+
+# ---------------------------------------------------------------------------
+# 6. The split (ADR-0005): what is looked up, decoded and flagged
+# ---------------------------------------------------------------------------
+
+
+class TestSplitWiring:
+    """from_reading() splits the read: the catalogue looks up the art_base,
+    parse() decodes it, and every split problem flags. Synthetic catalogue,
+    so these run in CI."""
+
+    FAKE = {
+        s.GATE_SI_NUMERIC: {"ART": s.GATE_SI_NUMERIC, "Product Name": "GATE_SI_NUMERIC"},
+        s.GATE_CP_MODERN: {"ART": s.GATE_CP_MODERN, "Product Name": "GATE_CP_MODERN"},
+        s.GATE_FUSED_KEY: {"ART": s.GATE_FUSED_KEY, "Product Name": "GATE_FUSED_KEY"},
+        s.GATE_TRUNCATED_CP: {"ART": s.GATE_TRUNCATED_CP, "Product Name": "GATE_TRUNCATED_CP"},
+    }
+
+    @pytest.fixture(autouse=True)
+    def use_synthetic_catalogue(self, monkeypatch):
+        monkeypatch.setattr(
+            "labels.catalogue.load_catalogue", lambda *a, **k: self.FAKE
+        )
+
+    @pytest.mark.parametrize(
+        "line, base",
+        [
+            ("ART. " + s.GATE_SI_NUMERIC, s.GATE_SI_NUMERIC),
+            (s.GATE_SI_NUMERIC + "/" + s.SPLIT_COLOUR, s.GATE_SI_NUMERIC),
+            (s.GATE_SI_NUMERIC + " / " + s.SPLIT_LOT_SHORT, s.GATE_SI_NUMERIC),
+            (s.GATE_CP_MODERN + " " + s.SPLIT_CP_FABRIC, s.GATE_CP_MODERN),
+            (s.GATE_CP_MODERN.lower(), s.GATE_CP_MODERN),
+        ],
+        ids=["caption", "colour", "lot", "fabric", "lower_case"],
+    )
+    def test_a_clean_split_looks_up_and_decodes_the_base(self, run, line, base):
+        """A caption, a suffix or a lot is no problem (art_lot never flags), so
+        an exact hit on a clean split's art_base doesn't flag."""
+        result = run(line)
+
+        assert result.art_number_raw == line
+        assert result.art_base == base
+        assert result.catalogue_match == "exact"
+        assert result.matched_art == base
+        assert result.decoded == parse(base).label
+        assert result.year == parse(base).year
+        assert result.flags == []
+        assert result.needs_review is False
+
+    @pytest.mark.parametrize(
+        "line, problem",
+        [
+            (s.GATE_SI_NUMERIC + " " + s.SPLIT_NEXT_LINE, "art_unmatched"),
+            (s.GATE_UNREADABLE_MARK, "question_mark"),
+            (s.GATE_SI_NUMERIC[:4] + " " + s.GATE_SI_NUMERIC[4:], "base_shape"),
+            (s.GATE_SI_NUMERIC + " ", "disallowed_character"),
+        ],
+        ids=["art_unmatched", "question_mark", "base_shape", "disallowed_character"],
+    )
+    def test_every_split_problem_flags(self, run, line, problem):
+        """All are "always" (ADR-0005, *Flag table*), and each shows in flags,
+        as the split names it, so a flagged read says why."""
+        result = run(line)
+
+        assert result.legibility == "clear"
+        assert result.all_reads == []
+        assert problem in result.flags
+        assert result.needs_review is True
+
+    def test_unmatched_tail_flags_even_on_an_exact_hit(self, run):
+        """The base is kept and found, but the tail fits no known shape."""
+        result = run(s.GATE_SI_NUMERIC + " " + s.SPLIT_NEXT_LINE)
+
+        assert result.art_base == s.GATE_SI_NUMERIC
+        assert result.catalogue_match == "exact"
+        assert result.flags == ["art_unmatched"]
+        assert result.needs_review is True
+
+    @pytest.mark.parametrize(
+        "line, candidate, problem",
+        [
+            (s.GATE_FUSED_KEY + "/" + s.SPLIT_COLOUR, s.GATE_FUSED_KEY, "base_shape"),
+            ("ART. " + s.GATE_TRUNCATED_CP + " " + s.SPLIT_CP_FABRIC, s.GATE_TRUNCATED_CP, "art_unmatched"),
+        ],
+        ids=["base_shape", "no_family"],
+    )
+    def test_a_failed_split_looks_up_the_candidate_and_flags(
+        self, run, line, candidate, problem
+    ):
+        """No art_base is stored; the catalogue looks up the line without its
+        caption, up to the first separator, and the result always flags, even
+        on an exact hit (ADR-0005, *When the split fails*)."""
+        result = run(line)
+
+        assert result.art_base is None
+        assert result.catalogue_match == "exact"
+        assert result.matched_art == candidate
+        assert problem in result.flags
+        assert result.needs_review is True
+
+    def test_a_failed_split_is_not_decoded(self, run):
+        """parse() gets "" when the split fails, so nothing is decoded from a
+        base the split rejected."""
+        assert parse(s.GATE_FUSED_KEY).year is not None  # the premise: the line alone decodes
+        result = run(s.GATE_FUSED_KEY)
+
+        assert result.decoded == "Unrecognised"
+        assert result.year is None
+
+    def test_the_read_is_never_repaired(self, run):
+        """A 0 read for an O stays a 0: the split keeps it, parse() doesn't
+        decode it, and the catalogue's swap is a correction, which flags
+        (ADR-0005, *When the split fails*; CLAUDE.md, *Corrections always
+        surface*)."""
+        result = run(s.GATE_CP_ZERO_FOR_O)
+
+        assert result.art_base == s.GATE_CP_ZERO_FOR_O
+        assert parse(s.GATE_CP_ZERO_FOR_O).format is None
+        assert result.catalogue_match == "corrected"
+        assert result.matched_art == s.GATE_CP_MODERN
+        assert result.needs_review is True

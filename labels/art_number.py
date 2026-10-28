@@ -6,7 +6,7 @@ not from web sources. Every table below is DATA, not arithmetic: unknown
 keys return None rather than extrapolating.
 
 Four format families were found in the catalogue:
-  A. SI numeric        58154 0923      -> shared with C.P. pre-2010 (brand 18)
+  A. SI numeric        581540923       -> shared with C.P. pre-2010 (brand 18)
   B. SI alphanumeric   K1S154100067    -> SS2025 onward
   C. CP transitional   14SCPUB04669    -> ~2011-2016
   D. CP modern         14CMOS045A      -> ~2017 onward
@@ -97,6 +97,7 @@ CP_GARMENT = {
 FAKE_MARKER = "222"  # commonly reported on counterfeit SI wash labels
 
 ART_CAPTIONS = ('ART.', 'ART NO.')
+SEPARATOR = re.compile(r"[ \t/]")  # ends the base; a hyphen never does (ADR-0005)
 
 DISALLOWED = re.compile(r"[^\t\x20-\x7e]")  # anything but a tab or printable ASCII (ADR-0005)
 # str.upper() maps some non-ASCII letters to ASCII ones; this never normalises
@@ -176,7 +177,6 @@ class ArtSplit:
 def parse(raw: str) -> Art:
     s = re.sub(r"[\s\-]", "", (raw or "").upper())
     s = s.split("/")[0]                      # trailing colour code: <base>/DDD
-    s = re.sub(r"(?<=C[MKSL])0(?=[A-Z])", "O", s)   # DDCA0ADDDA -> DDCAOADDDA: a 0 read for an O
     flags = ("possible-counterfeit-marker",) if FAKE_MARKER in s else ()
 
     # B. SI alphanumeric: ADADDDDDDDDD
@@ -239,7 +239,7 @@ def split_art_line(art_line: str) -> ArtSplit:
     if len(families) != 1:
         return ArtSplit(art_caption=art_caption, art_unmatched=(rest,) if rest else (),
                         problems=problems + ("art_unmatched",))
-    base = re.split(r"[ \t/]", rest, maxsplit=1)[0]  # the base ends at the first separator
+    base = SEPARATOR.split(rest, maxsplit=1)[0]  # the base ends at the first separator
     tail = rest[len(base):]
     if not FAMILY_BASES[families[0]].fullmatch(base.translate(ASCII_UPPER)):
         return ArtSplit(art_caption=art_caption, problems=problems + ("base_shape",))
@@ -255,3 +255,11 @@ def split_art_line(art_line: str) -> ArtSplit:
     return ArtSplit(art_caption=art_caption, art_base=base.translate(ASCII_UPPER), **tails,
                     art_unmatched=(tail,) if tail else (),
                     problems=problems + (("art_unmatched",) if tail else ()))
+
+
+def art_candidate(art_line: str) -> str:
+    """What the catalogue looks up when the split fails: the line without its
+    caption, up to the first separator (ADR-0005, *When the split fails*)."""
+    art_line = art_line.strip(string.whitespace)
+    caption = split_art_line(art_line).art_caption or ""
+    return SEPARATOR.split(art_line[len(caption):].lstrip(" \t"), maxsplit=1)[0]

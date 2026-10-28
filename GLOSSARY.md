@@ -14,7 +14,7 @@ wherever it is held: on a label, in the manifest or in a catalogue key.
 | ART number | The code to find on the label. Used in the prompt and prose; technical text names the stage (`art_line`, `art_base`, catalogue key). |
 | `art_line` | The printed line containing the ART number, copied exactly by the model, `?` marks included. Never rewritten. *(not in code yet: run 1 replaces `art_number_raw`, today's read of the ART number alone)* |
 | read | One model call's output for one photo. |
-| parser | `parse()` in `labels/art_number.py`. Decodes an ART number's format, year, season, brand and garment. `split_art_line()`, beside it, splits a line into the parts below; it isn't wired into the pipeline yet (TODO.md, *Code*). |
+| parser | `parse()` in `labels/art_number.py`. Decodes an ART number's format, year, season, brand and garment. `split_art_line()`, beside it, splits a line into the parts below; `from_reading()` splits every read, then decodes the `art_base`. |
 | `art_caption` | Text introducing the code on the `art_line`, such as `ART.`. Recorded as evidence the right line was picked; never used for lookup. A caption on the line above isn't one. |
 | format family | One of the ART number formats in `labels/art_number.py`, reported in the parser's `format` (which also has `si_namespace` for non-seasonal codes). Each has its own base shapes. |
 | known shape | A pattern for a caption, base, suffix or lot: lengths and character classes, never copied values. Base and suffix shapes come from the catalogue; caption and lot shapes from labels. Frozen data: extended by adding entries, never generalised. |
@@ -46,7 +46,7 @@ under a different product name may be exceptions.
 | compound key | An `art_base` plus a suffix, *separated* (`<base>/<suffix>`) or *fused* (`<base><suffix>`). Fused keys aren't separated, because a fused suffix may not be an `art_suffix` (ADR-0003). |
 | confusion pair | Characters a misread swaps, such as `0`/`O`; listed in `CONFUSIONS` in `labels/catalogue.py`. |
 | `resolved_key` | The key a lookup resolved to. *(not in code yet: `matched_art`)* |
-| catalogue outcome | `Resolution.status`: `exact`, `corrected` (one confusion-pair swap from one key), `ambiguous` (from several), `no_key` *(not in code yet: `miss`)* or `no_art_number`. Only `exact` is confident; `corrected` and `ambiguous` flag, `no_key` deliberately doesn't. Looked up: the raw read (`art_number_raw`) until the split, then the `art_base` (a candidate when the split fails: ADR-0005). From then, a design catalogued only under compound keys is `no_key`: a known gap, for ADR-0003. |
+| catalogue outcome | `Resolution.status`: `exact`, `corrected` (one confusion-pair swap from one key), `ambiguous` (from several), `no_key` *(not in code yet: `miss`)* or `no_art_number`. Only `exact` is confident; `corrected` and `ambiguous` flag, `no_key` deliberately doesn't. Looked up: the `art_base`, or a candidate when the split fails (ADR-0005). A design catalogued only under compound keys is `no_key`: a known gap, for ADR-0003. |
 
 ## Review
 

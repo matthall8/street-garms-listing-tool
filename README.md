@@ -28,7 +28,8 @@ automation and efficiency using a combination of AI and code.
   single-character OCR confusions (0/O, 1/I, 5/S, 8/B, 6/G). Only `exact` is confident.
 
 **`needs_review` is the gate to a human** (`labels/pipeline.py`). Any of these
-sets it: a read that is not `clear`, an ambiguous character, a parser flag, an
+sets it: a read that is not `clear`, an ambiguous character, a parser flag, a
+split problem ([ADR-0005](adr/0005-art-line-split.md), *Flag table*), an
 unrecognised format, a missing year, or a `corrected` or `ambiguous` match.
 A single model call that reads the label and names the product was rejected. It
 can misread the code and still return a confident title, with no record of what
@@ -130,9 +131,9 @@ Most serious first.
   exact match the season comes from the parser, not the catalogue, so title and
   season can disagree unflagged; which source wins is undecided.
 - **Unverified ground.** The eval has never tested `si_alpha`. Parser seasons
-  agree with the catalogue on 2,288 of 2,359 checkable rows; the 71
+  agree with the catalogue on 2,287 of 2,357 checkable rows; the 70
   disagreements are untriaged, so that ground truth is unverified.
-- **Thin test coverage in CI.** CI runs 20 of the 27 `needs_review` test
+- **Thin test coverage in CI.** CI runs 33 of the 40 `needs_review` test
   cases, on a synthetic catalogue; the other 7 need the real one. The parser
   has no unit tests.
 - **Recognition.** Images are sent uncropped and unresized. On the archived set,
