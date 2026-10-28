@@ -10,18 +10,22 @@ evals rejects a None metric and discards the WHOLE case result, including
 `exact`, which ConfidenceRates keys on. TestNegativeBranch pins that down.
 """
 
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import EvaluatorContext
+from pydantic_evals.reporting import EvaluationReportAdapter
 from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 import eval_transcription
 from eval_transcription import (
     NO_ART_NUMBER,
+    BaseExactCounts,
     ConfidenceRates,
+    CorrectArtBase,
     CorrectArtNumber,
     PerPhotoCounts,
     levenshtein,
@@ -29,6 +33,7 @@ from eval_transcription import (
     normalise,
 )
 from labels.schemas import AmbiguousCharacter, ArtLegibility, ArtNumberReading
+from tests import synthetic as s
 
 
 def ctx(expected, raw, legible: ArtLegibility = "clear") -> EvaluatorContext:
@@ -461,6 +466,334 @@ class TestPerPhotoCounts:
             scalars["fabricated and declared clear"])
 
 
+def base_score(expected_base, raw, legible: ArtLegibility = "clear") -> dict:
+    """CorrectArtBase over one read. Its art_base comes from the split, not
+    the catalogue, so these tests need no catalogue patch or fixture."""
+    return CorrectArtBase().evaluate(cast(EvaluatorContext, SimpleNamespace(
+        metadata={"expected_art_base": expected_base},
+        output=ArtNumberReading(art_number_raw=raw, art_legible=legible),
+    )))
+
+
+class TestCorrectArtBase:
+    def test_the_base_read_from_a_full_line_is_correct(self):
+        line = f"ART. {s.SPLIT_SI_9}/{s.SPLIT_COLOUR[:3]}"
+        assert base_score(s.SPLIT_SI_9, line) == {
+            "base_kind": "positive", "base_exact": True}
+
+    def test_a_different_base_is_wrong(self):
+        assert base_score(s.SPLIT_SI_9, s.SPLIT_SI_8)["base_exact"] is False
+
+    def test_a_failed_split_is_wrong(self):
+        """No art_base comes back, which never equals an expected one."""
+        marked = s.SPLIT_SI_9[:5] + "?" + s.SPLIT_SI_9[6:]
+        assert base_score(s.SPLIT_SI_9, marked)["base_exact"] is False
+
+    def test_no_read_is_wrong(self):
+        assert base_score(s.SPLIT_SI_9, None, "not_visible")["base_exact"] is False
+
+    def test_the_expected_base_is_compared_ignoring_spacing_and_case(self):
+        assert base_score(f" {s.SPLIT_CP_MODERN.lower()} ", s.SPLIT_CP_MODERN)[
+            "base_exact"] is True
+
+    def test_a_negative_is_correct_with_no_base(self):
+        assert base_score(NO_ART_NUMBER, None, "not_visible") == {
+            "base_kind": "negative", "base_exact": True}
+
+    def test_a_negative_with_a_base_is_wrong(self):
+        assert base_score(NO_ART_NUMBER, s.SPLIT_SI_9)["base_exact"] is False
+
+    @pytest.mark.parametrize("expected,kind", [("", "unlabelled"), (None, "unlabelled"),
+                                               ("UNKNOWN", "unknown"), ("unknown", "unknown")])
+    def test_a_row_with_no_usable_base_is_left_out(self, expected, kind):
+        """No base_exact, so it can't pass or fail; base_kind says why."""
+        assert base_score(expected, s.SPLIT_SI_9) == {"base_kind": kind}
+
+    def test_base_kind_is_a_string_not_a_bool(self):
+        """As with `kind`: a bool would become an assertion."""
+        assert isinstance(base_score(s.SPLIT_SI_9, s.SPLIT_SI_9)["base_kind"], str)
+
+
+RIGHT, WRONG = s.SPLIT_SI_9, s.SPLIT_SI_8   # reads of a photo whose base is RIGHT
+
+
+def base_counts(photos: dict) -> dict:
+    """Run photos through the real path with --repeat; return {title: rows}.
+
+    `photos` maps a name to (expected_art_base, garment, side, reads), one raw
+    line per repeat; None makes that read fail, as an API error would. Serial,
+    as in per_photo().
+    """
+    repeat = len(next(iter(photos.values()))[3])
+    assert all(len(p[3]) == repeat for p in photos.values())
+    queues = {name: iter(p[3]) for name, p in photos.items()}
+
+    def task(name):
+        raw = next(queues[name])
+        if raw is None:
+            raise RuntimeError("read failed")
+        return ArtNumberReading(art_number_raw=raw, art_legible="clear")
+
+    cases = [Case(name=name, inputs=name, metadata={
+                 "expected_art_base": base, "garment": garment, "side": side})
+             for name, (base, garment, side, _) in photos.items()]
+    report = Dataset(
+        name="base-exact",
+        cases=cases,
+        evaluators=[CorrectArtBase()],
+        report_evaluators=[BaseExactCounts()],
+    ).evaluate_sync(task, repeat=repeat, max_concurrency=1)
+
+    tables = {}
+    for a in report.analyses:
+        assert isinstance(a, TableResult)
+        tables[a.title] = [dict(zip(a.columns, row, strict=True)) for row in a.rows]
+    return tables
+
+
+def rates_of(tables: dict) -> tuple[str, dict]:
+    """(title, {rate: (n, of, %)}) of the base-exact rates table."""
+    [title] = [t for t in tables if t.startswith("base-exact")]
+    return title, {r[""]: (r["n"], r["of"], r["%"]) for r in tables[title]}
+
+
+def photo_rows(tables: dict) -> dict:
+    return {r["photo"]: r for r in tables["base per photo"]}
+
+
+class TestBaseExactCounts:
+    def test_two_of_three_is_correct_and_one_is_not(self):
+        rows = photo_rows(base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT, RIGHT, WRONG]),
+            "b": (RIGHT, "g2", "back", [RIGHT, WRONG, WRONG]),
+        }))
+        assert (rows["a"]["correct reads"], rows["a"]["correct"]) == (2, "✔")
+        assert (rows["b"]["correct reads"], rows["b"]["correct"]) == (1, "✗")
+
+    def test_the_rule_is_printed_with_the_rates(self):
+        title, _ = rates_of(base_counts({"a": (RIGHT, "g1", "back", [RIGHT] * 3)}))
+        assert title == "base-exact (correct: at least 2 of 3 reads)"
+
+    def test_a_single_read_needs_one(self):
+        tables = base_counts({"a": (RIGHT, "g1", "back", [RIGHT])})
+        assert rates_of(tables)[0] == "base-exact (correct: at least 1 of 1 reads)"
+        assert photo_rows(tables)["a"]["correct"] == "✔"
+
+    def test_a_lost_read_counts_against_repeat(self):
+        """Two of three still needed: a failed read can't lower the bar."""
+        rows = photo_rows(base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT, RIGHT, None]),
+            "b": (RIGHT, "g2", "back", [RIGHT, WRONG, None]),
+            "c": (RIGHT, "g3", "back", [None] * 3),
+        }))
+        assert (rows["a"]["reads"], rows["a"]["correct"]) == (2, "✔")
+        assert (rows["b"]["reads"], rows["b"]["correct"]) == (2, "✗")
+        assert (rows["c"]["reads"], rows["c"]["correct"]) == (0, "✗")
+
+    def test_rates_are_counts_over_positives(self):
+        _, rates = rates_of(base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT, RIGHT, WRONG]),
+            "b": (RIGHT, "g2", "back", [RIGHT, WRONG, None]),
+            "n": (NO_ART_NUMBER, "g3", "front", ["", "", ""]),
+        }))
+        assert rates["photos correct"] == (1, 2, 50.0)
+        assert rates["reads correct"] == (3, 5, 60.0)   # scored reads only
+        assert rates["negatives correct"] == (1, 1, 100.0)
+
+    def test_a_negative_follows_the_same_rule(self):
+        rows = photo_rows(base_counts({
+            "m": (NO_ART_NUMBER, "g1", "front", ["", "", RIGHT]),
+            "n": (NO_ART_NUMBER, "g2", "front", ["", RIGHT, RIGHT]),
+        }))
+        assert (rows["m"]["correct"], rows["n"]["correct"]) == ("✔", "✗")
+
+    def test_rows_with_no_usable_base_are_counted_and_left_out(self):
+        tables = base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT] * 3),
+            "u": ("UNKNOWN", "g2", "back", [RIGHT] * 3),
+            "v": ("", "g3", "back", [RIGHT] * 3),
+        })
+        _, rates = rates_of(tables)
+        assert rates["photos correct"] == (1, 1, 100.0)
+        assert rates["left out: unknown"][:2] == (1, 3)
+        assert rates["left out: unlabelled"][:2] == (1, 3)
+        rows = photo_rows(tables)
+        assert rows["u"]["kind"] == "unknown" and rows["u"]["correct"] is None
+
+    def test_garment_sides_are_counts_only(self):
+        """No verdict per side: dev has deliberate hard variants of one side."""
+        tables = base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT] * 3),
+            "a_rotated": (RIGHT, "g1", "back", [WRONG] * 3),
+            "b": (NO_ART_NUMBER, "g1", "front", [""] * 3),
+            "c": ("UNKNOWN", "g2", "back", [RIGHT] * 3),
+        })
+        sides = {(r["garment"], r["side"]): r for r in tables["garment-sides"]}
+        assert sides[("g1", "back")] == {"garment": "g1", "side": "back",
+                                         "photos": 2, "correct": 1, "left out": 0}
+        assert (sides[("g1", "front")]["photos"], sides[("g1", "front")]["correct"]) == (1, 1)
+        assert sides[("g2", "back")]["left out"] == 1
+
+
+class TestReplay:
+    """--replay end to end: a saved report's reads, rescored by main() with
+    no API call. The harness's paths and git are patched on the module, as
+    MANIFEST is in TestLoadManifest."""
+
+    HEADER = "id,photo,garment,side,expected_art_number,expected_art_base,note"
+
+    @pytest.fixture
+    def paths(self, tmp_path, monkeypatch):
+        # A live run loads .env; unpatched, a real key would outlive the test.
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: False)
+        monkeypatch.setattr(eval_transcription, "EVALS", tmp_path)
+        monkeypatch.setattr(eval_transcription, "MANIFEST", tmp_path / "manifest.csv")
+        monkeypatch.setattr(eval_transcription, "PHOTOS", tmp_path / "photos")
+        monkeypatch.setattr(eval_transcription, "RESULTS", tmp_path / "results")
+        monkeypatch.setattr(eval_transcription, "git",
+                            lambda *a: "" if a[0] == "status" else "abc1234")
+        return tmp_path
+
+    @staticmethod
+    def no_api(monkeypatch):
+        def fail(*_, **__):
+            raise AssertionError("a replay must not call the model")
+        monkeypatch.setattr(eval_transcription, "get_art_number_reading", fail)
+
+    @pytest.fixture
+    def harness(self, paths, monkeypatch):
+        self.no_api(monkeypatch)
+        return paths
+
+    def source(self, tmp_path, photos: dict) -> Path:
+        """Save a report as a live run would. `photos` maps a filename to one
+        raw line per repeat; None makes that read fail."""
+        repeat = len(next(iter(photos.values())))
+        queues = {name: iter(reads) for name, reads in photos.items()}
+
+        def task(path):
+            raw = next(queues[path.name])
+            if raw is None:
+                raise RuntimeError("read failed")
+            return ArtNumberReading(art_number_raw=raw, art_legible="clear")
+
+        report = Dataset(
+            name="source",
+            cases=[Case(name=n, inputs=tmp_path / n) for n in photos],
+        ).evaluate_sync(task, repeat=repeat, max_concurrency=1, metadata={
+            "model": "source:model", "prompt": "abc", "repeat": repeat})
+        path = tmp_path / "source.json"
+        path.write_bytes(EvaluationReportAdapter.dump_json(report))
+        return path
+
+    def replay(self, tmp_path, monkeypatch, source, rows, *flags):
+        (tmp_path / "manifest.csv").write_text(self.HEADER + "\n" + rows, encoding="utf-8")
+        monkeypatch.setattr("sys.argv", ["eval", "--replay", str(source), *flags])
+        assert eval_transcription.main() == 0
+        [saved] = (tmp_path / "results").glob("*.json")
+        return EvaluationReportAdapter.validate_json(saved.read_bytes()), saved
+
+    def test_a_saved_live_run_replays_to_the_same_base_exact_results(
+        self, paths, monkeypatch
+    ):
+        """The JSON round trip: a live run's report is saved, its outputs
+        reload as plain dicts, and the replay rebuilds them into readings.
+        The offline model returns no read, so the positive is wrong and the
+        negative right."""
+        (paths / "photos").mkdir()
+        for photo in ("a", "n"):
+            (paths / "photos" / photo).write_bytes(b"not an image")
+        (paths / "manifest.csv").write_text(
+            f"{self.HEADER}\np1,a,g1,back,,{RIGHT},\n"
+            f"p2,n,g1,front,{NO_ART_NUMBER},{NO_ART_NUMBER},\n", encoding="utf-8")
+
+        def analyses(report):
+            return {a.title: a.rows for a in report.analyses
+                    if isinstance(a, TableResult) and a.title != "garment-sides"}
+
+        monkeypatch.setattr("sys.argv", ["eval", "--model", "test", "--repeat", "3"])
+        assert eval_transcription.main() == 0
+        [live_file] = (paths / "results").glob("*.json")
+        live = EvaluationReportAdapter.validate_json(live_file.read_bytes())
+
+        self.no_api(monkeypatch)
+        monkeypatch.setattr("sys.argv", ["eval", "--replay", str(live_file)])
+        assert eval_transcription.main() == 0
+        [replay_file] = (paths / "results").glob("*-replay.json")
+        replay = EvaluationReportAdapter.validate_json(replay_file.read_bytes())
+
+        assert analyses(replay) == analyses(live)
+        rows = {r[0]: r for r in analyses(replay)["base per photo"]}
+        assert (rows["a"][-1], rows["n"][-1]) == ("✗", "✔")
+
+    def test_saved_reads_are_scored_against_todays_manifest(self, harness, monkeypatch):
+        source = self.source(harness, {"a": [RIGHT, RIGHT, WRONG]})
+        report, _ = self.replay(harness, monkeypatch, source,
+                                f"p1,a,g1,back,,{RIGHT},\n")
+        [table] = [a for a in report.analyses if a.title == "base per photo"]
+        assert isinstance(table, TableResult)
+        [row] = table.rows
+        assert dict(zip(table.columns, row, strict=True))["correct"] == "✔"
+
+    def test_it_records_the_source_and_the_scoring_commit(self, harness, monkeypatch):
+        source = self.source(harness, {"a": [RIGHT] * 3})
+        report, saved = self.replay(harness, monkeypatch, source,
+                                    f"p1,a,g1,back,,{RIGHT},\n", "--note", "check")
+        meta = report.experiment_metadata or {}
+        assert meta["replay_of"] == "source.json"
+        assert (meta["model"], meta["prompt"], meta["repeat"]) == ("source:model", "abc", 3)
+        assert (meta["commit"], meta["dirty"], meta["note"]) == ("abc1234", False, "check")
+        assert saved.name.endswith("-source_model-replay.json")
+
+    def test_a_failed_source_read_fails_again(self, harness, monkeypatch):
+        """The photo keeps its --repeat runs, so the lost read still counts against it."""
+        source = self.source(harness, {"a": [RIGHT, None, None], "b": [None] * 3})
+        report, _ = self.replay(harness, monkeypatch, source,
+                                f"p1,a,g1,back,,{RIGHT},\np2,b,g2,back,,{RIGHT},\n")
+        assert (len(report.cases), len(report.failures)) == (1, 5)
+
+    def test_photos_on_one_side_only_are_named_and_not_scored(
+        self, harness, monkeypatch, capsys
+    ):
+        source = self.source(harness, {"a": [RIGHT], "gone": [RIGHT]})
+        report, _ = self.replay(harness, monkeypatch, source,
+                                f"p1,a,g1,back,,{RIGHT},\np2,new,g2,back,,{RIGHT},\n")
+        assert [c.name for c in report.cases] == ["a"]
+        out = capsys.readouterr().out
+        assert "not scored: gone" in out and "not scored: new" in out
+
+    def test_a_dirty_tree_warns(self, harness, monkeypatch, capsys):
+        monkeypatch.setattr(eval_transcription, "git",
+                            lambda *a: " M x.py" if a[0] == "status" else "abc1234")
+        source = self.source(harness, {"a": [RIGHT]})
+        report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
+        assert (report.experiment_metadata or {})["dirty"] is True
+        assert "warning: uncommitted changes" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("flags", [["--no-save"], ["--model", "test"], ["--repeat", "3"],
+                                       ["--limit", "1"], ["--baseline", "x.json"]])
+    def test_flags_it_sets_itself_are_rejected(self, monkeypatch, flags):
+        monkeypatch.setattr("sys.argv", ["eval", "--replay", "x.json", *flags])
+        with pytest.raises(SystemExit) as exc:
+            eval_transcription.main()
+        assert exc.value.code == 2
+
+
+class TestBaseOnlyRow:
+    """A row with expected_art_base but no legacy value. The legacy metrics
+    must pass over it, not crash or count it."""
+
+    def test_correct_art_number_returns_nothing(self):
+        assert score(None, "ABC") == {}
+
+    def test_per_photo_and_the_rates_leave_it_out(self):
+        rows, scalars = per_photo({"a": [CORRECT, NOT_READ], "b": [WRONG_AND_SURE] * 2},
+                                  expected={"b": None})
+        _, without = per_photo({"a": [CORRECT, NOT_READ]})
+        assert list(rows) == ["a"]
+        assert scalars == without
+
+
 class TestLoadManifest:
     """The loader is the only thing keeping a blank row away from the evaluator.
 
@@ -519,18 +852,67 @@ class TestLoadManifest:
         assert "skipping a" in capsys.readouterr().out
 
     def test_columns_it_does_not_score_change_nothing(self, tmp_path, monkeypatch):
-        """Run 0's columns, filled or blank, leave the cases as they were."""
+        """`id` and `expected_art_line`, filled or blank, leave the cases as they were."""
         legacy = "a,123456789,faded\nb,NONE,\nc,,\n"
         self.write(tmp_path, monkeypatch, legacy)
         before = [(c.name, c.expected_output, c.metadata) for c in load_manifest()]
         self.write(
             tmp_path, monkeypatch,
-            'p1,a,g1,back,123456789,"ART. 123456789",,faded\n'
+            'p1,a,123456789,"ART. 123456789",faded\n'
+            "p2,b,NONE,NONE,\n"
+            "p3,c,,,\n",
+            header="id,photo,expected_art_number,expected_art_line,note",
+        )
+        assert [(c.name, c.expected_output, c.metadata) for c in load_manifest()] == before
+
+    def test_scored_columns_keep_every_old_case(self, tmp_path, monkeypatch):
+        """Adding the base-exact columns can't move the legacy metrics against
+        a baseline: every old case stays, with the same expected value and note."""
+        def legacy_view():
+            return [(c.name, c.expected_output, (c.metadata or {})["note"])
+                    for c in load_manifest()]
+
+        self.write(tmp_path, monkeypatch,
+                   f"a,{s.EXPECTED_CODE},faded\nb,NONE,\nc,,\n")
+        before = legacy_view()
+        self.write(
+            tmp_path, monkeypatch,
+            f"p1,a,g1,back,{s.EXPECTED_CODE},,UNKNOWN,faded\n"
             "p2,b,g1,front,NONE,NONE,NONE,\n"
             "p3,c,g2,back,,,,\n",
             header="id,photo,garment,side,expected_art_number,expected_art_line,expected_art_base,note",
         )
-        assert [(c.name, c.expected_output, c.metadata) for c in load_manifest()] == before
+        assert legacy_view() == before
+
+    FULL = "id,photo,garment,side,expected_art_number,expected_art_base,note"
+
+    def test_a_base_only_row_is_a_case_with_no_legacy_value(self, tmp_path, monkeypatch):
+        self.write(tmp_path, monkeypatch, f"p1,a,g1,back,,{s.EXPECTED_CODE},\n",
+                   header=self.FULL)
+        [case] = load_manifest()
+        assert case.expected_output is None
+        assert case.metadata == {"note": "", "garment": "g1", "side": "back",
+                                 "expected_art_base": s.EXPECTED_CODE}
+
+    def test_legacy_unknown_beside_a_base_warns_and_keeps_the_row(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        self.write(tmp_path, monkeypatch, f"p1,a,g1,back,UNKNOWN,{s.EXPECTED_CODE},\n",
+                   header=self.FULL)
+        [case] = load_manifest()
+        assert case.expected_output is None
+        out = capsys.readouterr().out
+        assert "UNKNOWN" in out and "skipping" not in out
+
+    @pytest.mark.parametrize("legacy,base", [("", ""), ("", "UNKNOWN"), ("UNKNOWN", "")])
+    def test_a_row_with_neither_value_is_skipped_with_one_line(
+        self, tmp_path, monkeypatch, capsys, legacy, base
+    ):
+        self.write(tmp_path, monkeypatch, f"p1,a,g1,back,{legacy},{base},\n",
+                   header=self.FULL)
+        assert load_manifest() == []
+        out = capsys.readouterr().out
+        assert out.count("\n") == 1 and "skipping a" in out
 
 
 class TestSentinelSafety:

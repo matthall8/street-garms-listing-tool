@@ -66,7 +66,7 @@ under a different product name may be exceptions.
 | `side` | Manifest column: the label face shown. `front` carries brand text; `back` is the "Art." tag. |
 | garment-side | One garment's one side: the unit results are counted in. |
 | `expected_<term>` | A hand-labelled manifest column: `expected_art_line`, `expected_art_base`. Never produced by the parser. |
-| `expected_art_number` | Legacy column, kept so older reports stay comparable. Until the phase 1 scorer (TODO.md, *Code*), the only expected column the harness scores. |
+| `expected_art_number` | Legacy column, kept so older reports stay comparable. Scored by the legacy metrics beside base-exact. |
 | wrong-and-unflagged | ADR-0001's primary metric, not in the phase 1 gate (ADR-0002): would publish an `art_base` other than `expected_art_base` (any code, on a negative) with `needs_review` false. A garment-side counts if any of its reads does. |
 | silent error | A wrong-and-unflagged garment-side: wrong, but shown as *looks right*. |
 | readable / illegible / absent | The by-eye label of a photo before any run: every character of the ART number can be read; some can't; there is none (a negative). Separate from the model's `art_legible`. Every test photo is readable (ADR-0002). *(not in the manifest yet)* |

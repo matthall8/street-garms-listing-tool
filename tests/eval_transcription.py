@@ -18,6 +18,7 @@ Certilogo codes. See evals/README.md for setup and how to read the report.
     python tests/eval_transcription.py --repeat 3 --note "whole-label search" \\
         --baseline evals/results/<baseline>.json
     python tests/eval_transcription.py --model anthropic:claude-opus-5 --no-save
+    python tests/eval_transcription.py --replay evals/results/<report>.json   # no API calls
 """
 
 import argparse
@@ -31,6 +32,7 @@ from datetime import UTC, datetime
 from functools import partial
 from mimetypes import guess_type
 from pathlib import Path
+from typing import NamedTuple
 
 from pydantic import ValidationError
 from pydantic_evals import Case, Dataset
@@ -45,6 +47,7 @@ from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from labels.pipeline import from_reading
 from labels.schemas import ArtNumberReading
 from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art
 
@@ -79,6 +82,10 @@ def normalise(s: str | None) -> str:
 @dataclass
 class CorrectArtNumber(Evaluator):
     def evaluate(self, ctx: EvaluatorContext) -> dict:
+        # A base-only row has no legacy value: no `exact`, so scored_cases
+        # drops it. Scored, its cer would divide by zero.
+        if ctx.expected_output is None:
+            return {}
         expected = normalise(ctx.expected_output)
         detected = normalise(ctx.output.art_number_raw)
         is_negative = expected == NO_ART_NUMBER
@@ -100,6 +107,38 @@ class CorrectArtNumber(Evaluator):
             result["exact"] = expected == detected
             result["cer"] = levenshtein(detected, expected) / len(expected)
         return result
+
+
+def base_kind_of(metadata: dict | None) -> str:
+    """From the manifest value, as `kind` is, so a photo with no scored read
+    still has one."""
+    expected = normalise((metadata or {}).get("expected_art_base"))
+    if not expected:
+        return "unlabelled"
+    if expected == UNKNOWN:
+        return "unknown"
+    return "negative" if expected == NO_ART_NUMBER else "positive"
+
+
+@dataclass
+class CorrectArtBase(Evaluator):
+    """Base-exact (ADR-0002): the pipeline's art_base against expected_art_base.
+
+    Runs from_reading(), the app's own code after transcription, so a live run
+    and a replay of saved reads score the same way. `base_kind` is a string so
+    it stays a label; `base_exact` is left off rows with no usable base.
+    """
+    def evaluate(self, ctx: EvaluatorContext) -> dict:
+        kind = base_kind_of(ctx.metadata)
+        if kind not in ("positive", "negative"):
+            return {"base_kind": kind}
+
+        art_base = normalise(from_reading(ctx.output).art_base)
+        if kind == "negative":
+            return {"base_kind": kind, "base_exact": not art_base}
+        expected = normalise((ctx.metadata or {})["expected_art_base"])
+        return {"base_kind": kind, "base_exact": art_base == expected}
+
 
 def percent(part: list, whole: list) -> float:
     return 100 * len(part) / len(whole)
@@ -130,6 +169,12 @@ def scored_cases(ctx: ReportEvaluatorContext) -> list:
     # so exclude it rather than KeyError. (A case whose task raised goes to
     # report.failures and never reaches here.)
     return [r for r in ctx.report.cases if "exact" in r.assertions]
+
+
+def photo_of(r) -> str:
+    """The photo a read came from: at --repeat 1 pydantic-evals sets no
+    source_case_name, and the case name is the photo."""
+    return r.source_case_name or r.name
 
 
 @dataclass
@@ -187,14 +232,13 @@ class PerPhotoCounts(ReportEvaluator):
     photo that lost every read, which still gets a row with `reads` 0.
     """
     def evaluate(self, ctx: ReportEvaluatorContext) -> list[TableResult]:
-        def photo_of(r):
-            return r.source_case_name or r.name
-
         # Every photo the run touched, failed reads included, so none can drop
         # out of the table. Kind comes from the manifest value, as it does in
         # CorrectArtNumber, because a photo with no scored read has no label.
+        # A base-only row has no legacy value, so no row here.
         expected = {photo_of(r): r.expected_output
-                    for r in [*ctx.report.cases, *ctx.report.failures]}
+                    for r in [*ctx.report.cases, *ctx.report.failures]
+                    if r.expected_output is not None}
         if not expected:
             return []
         by_photo = defaultdict(list)
@@ -225,27 +269,127 @@ class PerPhotoCounts(ReportEvaluator):
         )]
 
 
+class PhotoBase(NamedTuple):
+    photo: str
+    garment: str
+    side: str
+    kind: str
+    reads: int          # scored reads
+    right: int          # of those, base-exact
+    correct: bool | None  # None when the photo has no usable base
+
+
+def needed(runs: int) -> int:
+    """Correct reads a photo needs: a majority of its runs, so 2 of 3."""
+    return runs // 2 + 1
+
+
+@dataclass
+class BaseExactCounts(ReportEvaluator):
+    """Base-exact per photo, the gate's unit (ADR-0002: a test garment-side is
+    one photo). A photo is correct when a majority of its --repeat runs read
+    the right base. A failed read is one of those runs, so it counts as wrong.
+
+    Garment-sides are counts only: dev has deliberate hard variants of a side,
+    such as rotated copies, so no rule joins its photos into one verdict.
+    """
+    def evaluate(self, ctx: ReportEvaluatorContext) -> list[TableResult]:
+        # Every run of a photo, failed ones included: their number is --repeat.
+        runs = defaultdict(list)
+        for r in [*ctx.report.cases, *ctx.report.failures]:
+            runs[photo_of(r)].append(r)
+        if not runs:
+            return []
+
+        photos, sides = [], defaultdict(lambda: [0, 0, 0])
+        for photo in sorted(runs):
+            metadata = runs[photo][0].metadata or {}
+            kind = base_kind_of(metadata)
+            scored = [r for r in ctx.report.cases
+                      if photo_of(r) == photo and "base_exact" in r.assertions]
+            right = sum(1 for r in scored if r.assertions["base_exact"].value)
+            correct = (right >= needed(len(runs[photo]))
+                       if kind in ("positive", "negative") else None)
+            p = PhotoBase(photo, metadata.get("garment", ""), metadata.get("side", ""),
+                          kind, len(scored), right, correct)
+            photos.append(p)
+
+            side = sides[(p.garment, p.side)]
+            side[0] += 1
+            side[1] += bool(correct)
+            side[2] += correct is None
+
+        def of(kind):
+            return [p for p in photos if p.kind == kind]
+
+        def rate(title, n, total):
+            return [title, n, total, round(100 * n / total, 1) if total else None]
+
+        positives, negatives = of("positive"), of("negative")
+        repeat = max(len(r) for r in runs.values())
+        return [
+            TableResult(
+                title=f"base-exact (correct: at least {needed(repeat)} of {repeat} reads)",
+                columns=["", "n", "of", "%"],
+                rows=[
+                    rate("photos correct", sum(1 for p in positives if p.correct),
+                         len(positives)),
+                    rate("reads correct", sum(p.right for p in positives),
+                         sum(p.reads for p in positives)),
+                    rate("negatives correct", sum(1 for p in negatives if p.correct),
+                         len(negatives)),
+                    rate("left out: unknown", len(of("unknown")), len(photos)),
+                    rate("left out: unlabelled", len(of("unlabelled")), len(photos)),
+                ],
+            ),
+            TableResult(
+                title="base per photo",
+                columns=["photo", "garment", "side", "kind", "reads", "correct reads",
+                         "correct"],
+                rows=[[*p[:6], None if p.correct is None else "✔" if p.correct else "✗"]
+                      for p in photos],
+            ),
+            TableResult(
+                title="garment-sides",
+                columns=["garment", "side", "photos", "correct", "left out"],
+                rows=[[g, sd, *counts] for (g, sd), counts in sorted(sides.items())],
+            ),
+        ]
+
+
 def load_manifest() -> list[Case]:
     cases = []
     with open(MANIFEST, encoding="utf-8-sig") as f:
         for r in csv.DictReader(f):
             photo = r.get("photo", "").strip()
             expected = r.get("expected_art_number", "").strip()
+            art_base = r.get("expected_art_base", "").strip()
             if not photo:
                 continue
-            if not expected:
-                print(f"skipping {photo}: no expected_art_number "
+            # UNKNOWN is never a legacy value: scored, it would be a code no
+            # read can match. Treat it as blank, and say so below.
+            legacy_unknown = normalise(expected) == UNKNOWN
+            if legacy_unknown:
+                expected = ""
+            if not expected and normalise(art_base) in ("", UNKNOWN):
+                print(f"skipping {photo}: no expected_art_number or expected_art_base "
                       f"(use {NO_ART_NUMBER} if the photo has no ART number)")
                 continue
-            if normalise(expected) == UNKNOWN:
-                print(f"skipping {photo}: {UNKNOWN} in expected_art_number "
-                      "would be scored as a code (leave it blank instead)")
-                continue
+            if legacy_unknown:
+                print(f"{photo}: {UNKNOWN} in expected_art_number is not scored "
+                      "(leave it blank instead)")
+            # The base is kept as written, UNKNOWN and blank included: the
+            # base-exact scorer counts those, so the loader doesn't.
             cases.append(Case(
                 name=photo,
                 inputs=PHOTOS / photo,
-                expected_output=expected,
-                metadata={"note": r.get("note", "").strip()},
+                expected_output=expected or None,
+                metadata={
+                    "note": r.get("note", "").strip(),
+                    "garment": r.get("garment", "").strip(),
+                    "side": r.get("side", "").strip(),
+                    "expected_art_base": art_base,
+                },
             ))
     return cases
 
@@ -282,6 +426,45 @@ def run_metadata(args: argparse.Namespace) -> dict:
         "note": args.note,
     }
 
+def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
+    """The scoring run's commit and manifest; the reads' model and prompt."""
+    read_by = source.experiment_metadata or {}
+    return {
+        **run_metadata(args),
+        "model": read_by.get("model"),
+        "prompt": read_by.get("prompt"),
+        "repeat": read_by.get("repeat", 1),
+        "replay_of": args.replay.name,
+    }
+
+
+def replay_task(source: EvaluationReport, cases: list[Case]):
+    """A saved report's reads as a task, so the same evaluators score them
+    with no API call. Each call returns the photo's next saved read; once a
+    photo's reads run out (one failed in the source run) the call fails, as
+    the read did. Expected values come from today's manifest, by photo.
+    """
+    saved = defaultdict(list)
+    for f in source.failures:
+        saved.setdefault(photo_of(f), [])   # so a photo that lost every read is a case
+    for r in sorted(source.cases, key=lambda r: r.name):
+        saved[photo_of(r)].append(ArtNumberReading.model_validate(r.output))
+
+    manifest = {c.name for c in cases if c.name}
+    for photo in sorted(set(saved) - manifest):
+        print(f"not scored: {photo} has saved reads but no usable manifest row")
+    for photo in sorted(manifest - set(saved)):
+        print(f"not scored: {photo} has no saved reads")
+
+    def task(photo_path: Path) -> ArtNumberReading:
+        reads = saved[photo_path.name]
+        if not reads:
+            raise LookupError("no saved read left: it failed in the source run")
+        return reads.pop(0)
+
+    return task, [c for c in cases if c.name in saved]
+
+
 def save(report, model) -> Path:
     RESULTS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -302,7 +485,8 @@ def load_baseline(path: Path) -> EvaluationReport | None:
         return EvaluationReportAdapter.validate_json(path.read_bytes())
     except ValidationError:
         print(f"{path} is not a saved eval report. Results from before the "
-              "pydantic-evals port use an older format and can't be baselines.")
+              "pydantic-evals port use an older format and can't be baselines "
+              "or replayed.")
         return None
 
 
@@ -310,11 +494,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--model", default=ART_MODEL, help=f"default: {ART_MODEL}")
+    # --model and --repeat default to None so --replay can tell they were passed.
+    ap.add_argument("--model", help=f"default: {ART_MODEL}")
     ap.add_argument("--workers", type=int, default=4,
-                    help="reads at once (default: 4)")
+                    help="reads at once (default: 4); ignored by --replay, which is serial")
     ap.add_argument("--limit", type=int, help="only run the first N cases")
-    ap.add_argument("--repeat", type=int, default=1,
+    ap.add_argument("--repeat", type=int,
                     help="read every photo N times (default: 1)")
     ap.add_argument("--note", default="",
                     help="what this run is testing, saved with the results")
@@ -322,7 +507,19 @@ def main() -> int:
                     help="don't write the report to evals/results/")
     ap.add_argument("--baseline", type=Path,
                     help="a saved report in evals/results/ to compare this run against")
+    ap.add_argument("--replay", type=Path,
+                    help="rescore a saved report's reads with this code, no API call")
     args = ap.parse_args()
+
+    if args.replay:
+        passed = [flag for flag, value in [
+            ("--model", args.model), ("--repeat", args.repeat), ("--limit", args.limit),
+            ("--baseline", args.baseline), ("--no-save", args.no_save)] if value]
+        if passed:
+            # The reads fix the model and repeat, and every replay is saved.
+            ap.error(f"--replay can't be used with {', '.join(passed)}")
+    args.model = args.model or ART_MODEL
+    args.repeat = args.repeat or 1
 
     if not MANIFEST.is_file():
         print(f"no manifest at {MANIFEST} — skipping.")
@@ -358,23 +555,38 @@ def main() -> int:
             print(f"warning: baseline used --repeat {baseline_repeat}, this run uses "
                   f"--repeat {args.repeat}, so cases won't line up in the diff")
 
-    from dotenv import load_dotenv
-    load_dotenv()
+    if args.replay:
+        source = load_baseline(args.replay)
+        if source is None:
+            return 1
+        metadata = replay_metadata(args, source)
+        if metadata["dirty"]:
+            print("warning: uncommitted changes, so the recorded commit isn't "
+                  "the code that scored this replay")
+        task, cases = replay_task(source, cases)
+        # Serial, so each photo's saved reads are scored in saved order.
+        workers, repeat, name = 1, metadata["repeat"], f"{metadata['model']}-replay"
+    else:
+        from dotenv import load_dotenv
+        load_dotenv()
+        metadata = run_metadata(args)
+        task = partial(get_art_number_reading, model=args.model)
+        workers, repeat, name = args.workers, args.repeat, args.model
 
     dataset = Dataset(name="art-number-transcription",
-                      cases=cases, evaluators=[CorrectArtNumber()],
-                      report_evaluators=[ConfidenceRates(), PerPhotoCounts()])
-    task = partial(get_art_number_reading, model=args.model)
+                      cases=cases, evaluators=[CorrectArtNumber(), CorrectArtBase()],
+                      report_evaluators=[ConfidenceRates(), PerPhotoCounts(),
+                                         BaseExactCounts()])
     report = dataset.evaluate_sync(
         task,
-        max_concurrency=args.workers,
-        repeat=args.repeat,
-        name=args.model,
-        metadata=run_metadata(args),
+        max_concurrency=workers,
+        repeat=repeat,
+        name=name,
+        metadata=metadata,
     )
     report.print(include_output=True, include_expected_output=True, baseline=baseline)
     if not args.no_save:
-        print(f"\nwrote {save(report, args.model).relative_to(EVALS.parent)}")
+        print(f"\nwrote {save(report, name).relative_to(EVALS.parent)}")
     return 0
 
 
