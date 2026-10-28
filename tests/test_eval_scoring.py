@@ -680,6 +680,15 @@ class TestRunMetadata:
         assert after["user_message"] != before["user_message"]
         assert (after["prompt"], after["schema"]) == (before["prompt"], before["schema"])
 
+    def test_versions_name_python_and_each_package(self, header):
+        assert header()["versions"].startswith("python ")
+        for package in eval_transcription.PACKAGES:
+            assert f"{package} " in header()["versions"]
+
+    def test_a_missing_package_is_recorded_not_fatal(self, monkeypatch):
+        monkeypatch.setattr(eval_transcription, "PACKAGES", ("zz-not-a-package",))
+        assert eval_transcription.versions().endswith("zz-not-a-package not installed")
+
 
 HEADER = "id,photo,garment,side,expected_art_number,expected_art_base,note"
 
@@ -789,7 +798,8 @@ class TestBaselineWarnings:
     """--baseline: the output schema, user message and photos must match, or
     the diff compares more than the one change being tested."""
 
-    RUN = {"schema": "s1", "user_message": "u1", "photo_hashes": {"p1": "h1", "p2": "h2"}}
+    RUN = {"schema": "s1", "user_message": "u1", "versions": "v1",
+           "photo_hashes": {"p1": "h1", "p2": "h2"}}
 
     def warnings(self, **baseline):
         return eval_transcription.baseline_warnings(baseline, self.RUN)
@@ -804,6 +814,11 @@ class TestBaselineWarnings:
     def test_a_different_user_message_warns(self):
         [warning] = self.warnings(**{**self.RUN, "user_message": "u0"})
         assert "user message differs" in warning and "u0 -> u1" in warning
+
+    def test_different_versions_warn(self):
+        """A library upgrade can change what's sent without moving the schema."""
+        [warning] = self.warnings(**{**self.RUN, "versions": "v0"})
+        assert "versions line differs" in warning and "v0 -> v1" in warning
 
     def test_photo_differences_are_named_by_id(self):
         warnings = self.warnings(**{**self.RUN, "photo_hashes": {"p1": "h0", "p3": "h3"}})
@@ -821,6 +836,7 @@ class TestBaselineWarnings:
         assert self.warnings(model="m", prompt="abc") == [
             "warning: the output schema is not recorded in the baseline",
             "warning: the user message is not recorded in the baseline",
+            "warning: the versions line is not recorded in the baseline",
             "warning: the photo record is not recorded in the baseline"]
 
     def test_main_prints_them_before_any_read(self, paths, monkeypatch, capsys):
@@ -841,6 +857,7 @@ class TestBaselineWarnings:
         assert "warning: photos changed: p2" in out
         assert out.index("warning: photos changed") < out.index("READ")
         assert "output schema" not in out and "user message" not in out
+        assert "versions line" not in out
 
 
 class TestReplay:
@@ -943,6 +960,12 @@ class TestReplay:
         meta = report.experiment_metadata or {}
         assert (meta["user_message"], meta["schema"], meta["photos"], meta["photo_hashes"]) == (
             "def", "ghi", "jkl", {"p1": "mno"})
+
+    def test_it_records_its_own_versions(self, harness, monkeypatch):
+        """Like commit: the environment that scored, not the one that read."""
+        source = self.source(harness, {"a": [RIGHT]}, versions="old")
+        report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
+        assert (report.experiment_metadata or {})["versions"] == eval_transcription.versions()
 
     def test_a_source_from_before_the_fields_records_none(self, harness, monkeypatch):
         """Not today's values: those would claim the reads saw them."""

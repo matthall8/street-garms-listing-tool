@@ -25,12 +25,14 @@ import argparse
 import csv
 import hashlib
 import json
+import platform
 import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from functools import partial
+from importlib.metadata import PackageNotFoundError, version
 from mimetypes import guess_type
 from pathlib import Path
 from typing import NamedTuple
@@ -58,6 +60,8 @@ NO_ART_NUMBER = "NONE"
 UNKNOWN = "UNKNOWN"  # a marker for the run 0 columns, never a legacy value
 PHOTOS = EVALS / "photos"
 RESULTS = EVALS / "results"
+# Between the code and the model, or scoring what comes back.
+PACKAGES = ("pydantic-ai", "anthropic", "pydantic", "pydantic-evals")
 
 
 def levenshtein(a: str, b: str) -> int:
@@ -415,6 +419,18 @@ def fingerprint(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()[:12]
 
 
+def versions() -> str:
+    """Python and PACKAGES as installed, so a run shows its environment
+    matched the commit's uv.lock. A missing package is recorded, not fatal."""
+    def installed(package: str) -> str:
+        try:
+            return version(package)
+        except PackageNotFoundError:
+            return "not installed"
+    return ", ".join([f"python {platform.python_version()}",
+                      *(f"{p} {installed(p)}" for p in PACKAGES)])
+
+
 def run_metadata(args: argparse.Namespace) -> dict:
     """What produced this run, so a saved report can be traced back to it."""
     return {
@@ -426,6 +442,7 @@ def run_metadata(args: argparse.Namespace) -> dict:
         # The output schema the model sees: field descriptions and docstrings included.
         "schema": fingerprint(
             json.dumps(ArtNumberReading.model_json_schema(), sort_keys=True).encode()),
+        "versions": versions(),
         "manifest": fingerprint(MANIFEST.read_bytes()),
         "limit": args.limit,
         "repeat": args.repeat,
@@ -500,12 +517,14 @@ def replay_task(source: EvaluationReport, cases: list[Case]):
 
 
 def baseline_warnings(baseline: dict, run: dict) -> list[str]:
-    """Where the baseline's output schema, user message or photos differ from
-    this run's. Any of them changing alongside the change under test makes the
-    diff meaningless, and none shows in a prompt or model comparison. Not
-    `prompt` or `model`: a comparison usually changes one on purpose."""
+    """Where the baseline's output schema, user message, library versions or
+    photos differ from this run's. Any of them changing alongside the change
+    under test makes the diff meaningless, and none shows in a prompt or model
+    comparison: a library upgrade can change what's sent without moving the
+    schema. Not `prompt` or `model`: a comparison usually changes one on purpose."""
     warnings = []
-    for what, key in [("output schema", "schema"), ("user message", "user_message")]:
+    for what, key in [("output schema", "schema"), ("user message", "user_message"),
+                      ("versions line", "versions")]:
         if baseline.get(key) is None:
             warnings.append(f"warning: the {what} is not recorded in the baseline")
         elif baseline[key] != run[key]:
