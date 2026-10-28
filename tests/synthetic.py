@@ -32,28 +32,30 @@ HOLDOUT_EXPECTED_CODE = "QZ6660T8002"  # in the held-out manifest only
 CODE_SHAPED = "QZ9020W1234"
 IMAGE = "zz_untracked_shot.webp"
 
-# Gate baselines: one catalogue key per format family, each decoding with a
-# format and a year and no flags, so an exact hit on it is needs_review=False
-GATE_SI_NUMERIC = "4815QZ7342"         # SS2008
-GATE_SI_ALPHA = "K1S15QZ7342"          # SS2025
+# Gate baselines: one catalogue key per format family, each a valid base for
+# its family (ADR-0005) and decoding with a format and a year and no flags, so
+# an exact hit on it is needs_review=False
+GATE_SI_NUMERIC = "4815QZ734"          # SS2008
+GATE_SI_ALPHA = "K1S15QZ73421"         # SS2025
 GATE_CP_TRANSITIONAL = "13WCPUQZ7342"  # AW2013
-GATE_CP_MODERN = "14CMOWQZ7342"        # SS2023
+GATE_CP_MODERN = "14CMOWQZ73"          # SS2023
 
-# Gate clauses: each decodes like a baseline except for the one thing named
-GATE_COUNTERFEIT_MARKER = "4815QZ2227"  # contains 222
-GATE_COLLAB_LINE = "14CSOWQZ7342"       # cp_modern on the S line
-GATE_NO_YEAR = "01CMOWQZ7342"           # cp_modern prefix outside the table
+# Gate clauses: each splits and decodes like a baseline except for the one
+# thing named. The unrecognised and truncated ones fail the split too
+GATE_COUNTERFEIT_MARKER = "4815QZ222"   # contains 222
+GATE_COLLAB_LINE = "14CSOWQZ73"         # cp_modern on the S line
+GATE_NO_YEAR = "01CMOWQZ73"             # cp_modern prefix outside the table
 GATE_UNRECOGNISED = "QZ7342"
 GATE_TRUNCATED = "4815QZ7"              # under 8 characters
 GATE_TRUNCATED_CP = "CMOWQZ7342"        # cp_modern without its prefix
-GATE_CORRECTED_KEY = "4815QZ7O42"
-GATE_CORRECTED_READ = "4815QZ7042"      # one confusion from the key above
-GATE_AMBIGUOUS_READ = "4815QZ0O42"      # one confusion from each key below
-GATE_AMBIGUOUS_KEY_A = "4815QZOO42"
-GATE_AMBIGUOUS_KEY_B = "4815QZ0042"
-GATE_MISS = "4815QZ9342"                # no key, and no key one confusion away
-GATE_UNKNOWN_BRAND_GARMENT = "4899ZQ7342"  # brand 99 and garment Z are in no table
-GATE_UNREADABLE_MARK = "4815Q?7342"     # ? past the decoded prefix
+GATE_CORRECTED_KEY = "4815QZ7O4"
+GATE_CORRECTED_READ = "4815QZ704"       # one confusion from the key above
+GATE_AMBIGUOUS_READ = "4815QZ0O4"       # one confusion from each key below
+GATE_AMBIGUOUS_KEY_A = "4815QZOO4"
+GATE_AMBIGUOUS_KEY_B = "4815QZ004"
+GATE_MISS = "4815QZ934"                 # no key, and no key one confusion away
+GATE_UNKNOWN_BRAND_GARMENT = "4899ZQ734"  # brand 99 and garment Z are in no table
+GATE_UNREADABLE_MARK = "4815Q?734"      # ? past the decoded prefix
 
 # A manifest column nobody has classified, named like a code so a crash
 # message carrying it would leak
