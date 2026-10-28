@@ -28,7 +28,7 @@ import json
 import subprocess
 import sys
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from functools import partial
 from mimetypes import guess_type
@@ -386,6 +386,7 @@ def load_manifest() -> list[Case]:
                 inputs=PHOTOS / photo,
                 expected_output=expected or None,
                 metadata={
+                    "id": r.get("id", "").strip(),
                     "note": r.get("note", "").strip(),
                     "garment": r.get("garment", "").strip(),
                     "side": r.get("side", "").strip(),
@@ -431,9 +432,32 @@ def run_metadata(args: argparse.Namespace) -> dict:
         "note": args.note,
     }
 
+def id_problems(cases: list[Case]) -> list[str]:
+    """Blank or repeated manifest ids among the cases run: the photo record
+    is keyed by id."""
+    ids = [(c.metadata or {}).get("id", "") for c in cases]
+    problems = [f"{c.name} has no id" for c, i in zip(cases, ids, strict=True) if not i]
+    problems += [f"id {i} is on more than one row"
+                 for i in sorted({i for i in ids if i and ids.count(i) > 1})]
+    return problems
+
+
+def photo_metadata(cases: list[Case]) -> dict:
+    """The photos this run sends, by manifest id: a sha256 each, so one can be
+    checked by hand, and one fingerprint over them all. Hashed once per photo,
+    whatever --repeat is. A missing photo is None; its read fails as before."""
+    hashes = {}
+    for c in cases:
+        path = Path(c.inputs)
+        hashes[(c.metadata or {})["id"]] = (
+            hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None)
+    return {"photos": fingerprint(json.dumps(hashes, sort_keys=True).encode()),
+            "photo_hashes": hashes}
+
+
 def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
     """The scoring run's commit and manifest; the reads' model, prompt, user
-    message and schema. A source from before a field existed gives None."""
+    message, schema and photos. A source from before a field existed gives None."""
     read_by = source.experiment_metadata or {}
     return {
         **run_metadata(args),
@@ -441,6 +465,8 @@ def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
         "prompt": read_by.get("prompt"),
         "user_message": read_by.get("user_message"),
         "schema": read_by.get("schema"),
+        "photos": read_by.get("photos"),
+        "photo_hashes": read_by.get("photo_hashes"),
         "repeat": read_by.get("repeat", 1),
         "replay_of": args.replay.name,
     }
@@ -471,6 +497,14 @@ def replay_task(source: EvaluationReport, cases: list[Case]):
         return reads.pop(0)
 
     return task, [c for c in cases if c.name in saved]
+
+
+def printable(report: EvaluationReport) -> EvaluationReport:
+    """The report without photo_hashes, which would fill the printed header.
+    The saved report keeps them."""
+    metadata = {k: v for k, v in (report.experiment_metadata or {}).items()
+                if k != "photo_hashes"}
+    return replace(report, experiment_metadata=metadata)
 
 
 def save(report, model) -> Path:
@@ -575,9 +609,13 @@ def main() -> int:
         # Serial, so each photo's saved reads are scored in saved order.
         workers, repeat, name = 1, metadata["repeat"], f"{metadata['model']}-replay"
     else:
+        if problems := id_problems(cases):
+            print("\n".join(problems))
+            print("every row run needs its own id: the photo record is keyed by it")
+            return 1
         from dotenv import load_dotenv
         load_dotenv()
-        metadata = run_metadata(args)
+        metadata = {**run_metadata(args), **photo_metadata(cases)}
         task = partial(get_art_number_reading, model=args.model)
         workers, repeat, name = args.workers, args.repeat, args.model
 
@@ -592,7 +630,8 @@ def main() -> int:
         name=name,
         metadata=metadata,
     )
-    report.print(include_output=True, include_expected_output=True, baseline=baseline)
+    printable(report).print(include_output=True, include_expected_output=True,
+                            baseline=printable(baseline) if baseline else None)
     if not args.no_save:
         print(f"\nwrote {save(report, name).relative_to(EVALS.parent)}")
     return 0

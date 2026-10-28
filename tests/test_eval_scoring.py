@@ -11,6 +11,7 @@ evals rejects a None metric and discards the WHOLE case result, including
 """
 
 import argparse
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -680,42 +681,126 @@ class TestRunMetadata:
         assert (after["prompt"], after["schema"]) == (before["prompt"], before["schema"])
 
 
-class TestReplay:
-    """--replay end to end: a saved report's reads, rescored by main() with
-    no API call. The harness's paths and git are patched on the module, as
-    MANIFEST is in TestLoadManifest."""
+HEADER = "id,photo,garment,side,expected_art_number,expected_art_base,note"
 
-    HEADER = "id,photo,garment,side,expected_art_number,expected_art_base,note"
 
-    @pytest.fixture
-    def paths(self, tmp_path, monkeypatch):
-        # A live run loads .env; unpatched, a real key would outlive the test.
-        monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: False)
-        monkeypatch.setattr(eval_transcription, "EVALS", tmp_path)
-        monkeypatch.setattr(eval_transcription, "MANIFEST", tmp_path / "manifest.csv")
-        monkeypatch.setattr(eval_transcription, "PHOTOS", tmp_path / "photos")
-        monkeypatch.setattr(eval_transcription, "RESULTS", tmp_path / "results")
-        monkeypatch.setattr(eval_transcription, "git",
-                            lambda *a: "" if a[0] == "status" else "abc1234")
-        return tmp_path
+@pytest.fixture
+def paths(tmp_path, monkeypatch):
+    """The harness's paths and git, patched on the module as MANIFEST is in
+    TestLoadManifest, so main() runs end to end under tmp_path."""
+    # A live run loads .env; unpatched, a real key would outlive the test.
+    monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: False)
+    monkeypatch.setattr(eval_transcription, "EVALS", tmp_path)
+    monkeypatch.setattr(eval_transcription, "MANIFEST", tmp_path / "manifest.csv")
+    monkeypatch.setattr(eval_transcription, "PHOTOS", tmp_path / "photos")
+    monkeypatch.setattr(eval_transcription, "RESULTS", tmp_path / "results")
+    monkeypatch.setattr(eval_transcription, "git",
+                        lambda *a: "" if a[0] == "status" else "abc1234")
+    return tmp_path
+
+
+def no_api(monkeypatch, why="a replay must not call the model"):
+    def fail(*_, **__):
+        raise AssertionError(why)
+    monkeypatch.setattr(eval_transcription, "get_art_number_reading", fail)
+
+
+class TestPhotoRecord:
+    """The photos a live run sends, hashed by manifest id into its header."""
+
+    def run(self, paths, monkeypatch, rows, photos, *flags) -> int:
+        """main() offline. `photos` maps a filename to its bytes; a name in
+        `rows` but not here is a missing photo."""
+        (paths / "photos").mkdir(exist_ok=True)
+        for name, data in photos.items():
+            (paths / "photos" / name).write_bytes(data)
+        (paths / "manifest.csv").write_text(HEADER + "\n" + rows, encoding="utf-8")
+        monkeypatch.setattr("sys.argv", ["eval", "--model", "test", *flags])
+        return eval_transcription.main()
 
     @staticmethod
-    def no_api(monkeypatch):
-        def fail(*_, **__):
-            raise AssertionError("a replay must not call the model")
-        monkeypatch.setattr(eval_transcription, "get_art_number_reading", fail)
+    def saved(paths):
+        [saved] = (paths / "results").glob("*.json")
+        return EvaluationReportAdapter.validate_json(saved.read_bytes())
+
+    ROWS = f"p1,a,g1,back,,{RIGHT},\np2,b,g2,back,,{RIGHT},\n"
+
+    def test_the_record_is_a_sha256_per_id(self, paths, monkeypatch):
+        """Full hashes, so one photo can be checked with `shasum -a 256`."""
+        assert self.run(paths, monkeypatch, self.ROWS, {"a": b"one", "b": b"two"}) == 0
+        meta = self.saved(paths).experiment_metadata or {}
+        assert meta["photo_hashes"] == {"p1": hashlib.sha256(b"one").hexdigest(),
+                                        "p2": hashlib.sha256(b"two").hexdigest()}
+        assert len(meta["photos"]) == 12
+
+    def test_a_changed_photo_byte_changes_the_record(self, paths, monkeypatch):
+        self.run(paths, monkeypatch, self.ROWS, {"a": b"one", "b": b"two"}, "--no-save")
+        cases = load_manifest()
+        before = eval_transcription.photo_metadata(cases)
+        (paths / "photos" / "b").write_bytes(b"twO")
+        after = eval_transcription.photo_metadata(cases)
+        assert after["photo_hashes"]["p1"] == before["photo_hashes"]["p1"]
+        assert after["photo_hashes"]["p2"] != before["photo_hashes"]["p2"]
+        assert after["photos"] != before["photos"]
+
+    def test_a_missing_photo_is_none_and_its_read_fails(self, paths, monkeypatch):
+        assert self.run(paths, monkeypatch, self.ROWS, {"a": b"one"}) == 0
+        report = self.saved(paths)
+        assert (report.experiment_metadata or {})["photo_hashes"]["p2"] is None
+        assert [f.name for f in report.failures] == ["b"]
+
+    def test_one_entry_per_photo_whatever_the_repeat(self, paths, monkeypatch):
+        self.run(paths, monkeypatch, self.ROWS, {"a": b"one", "b": b"two"}, "--repeat", "3")
+        assert list((self.saved(paths).experiment_metadata or {})["photo_hashes"]) == [
+            "p1", "p2"]
+
+    def test_limit_hashes_only_the_cases_run(self, paths, monkeypatch):
+        self.run(paths, monkeypatch, self.ROWS, {"a": b"one", "b": b"two"}, "--limit", "1")
+        assert list((self.saved(paths).experiment_metadata or {})["photo_hashes"]) == ["p1"]
+
+    @pytest.mark.parametrize("rows,problem", [
+        (f"p1,a,g1,back,,{RIGHT},\n,b,g2,back,,{RIGHT},\n", "b has no id"),
+        (f"p1,a,g1,back,,{RIGHT},\np1,b,g2,back,,{RIGHT},\n", "id p1 is on more than one row"),
+    ])
+    def test_a_blank_or_repeated_id_stops_before_any_read(
+        self, paths, monkeypatch, capsys, rows, problem
+    ):
+        no_api(monkeypatch, "the run should have stopped before reading")
+        assert self.run(paths, monkeypatch, rows, {"a": b"one", "b": b"two"}) == 1
+        assert problem in capsys.readouterr().out
+        assert not (paths / "results").exists()
+
+    def test_a_repeated_id_past_the_limit_does_not_stop_the_run(self, paths, monkeypatch):
+        """Only the cases run are keyed, so only they must be unique."""
+        rows = self.ROWS + f"p2,c,g3,back,,{RIGHT},\n"
+        assert self.run(paths, monkeypatch, rows, {"a": b"one"}, "--limit", "1") == 0
+
+    def test_the_printed_header_leaves_out_the_per_photo_record(
+        self, paths, monkeypatch, capsys
+    ):
+        """It would fill the header; the saved report keeps it."""
+        self.run(paths, monkeypatch, self.ROWS, {"a": b"one", "b": b"two"})
+        out = capsys.readouterr().out
+        assert "photos: " in out and "photo_hashes" not in out
+        assert "photo_hashes" in (self.saved(paths).experiment_metadata or {})
+
+
+class TestReplay:
+    """--replay end to end: a saved report's reads, rescored by main() with
+    no API call."""
+
 
     @pytest.fixture
     def harness(self, paths, monkeypatch):
-        self.no_api(monkeypatch)
+        no_api(monkeypatch)
         return paths
 
-    def source(self, tmp_path, photos: dict, **metadata) -> Path:
-        """Save a report as a live run would. `photos` maps a filename to one
+    def source(self, tmp_path, reads: dict, **metadata) -> Path:
+        """Save a report as a live run would. `reads` maps a filename to one
         raw line per repeat; None makes that read fail. `metadata` adds header
         fields; without it the header predates user_message and schema."""
-        repeat = len(next(iter(photos.values())))
-        queues = {name: iter(reads) for name, reads in photos.items()}
+        repeat = len(next(iter(reads.values())))
+        queues = {name: iter(lines) for name, lines in reads.items()}
 
         def task(path):
             raw = next(queues[path.name])
@@ -725,7 +810,7 @@ class TestReplay:
 
         report = Dataset(
             name="source",
-            cases=[Case(name=n, inputs=tmp_path / n) for n in photos],
+            cases=[Case(name=n, inputs=tmp_path / n) for n in reads],
         ).evaluate_sync(task, repeat=repeat, max_concurrency=1, metadata={
             "model": "source:model", "prompt": "abc", "repeat": repeat, **metadata})
         path = tmp_path / "source.json"
@@ -733,7 +818,7 @@ class TestReplay:
         return path
 
     def replay(self, tmp_path, monkeypatch, source, rows, *flags):
-        (tmp_path / "manifest.csv").write_text(self.HEADER + "\n" + rows, encoding="utf-8")
+        (tmp_path / "manifest.csv").write_text(HEADER + "\n" + rows, encoding="utf-8")
         monkeypatch.setattr("sys.argv", ["eval", "--replay", str(source), *flags])
         assert eval_transcription.main() == 0
         [saved] = (tmp_path / "results").glob("*.json")
@@ -750,7 +835,7 @@ class TestReplay:
         for photo in ("a", "n"):
             (paths / "photos" / photo).write_bytes(b"not an image")
         (paths / "manifest.csv").write_text(
-            f"{self.HEADER}\np1,a,g1,back,,{RIGHT},\n"
+            f"{HEADER}\np1,a,g1,back,,{RIGHT},\n"
             f"p2,n,g1,front,{NO_ART_NUMBER},{NO_ART_NUMBER},\n", encoding="utf-8")
 
         def analyses(report):
@@ -762,7 +847,7 @@ class TestReplay:
         [live_file] = (paths / "results").glob("*.json")
         live = EvaluationReportAdapter.validate_json(live_file.read_bytes())
 
-        self.no_api(monkeypatch)
+        no_api(monkeypatch)
         monkeypatch.setattr("sys.argv", ["eval", "--replay", str(live_file)])
         assert eval_transcription.main() == 0
         [replay_file] = (paths / "results").glob("*-replay.json")
@@ -792,18 +877,22 @@ class TestReplay:
         assert saved.name.endswith("-source_model-replay.json")
 
     def test_it_copies_what_the_model_saw_from_the_source(self, harness, monkeypatch):
-        """The reads came from the source's user message and schema, not today's."""
-        source = self.source(harness, {"a": [RIGHT]}, user_message="def", schema="ghi")
+        """The reads came from the source's user message, schema and photos,
+        not today's."""
+        source = self.source(harness, {"a": [RIGHT]}, user_message="def", schema="ghi",
+                             photos="jkl", photo_hashes={"p1": "mno"})
         report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
         meta = report.experiment_metadata or {}
-        assert (meta["user_message"], meta["schema"]) == ("def", "ghi")
+        assert (meta["user_message"], meta["schema"], meta["photos"], meta["photo_hashes"]) == (
+            "def", "ghi", "jkl", {"p1": "mno"})
 
     def test_a_source_from_before_the_fields_records_none(self, harness, monkeypatch):
         """Not today's values: those would claim the reads saw them."""
         source = self.source(harness, {"a": [RIGHT]})
         report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
         meta = report.experiment_metadata or {}
-        assert (meta["user_message"], meta["schema"]) == (None, None)
+        assert (meta["user_message"], meta["schema"], meta["photos"],
+                meta["photo_hashes"]) == (None, None, None, None)
 
     def test_a_failed_source_read_fails_again(self, harness, monkeypatch):
         """The photo keeps its --repeat runs, so the lost read still counts against it."""
@@ -911,19 +1000,35 @@ class TestLoadManifest:
         assert [c.name for c in load_manifest()] == ["b"]
         assert "skipping a" in capsys.readouterr().out
 
-    def test_columns_it_does_not_score_change_nothing(self, tmp_path, monkeypatch):
-        """`id` and `expected_art_line`, filled or blank, leave the cases as they were."""
+    def test_expected_art_line_changes_no_case(self, tmp_path, monkeypatch):
+        """`expected_art_line`, filled or blank, leaves the cases as they were."""
         legacy = "a,123456789,faded\nb,NONE,\nc,,\n"
         self.write(tmp_path, monkeypatch, legacy)
         before = [(c.name, c.expected_output, c.metadata) for c in load_manifest()]
         self.write(
             tmp_path, monkeypatch,
-            'p1,a,123456789,"ART. 123456789",faded\n'
-            "p2,b,NONE,NONE,\n"
-            "p3,c,,,\n",
-            header="id,photo,expected_art_number,expected_art_line,note",
+            'a,123456789,"ART. 123456789",faded\n'
+            "b,NONE,NONE,\n"
+            "c,,,\n",
+            header="photo,expected_art_number,expected_art_line,note",
         )
         assert [(c.name, c.expected_output, c.metadata) for c in load_manifest()] == before
+
+    def test_id_changes_only_its_own_metadata(self, tmp_path, monkeypatch):
+        """`id` keys the photo record; nothing scored reads it."""
+        def view():
+            cases = load_manifest()
+            ids = [(c.metadata or {}).pop("id") for c in cases]
+            return ids, [(c.name, c.expected_output, c.metadata) for c in cases]
+
+        legacy = "a,123456789,faded\nb,NONE,\nc,,\n"
+        self.write(tmp_path, monkeypatch, legacy)
+        ids_before, before = view()
+        self.write(tmp_path, monkeypatch, "p1,a,123456789,faded\np2,b,NONE,\np3,c,,\n",
+                   header="id,photo,expected_art_number,note")
+        ids_after, after = view()
+        assert (ids_before, ids_after) == (["", ""], ["p1", "p2"])
+        assert after == before
 
     def test_scored_columns_keep_every_old_case(self, tmp_path, monkeypatch):
         """Adding the base-exact columns can't move the legacy metrics against
@@ -951,7 +1056,7 @@ class TestLoadManifest:
                    header=self.FULL)
         [case] = load_manifest()
         assert case.expected_output is None
-        assert case.metadata == {"note": "", "garment": "g1", "side": "back",
+        assert case.metadata == {"id": "p1", "note": "", "garment": "g1", "side": "back",
                                  "expected_art_base": s.EXPECTED_CODE}
 
     def test_legacy_unknown_beside_a_base_warns_and_keeps_the_row(
