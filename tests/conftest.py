@@ -29,12 +29,15 @@ def a_code(catalogue) -> str:
 
 
 def _parses_cleanly(code: str) -> bool:
-    """Decodes with a year and no flags, so needs_review depends only on the
-    thing a test is actually varying."""
-    from labels.art_number import parse
+    """Splits into a bare base with no problems, and decodes with a year and
+    no flags, so needs_review depends only on the thing a test is actually
+    varying. A fused or compound key would split into something else."""
+    from labels.art_number import ArtSplit, parse, split_art_line
 
     decoded = parse(code)
-    return bool(decoded.format and decoded.year and not decoded.flags)
+    return split_art_line(code) == ArtSplit(art_base=code) and bool(
+        decoded.format and decoded.year and not decoded.flags
+    )
 
 
 @pytest.fixture(scope="session")
