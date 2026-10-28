@@ -24,6 +24,7 @@ Certilogo codes. See evals/README.md for setup and how to read the report.
 import argparse
 import csv
 import hashlib
+import json
 import subprocess
 import sys
 from collections import defaultdict
@@ -49,7 +50,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from labels.pipeline import from_reading
 from labels.schemas import ArtNumberReading
-from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art
+from labels.transcribe import ART_MODEL, ART_PROMPT, ART_USER_MESSAGE, transcribe_art
 
 EVALS = Path(__file__).parent.parent / "evals"
 MANIFEST = EVALS / "manifest.csv"
@@ -420,6 +421,10 @@ def run_metadata(args: argparse.Namespace) -> dict:
         "commit": git("rev-parse", "--short", "HEAD"),
         "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
         "prompt": fingerprint(ART_PROMPT.encode()),
+        "user_message": fingerprint(ART_USER_MESSAGE.encode()),
+        # The output schema the model sees: field descriptions and docstrings included.
+        "schema": fingerprint(
+            json.dumps(ArtNumberReading.model_json_schema(), sort_keys=True).encode()),
         "manifest": fingerprint(MANIFEST.read_bytes()),
         "limit": args.limit,
         "repeat": args.repeat,
@@ -427,12 +432,15 @@ def run_metadata(args: argparse.Namespace) -> dict:
     }
 
 def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
-    """The scoring run's commit and manifest; the reads' model and prompt."""
+    """The scoring run's commit and manifest; the reads' model, prompt, user
+    message and schema. A source from before a field existed gives None."""
     read_by = source.experiment_metadata or {}
     return {
         **run_metadata(args),
         "model": read_by.get("model"),
         "prompt": read_by.get("prompt"),
+        "user_message": read_by.get("user_message"),
+        "schema": read_by.get("schema"),
         "repeat": read_by.get("repeat", 1),
         "replay_of": args.replay.name,
     }
