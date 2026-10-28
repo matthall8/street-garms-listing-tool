@@ -85,6 +85,9 @@ RULES
 6. Never use product knowledge or databases to alter the transcription.
 """
 
+# Sent with the photo on every call. A constant so the eval harness can fingerprint it.
+ART_USER_MESSAGE = "Transcribe the ART number visible in this image."
+
 @cache
 def get_art_agent(model: str = ART_MODEL) -> Agent[None, ArtNumberReading]:
     """Build on first use, so importing this module needs no API key.
@@ -102,7 +105,7 @@ def transcribe_art(
 ) -> ArtNumberReading:
     """Read the ART number from a photo of the ART number tag or a whole label."""
     return get_art_agent(model).run_sync([
-        "Transcribe the ART number visible in this image.",
+        ART_USER_MESSAGE,
         BinaryContent(data=data, media_type=media_type),
     ]).output
 

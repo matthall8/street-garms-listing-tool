@@ -356,6 +356,21 @@ class TestOneRead:
 
         assert calls == [PHOTO]
 
+    def test_the_call_sends_the_user_message_constant(self):
+        """The harness fingerprints ART_USER_MESSAGE, so it must be what is
+        sent. A real agent on pydantic-ai's offline test model: no key needed."""
+        from pydantic_ai import BinaryContent, capture_run_messages
+        from pydantic_ai.messages import UserPromptPart
+
+        from labels import transcribe as T
+
+        with capture_run_messages() as messages:
+            T.transcribe_art(*PHOTO, model="test")
+
+        [user] = [p for p in messages[0].parts if isinstance(p, UserPromptPart)]
+        assert user.content == [T.ART_USER_MESSAGE,
+                                BinaryContent(data=PHOTO[0], media_type=PHOTO[1])]
+
 
 # ---------------------------------------------------------------------------
 # 5. from_reading() — what the eval replay and scorer call on a saved read
