@@ -10,11 +10,13 @@ evals rejects a None metric and discards the WHOLE case result, including
 `exact`, which ConfidenceRates keys on. TestNegativeBranch pins that down.
 """
 
+import argparse
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from pydantic import Field, create_model
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import EvaluatorContext
 from pydantic_evals.reporting import EvaluationReportAdapter
@@ -635,6 +637,49 @@ class TestBaseExactCounts:
         assert sides[("g2", "back")]["left out"] == 1
 
 
+def schema_variant(**fields) -> type[ArtNumberReading]:
+    """ArtNumberReading with its name and docstring, `fields` overridden: the
+    schema the model would see after a description edit."""
+    return create_model("ArtNumberReading", __base__=ArtNumberReading,
+                        __doc__=ArtNumberReading.__doc__, **fields)
+
+
+class TestRunMetadata:
+    """The header's fingerprints of what the model sees, each its own field."""
+
+    @pytest.fixture
+    def header(self, tmp_path, monkeypatch):
+        manifest = tmp_path / "manifest.csv"
+        manifest.write_text("id,photo\n", encoding="utf-8")
+        monkeypatch.setattr(eval_transcription, "MANIFEST", manifest)
+        monkeypatch.setattr(eval_transcription, "git", lambda *a: "")
+        args = argparse.Namespace(model="test", limit=None, repeat=1, note="")
+        return lambda: eval_transcription.run_metadata(args)
+
+    def test_a_changed_schema_description_changes_the_schema_fingerprint(
+        self, header, monkeypatch
+    ):
+        before = header()
+        # The control: an unchanged copy keeps the fingerprint, so the edit
+        # below is what moves it.
+        monkeypatch.setattr(eval_transcription, "ArtNumberReading", schema_variant())
+        assert header()["schema"] == before["schema"]
+
+        monkeypatch.setattr(eval_transcription, "ArtNumberReading", schema_variant(
+            art_number_raw=(str | None, Field(default=None, description="Changed."))))
+        after = header()
+        assert after["schema"] != before["schema"]
+        assert (after["prompt"], after["user_message"]) == (
+            before["prompt"], before["user_message"])
+
+    def test_a_changed_user_message_changes_its_fingerprint(self, header, monkeypatch):
+        before = header()
+        monkeypatch.setattr(eval_transcription, "ART_USER_MESSAGE", "Changed.")
+        after = header()
+        assert after["user_message"] != before["user_message"]
+        assert (after["prompt"], after["schema"]) == (before["prompt"], before["schema"])
+
+
 class TestReplay:
     """--replay end to end: a saved report's reads, rescored by main() with
     no API call. The harness's paths and git are patched on the module, as
@@ -665,9 +710,10 @@ class TestReplay:
         self.no_api(monkeypatch)
         return paths
 
-    def source(self, tmp_path, photos: dict) -> Path:
+    def source(self, tmp_path, photos: dict, **metadata) -> Path:
         """Save a report as a live run would. `photos` maps a filename to one
-        raw line per repeat; None makes that read fail."""
+        raw line per repeat; None makes that read fail. `metadata` adds header
+        fields; without it the header predates user_message and schema."""
         repeat = len(next(iter(photos.values())))
         queues = {name: iter(reads) for name, reads in photos.items()}
 
@@ -681,7 +727,7 @@ class TestReplay:
             name="source",
             cases=[Case(name=n, inputs=tmp_path / n) for n in photos],
         ).evaluate_sync(task, repeat=repeat, max_concurrency=1, metadata={
-            "model": "source:model", "prompt": "abc", "repeat": repeat})
+            "model": "source:model", "prompt": "abc", "repeat": repeat, **metadata})
         path = tmp_path / "source.json"
         path.write_bytes(EvaluationReportAdapter.dump_json(report))
         return path
@@ -744,6 +790,20 @@ class TestReplay:
         assert (meta["model"], meta["prompt"], meta["repeat"]) == ("source:model", "abc", 3)
         assert (meta["commit"], meta["dirty"], meta["note"]) == ("abc1234", False, "check")
         assert saved.name.endswith("-source_model-replay.json")
+
+    def test_it_copies_what_the_model_saw_from_the_source(self, harness, monkeypatch):
+        """The reads came from the source's user message and schema, not today's."""
+        source = self.source(harness, {"a": [RIGHT]}, user_message="def", schema="ghi")
+        report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
+        meta = report.experiment_metadata or {}
+        assert (meta["user_message"], meta["schema"]) == ("def", "ghi")
+
+    def test_a_source_from_before_the_fields_records_none(self, harness, monkeypatch):
+        """Not today's values: those would claim the reads saw them."""
+        source = self.source(harness, {"a": [RIGHT]})
+        report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
+        meta = report.experiment_metadata or {}
+        assert (meta["user_message"], meta["schema"]) == (None, None)
 
     def test_a_failed_source_read_fails_again(self, harness, monkeypatch):
         """The photo keeps its --repeat runs, so the lost read still counts against it."""
