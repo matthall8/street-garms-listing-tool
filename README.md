@@ -58,14 +58,14 @@ Phase 1 has not been attempted yet. The run 0 code changes, a paid baseline
 and a held-out set of 30 garments come first ([TODO.md](TODO.md)).
 
 **Phase 1 gate.** Phase 1 passes on a held-out set of 30 garments, read 3
-times each, when at least 80% of readable garment-sides are correct, none is a
-silent error (wrong but shown as *looks right*), and at least 80% of correct
-in-catalogue sides are unflagged. Full gate and set rules:
+times each, when at least 80% of garment-sides (24 of 30) read the ART
+number's base correctly. Staff confirm every result at the next stage, so the
+gate measures only that. Full gate and set rules:
 [ADR-0002](adr/0002-phase-1-acceptance.md).
 
 **Current baseline, 2026-10-08:** 46% of positive reads were exact, and 18 of
-84 would have been published wrong without review; run 0's checkpoint is at
-most 9. The set is small and has no `si_alpha`. Results, earlier baselines and
+84 would have been published wrong without review. The set is small and has
+no `si_alpha`. Results, earlier baselines and
 the decision rule for prompt changes
 ([ADR-0006](adr/0006-decision-rule-for-prompt-changes.md)) are in
 [evals/BASELINES.md](evals/BASELINES.md); the harness is in
@@ -147,9 +147,9 @@ Most serious first.
 ## Deliberate choices and open questions
 
 - **Catalogue misses don't set `needs_review`.** Flagging every miss would make the flag meaningless.
-  Pending: ADR-0002 requires that a misread that misses the catalogue never shows
-  *looks right*; ADR-0004 will decide how.
+  Pending: ADR-0004 will decide how misses flag, after phase 1.
 - **Not an agent loop.** pydantic-ai's `Agent` is a constrained-extraction wrapper, called once per listing.
 - **No care-label read.** Only the ART number is read, one call per listing. The earlier care-label details read (size, composition, origin, CLG, colour) was removed; it is kept at the `parked/details-read` tag.
 - **Later:** whether clean reads auto-publish or every listing gets human review.
-  Staff don't use phase 1, so ADR-0002 moves this to a later phase.
+  After phase 1, staff confirm every result; auto-publishing would first need
+  a silent-error bar in the gate (ADR-0002).

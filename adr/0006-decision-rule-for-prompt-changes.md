@@ -2,7 +2,8 @@
 
 - **Status:** Accepted.
 - **Date:** 2026-09-25. Moved from `TODO.md` 2026-10-19, word for word.
-  Links to `TODO.md` sections updated 2026-10-22 after ADR-0002; the rule is
+  Links to `TODO.md` sections updated 2026-10-22 after ADR-0002, and its
+  phase 1 metric 2026-10-28 after ADR-0002's amendment; the rule is
   unchanged.
 
 ## Context
@@ -44,7 +45,8 @@ every count below straight from the report's *per photo* table: its `missed`,
   review.
 - **For the contract v2 runs** (ADR-0001's *Rollout*), this rule still decides
   `missed` and the guardrails. ADR-0001 adds wrong-and-unflagged, counted per
-  garment-side, as the primary metric; ADR-0002 sets the phase 1 gate on it.
+  garment-side, as the primary metric; in phase 1, ADR-0002 replaces it with
+  base-exact.
   Photo numbers in this section refer to the archived set.
 
 The result of the 2026-09-25 whole-label prompt change, the merge the waiver
