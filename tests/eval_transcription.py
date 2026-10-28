@@ -425,6 +425,45 @@ def run_metadata(args: argparse.Namespace) -> dict:
         "note": args.note,
     }
 
+def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
+    """The scoring run's commit and manifest; the reads' model and prompt."""
+    read_by = source.experiment_metadata or {}
+    return {
+        **run_metadata(args),
+        "model": read_by.get("model"),
+        "prompt": read_by.get("prompt"),
+        "repeat": read_by.get("repeat", 1),
+        "replay_of": args.replay.name,
+    }
+
+
+def replay_task(source: EvaluationReport, cases: list[Case]):
+    """A saved report's reads as a task, so the same evaluators score them
+    with no API call. Each call returns the photo's next saved read; once a
+    photo's reads run out (one failed in the source run) the call fails, as
+    the read did. Expected values come from today's manifest, by photo.
+    """
+    saved = defaultdict(list)
+    for f in source.failures:
+        saved.setdefault(photo_of(f), [])   # so a photo that lost every read is a case
+    for r in sorted(source.cases, key=lambda r: r.name):
+        saved[photo_of(r)].append(ArtNumberReading.model_validate(r.output))
+
+    manifest = {c.name for c in cases if c.name}
+    for photo in sorted(set(saved) - manifest):
+        print(f"not scored: {photo} has saved reads but no usable manifest row")
+    for photo in sorted(manifest - set(saved)):
+        print(f"not scored: {photo} has no saved reads")
+
+    def task(photo_path: Path) -> ArtNumberReading:
+        reads = saved[photo_path.name]
+        if not reads:
+            raise LookupError("no saved read left: it failed in the source run")
+        return reads.pop(0)
+
+    return task, [c for c in cases if c.name in saved]
+
+
 def save(report, model) -> Path:
     RESULTS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -445,7 +484,8 @@ def load_baseline(path: Path) -> EvaluationReport | None:
         return EvaluationReportAdapter.validate_json(path.read_bytes())
     except ValidationError:
         print(f"{path} is not a saved eval report. Results from before the "
-              "pydantic-evals port use an older format and can't be baselines.")
+              "pydantic-evals port use an older format and can't be baselines "
+              "or replayed.")
         return None
 
 
@@ -453,11 +493,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--model", default=ART_MODEL, help=f"default: {ART_MODEL}")
+    # --model and --repeat default to None so --replay can tell they were passed.
+    ap.add_argument("--model", help=f"default: {ART_MODEL}")
     ap.add_argument("--workers", type=int, default=4,
-                    help="reads at once (default: 4)")
+                    help="reads at once (default: 4); ignored by --replay, which is serial")
     ap.add_argument("--limit", type=int, help="only run the first N cases")
-    ap.add_argument("--repeat", type=int, default=1,
+    ap.add_argument("--repeat", type=int,
                     help="read every photo N times (default: 1)")
     ap.add_argument("--note", default="",
                     help="what this run is testing, saved with the results")
@@ -465,7 +506,19 @@ def main() -> int:
                     help="don't write the report to evals/results/")
     ap.add_argument("--baseline", type=Path,
                     help="a saved report in evals/results/ to compare this run against")
+    ap.add_argument("--replay", type=Path,
+                    help="rescore a saved report's reads with this code, no API call")
     args = ap.parse_args()
+
+    if args.replay:
+        passed = [flag for flag, value in [
+            ("--model", args.model), ("--repeat", args.repeat), ("--limit", args.limit),
+            ("--baseline", args.baseline), ("--no-save", args.no_save)] if value]
+        if passed:
+            # The reads fix the model and repeat, and every replay is saved.
+            ap.error(f"--replay can't be used with {', '.join(passed)}")
+    args.model = args.model or ART_MODEL
+    args.repeat = args.repeat or 1
 
     if not MANIFEST.is_file():
         print(f"no manifest at {MANIFEST} — skipping.")
@@ -501,24 +554,38 @@ def main() -> int:
             print(f"warning: baseline used --repeat {baseline_repeat}, this run uses "
                   f"--repeat {args.repeat}, so cases won't line up in the diff")
 
-    from dotenv import load_dotenv
-    load_dotenv()
+    if args.replay:
+        source = load_baseline(args.replay)
+        if source is None:
+            return 1
+        metadata = replay_metadata(args, source)
+        if metadata["dirty"]:
+            print("warning: uncommitted changes, so the recorded commit isn't "
+                  "the code that scored this replay")
+        task, cases = replay_task(source, cases)
+        # Serial, so each photo's saved reads are scored in saved order.
+        workers, repeat, name = 1, metadata["repeat"], f"{metadata['model']}-replay"
+    else:
+        from dotenv import load_dotenv
+        load_dotenv()
+        metadata = run_metadata(args)
+        task = partial(get_art_number_reading, model=args.model)
+        workers, repeat, name = args.workers, args.repeat, args.model
 
     dataset = Dataset(name="art-number-transcription",
                       cases=cases, evaluators=[CorrectArtNumber(), CorrectArtBase()],
                       report_evaluators=[ConfidenceRates(), PerPhotoCounts(),
                                          BaseExactCounts()])
-    task = partial(get_art_number_reading, model=args.model)
     report = dataset.evaluate_sync(
         task,
-        max_concurrency=args.workers,
-        repeat=args.repeat,
-        name=args.model,
-        metadata=run_metadata(args),
+        max_concurrency=workers,
+        repeat=repeat,
+        name=name,
+        metadata=metadata,
     )
     report.print(include_output=True, include_expected_output=True, baseline=baseline)
     if not args.no_save:
-        print(f"\nwrote {save(report, args.model).relative_to(EVALS.parent)}")
+        print(f"\nwrote {save(report, name).relative_to(EVALS.parent)}")
     return 0
 
 

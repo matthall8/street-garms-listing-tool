@@ -10,12 +10,14 @@ evals rejects a None metric and discards the WHOLE case result, including
 `exact`, which ConfidenceRates keys on. TestNegativeBranch pins that down.
 """
 
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import EvaluatorContext
+from pydantic_evals.reporting import EvaluationReportAdapter
 from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 import eval_transcription
@@ -631,6 +633,148 @@ class TestBaseExactCounts:
                                          "photos": 2, "correct": 1, "left out": 0}
         assert (sides[("g1", "front")]["photos"], sides[("g1", "front")]["correct"]) == (1, 1)
         assert sides[("g2", "back")]["left out"] == 1
+
+
+class TestReplay:
+    """--replay end to end: a saved report's reads, rescored by main() with
+    no API call. The harness's paths and git are patched on the module, as
+    MANIFEST is in TestLoadManifest."""
+
+    HEADER = "id,photo,garment,side,expected_art_number,expected_art_base,note"
+
+    @pytest.fixture
+    def paths(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(eval_transcription, "EVALS", tmp_path)
+        monkeypatch.setattr(eval_transcription, "MANIFEST", tmp_path / "manifest.csv")
+        monkeypatch.setattr(eval_transcription, "PHOTOS", tmp_path / "photos")
+        monkeypatch.setattr(eval_transcription, "RESULTS", tmp_path / "results")
+        monkeypatch.setattr(eval_transcription, "git",
+                            lambda *a: "" if a[0] == "status" else "abc1234")
+        return tmp_path
+
+    @staticmethod
+    def no_api(monkeypatch):
+        def fail(*_, **__):
+            raise AssertionError("a replay must not call the model")
+        monkeypatch.setattr(eval_transcription, "get_art_number_reading", fail)
+
+    @pytest.fixture
+    def harness(self, paths, monkeypatch):
+        self.no_api(monkeypatch)
+        return paths
+
+    def source(self, tmp_path, photos: dict) -> Path:
+        """Save a report as a live run would. `photos` maps a filename to one
+        raw line per repeat; None makes that read fail."""
+        repeat = len(next(iter(photos.values())))
+        queues = {name: iter(reads) for name, reads in photos.items()}
+
+        def task(path):
+            raw = next(queues[path.name])
+            if raw is None:
+                raise RuntimeError("read failed")
+            return ArtNumberReading(art_number_raw=raw, art_legible="clear")
+
+        report = Dataset(
+            name="source",
+            cases=[Case(name=n, inputs=tmp_path / n) for n in photos],
+        ).evaluate_sync(task, repeat=repeat, max_concurrency=1, metadata={
+            "model": "source:model", "prompt": "abc", "repeat": repeat})
+        path = tmp_path / "source.json"
+        path.write_bytes(EvaluationReportAdapter.dump_json(report))
+        return path
+
+    def replay(self, tmp_path, monkeypatch, source, rows, *flags):
+        (tmp_path / "manifest.csv").write_text(self.HEADER + "\n" + rows, encoding="utf-8")
+        monkeypatch.setattr("sys.argv", ["eval", "--replay", str(source), *flags])
+        assert eval_transcription.main() == 0
+        [saved] = (tmp_path / "results").glob("*.json")
+        return EvaluationReportAdapter.validate_json(saved.read_bytes()), saved
+
+    def test_a_saved_live_run_replays_to_the_same_base_exact_results(
+        self, paths, monkeypatch
+    ):
+        """The JSON round trip: a live run's report is saved, its outputs
+        reload as plain dicts, and the replay rebuilds them into readings.
+        The offline model returns no read, so the positive is wrong and the
+        negative right."""
+        (paths / "photos").mkdir()
+        for photo in ("a", "n"):
+            (paths / "photos" / photo).write_bytes(b"not an image")
+        (paths / "manifest.csv").write_text(
+            f"{self.HEADER}\np1,a,g1,back,,{RIGHT},\n"
+            f"p2,n,g1,front,{NO_ART_NUMBER},{NO_ART_NUMBER},\n", encoding="utf-8")
+
+        def analyses(report):
+            return {a.title: a.rows for a in report.analyses
+                    if isinstance(a, TableResult) and a.title != "garment-sides"}
+
+        monkeypatch.setattr("sys.argv", ["eval", "--model", "test", "--repeat", "3"])
+        assert eval_transcription.main() == 0
+        [live_file] = (paths / "results").glob("*.json")
+        live = EvaluationReportAdapter.validate_json(live_file.read_bytes())
+
+        self.no_api(monkeypatch)
+        monkeypatch.setattr("sys.argv", ["eval", "--replay", str(live_file)])
+        assert eval_transcription.main() == 0
+        [replay_file] = (paths / "results").glob("*-replay.json")
+        replay = EvaluationReportAdapter.validate_json(replay_file.read_bytes())
+
+        assert analyses(replay) == analyses(live)
+        rows = {r[0]: r for r in analyses(replay)["base per photo"]}
+        assert (rows["a"][-1], rows["n"][-1]) == ("✗", "✔")
+
+    def test_saved_reads_are_scored_against_todays_manifest(self, harness, monkeypatch):
+        source = self.source(harness, {"a": [RIGHT, RIGHT, WRONG]})
+        report, _ = self.replay(harness, monkeypatch, source,
+                                f"p1,a,g1,back,,{RIGHT},\n")
+        [table] = [a for a in report.analyses if a.title == "base per photo"]
+        assert isinstance(table, TableResult)
+        [row] = table.rows
+        assert dict(zip(table.columns, row, strict=True))["correct"] == "✔"
+
+    def test_it_records_the_source_and_the_scoring_commit(self, harness, monkeypatch):
+        source = self.source(harness, {"a": [RIGHT] * 3})
+        report, saved = self.replay(harness, monkeypatch, source,
+                                    f"p1,a,g1,back,,{RIGHT},\n", "--note", "check")
+        meta = report.experiment_metadata or {}
+        assert meta["replay_of"] == "source.json"
+        assert (meta["model"], meta["prompt"], meta["repeat"]) == ("source:model", "abc", 3)
+        assert (meta["commit"], meta["dirty"], meta["note"]) == ("abc1234", False, "check")
+        assert saved.name.endswith("-source_model-replay.json")
+
+    def test_a_failed_source_read_fails_again(self, harness, monkeypatch):
+        """The photo keeps its --repeat runs, so the lost read still counts against it."""
+        source = self.source(harness, {"a": [RIGHT, None, None], "b": [None] * 3})
+        report, _ = self.replay(harness, monkeypatch, source,
+                                f"p1,a,g1,back,,{RIGHT},\np2,b,g2,back,,{RIGHT},\n")
+        assert (len(report.cases), len(report.failures)) == (1, 5)
+
+    def test_photos_on_one_side_only_are_named_and_not_scored(
+        self, harness, monkeypatch, capsys
+    ):
+        source = self.source(harness, {"a": [RIGHT], "gone": [RIGHT]})
+        report, _ = self.replay(harness, monkeypatch, source,
+                                f"p1,a,g1,back,,{RIGHT},\np2,new,g2,back,,{RIGHT},\n")
+        assert [c.name for c in report.cases] == ["a"]
+        out = capsys.readouterr().out
+        assert "not scored: gone" in out and "not scored: new" in out
+
+    def test_a_dirty_tree_warns(self, harness, monkeypatch, capsys):
+        monkeypatch.setattr(eval_transcription, "git",
+                            lambda *a: " M x.py" if a[0] == "status" else "abc1234")
+        source = self.source(harness, {"a": [RIGHT]})
+        report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
+        assert (report.experiment_metadata or {})["dirty"] is True
+        assert "warning: uncommitted changes" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("flags", [["--no-save"], ["--model", "test"], ["--repeat", "3"],
+                                       ["--limit", "1"], ["--baseline", "x.json"]])
+    def test_flags_it_sets_itself_are_rejected(self, monkeypatch, flags):
+        monkeypatch.setattr("sys.argv", ["eval", "--replay", "x.json", *flags])
+        with pytest.raises(SystemExit) as exc:
+            eval_transcription.main()
+        assert exc.value.code == 2
 
 
 class TestBaseOnlyRow:
