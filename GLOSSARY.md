@@ -19,14 +19,13 @@ wherever it is held: on a label, in the manifest or in a catalogue key.
 | format family | One of the ART number formats in `labels/art_number.py`, reported in the parser's `format` (which also has `si_namespace` for non-seasonal codes). Each has its own base shapes. |
 | known shape | A pattern for a caption, base, suffix or lot: lengths and character classes, never copied values. Base and suffix shapes come from the catalogue; caption and lot shapes from labels. Frozen data: extended by adding entries, never generalised. |
 | `art_base` | The part matching a base shape, season prefix included. Intended to identify one design in one season (see [Assumption](#assumption)). |
-| `art_suffix` | A code after the `art_base` matching a suffix shape, such as a colour code. Whether it chooses between catalogue rows is undecided (ADR-0003). *(not in code yet)* |
-| `art_lot` | A code matching a lot shape. Recorded; never used for lookup. *(not in code yet)* |
+| `art_suffix` | A code after the `art_base` matching a suffix shape, such as a colour code. Whether it chooses between catalogue rows is undecided (ADR-0003). |
+| `art_lot` | A code matching a lot shape. Recorded; never used for lookup. |
 | `art_unmatched` | Anything matching no known shape. Flags. |
 
 ### Parsing rules
 
 The split's rules and flags are in [ADR-0005](adr/0005-art-line-split.md).
-*(in code: the structure; tails not yet)*
 
 `ART NO. <base>/<suffix> <lot> <unmatched>` gives `art_caption` `ART NO.`,
 `art_base` `<base>`, `art_suffix` `<suffix>`, `art_lot` `<lot>` and

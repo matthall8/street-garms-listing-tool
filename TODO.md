@@ -21,7 +21,7 @@ or model is a run under *Runs*, one per run.
 ### Code
 - [ ] The split (ADR-0005), one branch per step:
       1. done: split structure (`split_art_line`), not wired into the gate
-      2. split tails
+      2. done: split tails (`FAMILY_TAILS`), not wired into the gate
       3. wiring: changes the gate, measured by the checkpoint replay;
          remove `parse()`'s `0`→`O` repair; flips
          `test_pin_unreadable_mark_in_a_clear_read_does_not_flag` (any `?`
