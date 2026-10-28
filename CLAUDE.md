@@ -43,6 +43,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | web | `.venv/bin/flask --app app run` |
 | privacy check | `.venv/bin/python hooks/check_private.py --range main...HEAD` — what the commit hooks run, over a branch; needs the private data to be complete |
 | parser score | `.venv/bin/python tests/report_art_number.py` |
+| split on truth | `.venv/bin/python tests/report_split_on_truth.py` — the split against the dev manifest's labels; prints shapes, never values |
 | eval, offline | `.venv/bin/python tests/eval_transcription.py --model test --no-save` |
 | eval, real | `evals/README.md`, *Eval run procedure* |
 
