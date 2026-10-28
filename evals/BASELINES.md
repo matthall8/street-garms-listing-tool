@@ -162,7 +162,7 @@ never in the table above.
 `expected_art_line`, compared to `expected_art_base`. No model, so it checks
 the labels and the split, not the pipeline.
 
-**2026-10-28:** commit `50119d7`, manifest md5
+**2026-10-28:** commit `fb02f71`, manifest md5
 `94d41fd31287b33459f781fcef9672ae` (55 rows).
 
 | group | rows |
@@ -173,5 +173,5 @@ the labels and the split, not the pipeline.
 | no code (`NONE`) | 7 |
 | excluded | 1 (`expected_art_line` `UNKNOWN`) |
 
-No split problems on any row. Every checkable label agrees with ADR-0005's
+No split problems and no edge whitespace on any line. Every checkable label agrees with ADR-0005's
 split, separator rule included; the labels predate the ADR.
