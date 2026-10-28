@@ -18,6 +18,7 @@ Certilogo codes. See evals/README.md for setup and how to read the report.
     python tests/eval_transcription.py --repeat 3 --note "whole-label search" \\
         --baseline evals/results/<baseline>.json
     python tests/eval_transcription.py --model anthropic:claude-opus-5 --no-save
+    python tests/eval_transcription.py --replay evals/results/<report>.json   # no API calls
 """
 
 import argparse

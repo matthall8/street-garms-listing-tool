@@ -32,18 +32,18 @@ or model is a run under *Runs*, one per run.
       1. done: split structure (`split_art_line`)
       2. done: split tails (`FAMILY_TAILS`)
       3. done: wiring (`from_reading()`)
-- [ ] Scorer, per read: correct = `from_reading()`'s `art_base` equals
+- [x] Scorer, per read: correct = `from_reading()`'s `art_base` equals
       `expected_art_base` (base-exact, ADR-0002). `load_manifest` reads
       `expected_art_base` (today only `expected_art_number`, and it skips
       rows without it). Dev rows whose `expected_art_base` is `UNKNOWN`
       are left out and counted
-- [ ] Scorer, per garment-side (`ReportEvaluator`, like `PerPhotoCounts`):
+- [x] Scorer, per garment-side (`ReportEvaluator`, like `PerPhotoCounts`):
       correct if 2 of 3 reads are; the correct rate. Mean per-read accuracy
       beside it (production reads once). Needs `garment` and `side` in case
       metadata. Dev garment-sides with several photos are also reported per
       photo
-- [ ] Scorer tests, offline, synthetic values only, so they run in CI
-- [ ] Replay mode: rescore a saved report's reads through `from_reading()`,
+- [x] Scorer tests, offline, synthetic values only, so they run in CI
+- [x] Replay mode: rescore a saved report's reads through `from_reading()`,
       no API call. Records the source report and the scoring commit; every
       replay's output is saved
 - [ ] `--holdout` flag: runs the test manifest, prints totals only

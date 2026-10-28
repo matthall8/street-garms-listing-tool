@@ -29,7 +29,7 @@ evals/
 | `photo` | filename inside `evals/photos/`, **including the extension**. The extension sets the media type sent to the model, so it must match the file's real format — a PNG saved as `.JPG` goes out labelled `image/jpeg` |
 | `garment` | an opaque id shared by every photo of one garment, negatives included. Not derived from the filename, a code or the product |
 | `side` | which face of the label the photo shows: `front` or `back` (see [Garment and side](#garment-and-side)) |
-| `expected_art_number` | **legacy.** The code as printed, plus an attached colour suffix — or `NONE`. Not authoritative; kept so reports from before run 0 stay comparable, and still what the harness scores |
+| `expected_art_number` | **legacy.** The code as printed, plus an attached colour suffix — or `NONE`. Not authoritative; kept so reports from before run 0 stay comparable, and scored by the legacy metrics beside base-exact |
 | `expected_art_line` | the ART line exactly as printed (see [Ground truth for the ART line](#ground-truth-for-the-art-line)) — or `NONE` |
 | `expected_art_base` | the `art_base` (same section) — or `NONE` |
 | `note` | free text, kept with the case in the saved report |
@@ -103,13 +103,13 @@ columns only: labelled, but no value is safe. A blank cell in these two
 columns is always work still to do; an `UNKNOWN` one is finished, and its
 `note` says why.
 
-Every row keeps an `expected_art_number`, new rows included, until the scorer
-reads these two columns: the harness skips a row where it is blank. Where the
-code itself can't be read safely, the legacy cell stays blank, never
-`UNKNOWN`: the harness would score `UNKNOWN` as a code, so it skips such a
-row with a warning. How
-line-exact treats spacing and case is the scorer's to decide; the cells
-record both as printed so either is possible.
+The harness scores `expected_art_base` with base-exact and
+`expected_art_number` with the legacy metrics. A row is scored if either is
+labelled, by the metrics whose value it has; a row with neither is skipped
+with a warning. Where the code itself can't be read safely, the legacy cell
+stays blank, never `UNKNOWN`: the harness treats `UNKNOWN` there as blank,
+with a warning. How line-exact treats spacing and case is the scorer's to
+decide; the cells record both as printed so either is possible.
 
 ### What counts as the ART number (legacy)
 
@@ -150,7 +150,9 @@ consulted during an eval run — the check is purely on the manifest string.)
 A **blank** `expected_art_number` is different: it means *not labelled yet*,
 unless `expected_art_line` and `expected_art_base` beside it are `UNKNOWN`.
 Then the code itself can't be read safely, the blank legacy cell is
-finished, and `note` says why. Either way, those rows are skipped with a warning on stdout rather than scored. The two
+finished, and `note` says why. Either way, the legacy metrics don't score
+those rows, and a row with no usable `expected_art_base` either is skipped
+with a warning on stdout. The two
 states must not be conflated — a blank row silently treated as a negative would
 score an unlabelled photo as passing whenever the model read nothing.
 
@@ -193,16 +195,37 @@ is planned (TODO.md, *Code*).
 | option | what it does |
 |---|---|
 | `--model` | model to read with (default: the pipeline's ART model). `test` returns a fixed fake reading, for checking the harness without API credit |
-| `--workers N` | reads at once (default: 4) |
+| `--workers N` | reads at once (default: 4); ignored by `--replay` |
 | `--limit N` | only the first N photos in the manifest |
 | `--repeat N` | read every photo N times — see [Comparing runs](#comparing-runs) |
 | `--note "..."` | what this run is testing, saved in the report header |
 | `--baseline FILE` | compare this run against a saved report |
 | `--no-save` | don't write the report to `results/` |
+| `--replay FILE` | rescore a saved report's reads, with no API call — see below |
 
 A read that fails — a missing photo, an API error, a call that stalls past the
 60 s timeout — goes in the **Case Failures** table and is left out of every
-score. An outage can't masquerade as bad transcription.
+per-read score. An outage can't masquerade as bad transcription. Base-exact's
+photo rule still counts it as one of the photo's runs (see
+[What to look at](#what-to-look-at)).
+
+### Replaying a saved run
+
+`--replay evals/results/<report>.json` feeds that report's reads through
+`from_reading()` and every metric, with today's code and today's manifest:
+how a parser, split or catalogue change is measured at no cost (ADR-0002).
+
+- The reads fix the model and the repeat, and every replay is saved, so
+  `--model`, `--repeat`, `--limit`, `--baseline` and `--no-save` are
+  rejected. It runs serially.
+- Expected values come from the current manifest, matched by photo
+  filename. A photo in only one of the two is named on stdout and not scored.
+- A read that failed in the source run fails again, so the photo keeps its
+  `--repeat` runs.
+- Saved as `<stamp>-<model>-replay.json`. Its header has the source's
+  `model`, `prompt` and `repeat`, this run's `commit`, `dirty` and `manifest`,
+  and `replay_of`. Commit first: on a dirty tree it warns, since the recorded
+  commit isn't the code that scored.
 
 ### Eval run procedure
 
@@ -235,6 +258,10 @@ Each photo gets a row with:
   `not_visible`
 - **kind** — `positive` or `negative`; the Averages row shows the mix, which is
   how you check the set still covers what you think it does
+- **base_exact** — ✔ or ✗: base-exact against `expected_art_base` (see
+  [Base-exact](#base-exact))
+- **base_kind** — `positive`, `negative`, `unknown` or `unlabelled`, from
+  `expected_art_base`; the last two have no `base_exact`
 
 The Averages row's pass rate pools every assertion (`exact` and
 `base_exact`), so read the base-exact rate and the per-photo table instead.
@@ -311,6 +338,31 @@ unit, and the repeats of one photo are not independent evidence. Widen the
 terminal if the photo names are cut off; the saved report always has them in
 full.
 
+### Base-exact
+
+The phase 1 metric ([ADR-0002](../adr/0002-phase-1-acceptance.md)): a read
+is correct when `from_reading()`'s `art_base` equals `expected_art_base`,
+ignoring spacing and case. On a negative (`NONE`), correct means no
+`art_base`. Rows whose `expected_art_base` is `UNKNOWN` or blank are left out
+and counted. Three tables:
+
+- **base-exact (correct: at least 2 of 3 reads)**: the rule, from the run's
+  `--repeat` (a majority: 1 of 1 for a single read), then each rate as `n`
+  of `of`:
+  - `photos correct`: positive photos with a majority of their runs
+    correct. A failed read is one of those runs, so a photo that lost one
+    still needs 2. The photo is the unit, as a test garment-side is one photo
+  - `reads correct`: positive reads, failed ones left out. Production reads
+    once, so this is the single-read rate
+  - `negatives correct`: negative photos, by the same rule; kept out of the
+    correct rate, as the test set has none
+  - `left out: unknown`, `left out: unlabelled`: photos, out of all photos
+- **base per photo**: garment, side, `base_kind`, scored reads, correct
+  reads and the photo's ✔ or ✗
+- **garment-sides**: photos, correct photos and left-out photos per side.
+  Counts only: the dev set has deliberate hard variants of one side (rotated
+  copies), so no rule turns a side's photos into one verdict
+
 ## Comparing runs
 
 Every report records what produced it, shown in its header:
@@ -323,6 +375,7 @@ Every report records what produced it, shown in its header:
 | `prompt` | fingerprint of the ART prompt; changes if any character of it does |
 | `manifest` | fingerprint of `manifest.csv`; changes if any byte does — a photo or expected value, but also a note or a column the harness doesn't score |
 | `limit`, `repeat`, `note` | as passed on the command line |
+| `replay_of` | replays only: the saved report whose reads were rescored |
 
 To test a change:
 
