@@ -450,7 +450,7 @@ def unmatched_tail(base, tail):
 
 class TestTails:
     @pytest.mark.parametrize(
-        "separator", ["/", " ", " / "], ids=["slash", "space", "spaced_slash"]
+        "separator", ["/", " ", " / ", "\t"], ids=["slash", "space", "spaced_slash", "tab"]
     )
     @pytest.mark.parametrize(
         "colour", [s.SPLIT_COLOUR[:2], s.SPLIT_COLOUR[:3], s.SPLIT_COLOUR], ids=["2", "3", "4"]
@@ -470,10 +470,12 @@ class TestTails:
         tail = "/" + s.SPLIT_NEXT_LINE[:3]
         assert split_art_line(s.SPLIT_SI_9 + tail) == unmatched_tail(s.SPLIT_SI_9, tail)
 
+    @pytest.mark.parametrize("separator", [" ", "\t"], ids=["space", "tab"])
     @pytest.mark.parametrize("base", [s.SPLIT_CP_MODERN, s.SPLIT_CP_REORDER], ids=["cp_modern", "cp_reorder"])
-    def test_cp_fabric_code_is_a_suffix(self, base):
-        """SUF-02: 6 digits and a letter after a CP modern base, reorder prefix included."""
-        assert split_art_line(base + " " + s.SPLIT_CP_FABRIC) == ArtSplit(
+    def test_cp_fabric_code_is_a_suffix(self, base, separator):
+        """SUF-02: 6 digits and a letter after a CP modern base, reorder prefix
+        included. A tab counts as a space."""
+        assert split_art_line(base + separator + s.SPLIT_CP_FABRIC) == ArtSplit(
             art_base=base, art_suffix=s.SPLIT_CP_FABRIC
         )
 
