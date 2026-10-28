@@ -462,6 +462,21 @@ class TestPerPhotoCounts:
             scalars["fabricated and declared clear"])
 
 
+class TestBaseOnlyRow:
+    """A row with expected_art_base but no legacy value. The legacy metrics
+    must pass over it, not crash or count it."""
+
+    def test_correct_art_number_returns_nothing(self):
+        assert score(None, "ABC") == {}
+
+    def test_per_photo_and_the_rates_leave_it_out(self):
+        rows, scalars = per_photo({"a": [CORRECT, NOT_READ], "b": [WRONG_AND_SURE] * 2},
+                                  expected={"b": None})
+        _, without = per_photo({"a": [CORRECT, NOT_READ]})
+        assert list(rows) == ["a"]
+        assert scalars == without
+
+
 class TestLoadManifest:
     """The loader is the only thing keeping a blank row away from the evaluator.
 

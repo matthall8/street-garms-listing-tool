@@ -79,6 +79,10 @@ def normalise(s: str | None) -> str:
 @dataclass
 class CorrectArtNumber(Evaluator):
     def evaluate(self, ctx: EvaluatorContext) -> dict:
+        # A base-only row has no legacy value: no `exact`, so scored_cases
+        # drops it. Scored, its cer would divide by zero.
+        if ctx.expected_output is None:
+            return {}
         expected = normalise(ctx.expected_output)
         detected = normalise(ctx.output.art_number_raw)
         is_negative = expected == NO_ART_NUMBER
@@ -193,8 +197,10 @@ class PerPhotoCounts(ReportEvaluator):
         # Every photo the run touched, failed reads included, so none can drop
         # out of the table. Kind comes from the manifest value, as it does in
         # CorrectArtNumber, because a photo with no scored read has no label.
+        # A base-only row has no legacy value, so no row here.
         expected = {photo_of(r): r.expected_output
-                    for r in [*ctx.report.cases, *ctx.report.failures]}
+                    for r in [*ctx.report.cases, *ctx.report.failures]
+                    if r.expected_output is not None}
         if not expected:
             return []
         by_photo = defaultdict(list)
