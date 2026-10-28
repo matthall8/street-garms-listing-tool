@@ -158,8 +158,9 @@ score an unlabelled photo as passing whenever the model read nothing.
 
 `evals/holdout/` is a second set kept out of tuning, so a score on it says how
 the pipeline does on labels nobody tuned against. Its `manifest.csv` has the
-same columns and rules as the dev manifest above, with `photo` naming a file
-in `evals/holdout/photos/`. Both are gitignored, and the privacy hook treats
+same columns as the dev manifest above, with `photo` naming a file in
+`evals/holdout/photos/`; which photos it may hold is in
+[ADR-0002](../adr/0002-phase-1-acceptance.md). Both are gitignored, and the privacy hook treats
 its filenames and expected codes as private, as it does the dev set's.
 
 - No garment is in both sets; holdout photos come only from new garments,

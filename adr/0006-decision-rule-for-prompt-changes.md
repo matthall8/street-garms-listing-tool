@@ -11,7 +11,7 @@
 A prompt change needs a rule for when its eval result counts as a win, fixed
 before any result exists so the result can't move it. Whether this rule
 becomes the general policy for shipping prompt changes is an open question in
-`TODO.md` (*Later*).
+`TODO.md` (*Phase 1*, *Runs*).
 
 ## Decision
 

@@ -34,7 +34,8 @@ or model is a run under *Runs*, one per run.
       3. wiring: `art_base` into `Extraction` (considered for `needs_review`);
          remove `parse()`'s `0`→`O` repair; flips
          `test_pin_unreadable_mark_in_a_clear_read_does_not_flag` (any `?`
-         flags: ADR-0005, *Flag table*). No other change to what flags.
+         flags: ADR-0005, *Flag table*); the rest of the *Flag table*, and
+         the lookup on `art_base` (or the candidate when the split fails).
          The parser docstring's SI numeric shape loses its gap (split on
          truth: no label prints one). If `catalogue.normalise` changes,
          decide the privacy hook's normalisation separately, never change
@@ -81,7 +82,9 @@ or model is a run under *Runs*, one per run.
 - [ ] Prompt-change policy for phase 1 runs, before the first iteration:
       ADR-0006's wins rule counts `missed`, but ADR-0002 judges runs on
       base-exact. Which metric, what margin, how many repeats; its "3+
-      losses → reject" is stricter than the sign test it cites
+      losses → reject" is stricter than the sign test it cites; and whether
+      its overconfident guardrail stays, now that staff review every result
+      (its own revisit trigger)
 - [ ] Iterations, until dev clears 80% with a margin: auto-rotate, image
       resizing?, compare models (Sonnet, Opus, Haiku: check current
       versions), prompt gives character classes, never lengths (ADR-0001,

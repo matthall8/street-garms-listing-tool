@@ -84,8 +84,8 @@ under a different product name may be exceptions.
 | `style_code` | `art_base` | never in code |
 | `art_trailing` | `art_unmatched` | never in code |
 | decoder | parser | still in comments, a test name, `Extraction.decoded` and the web page's "Decoder flags" heading; not scheduled |
-| `matched_art`, `matched_key` | `resolved_key` | the rename (TODO.md, *Code*) |
-| `miss` | `no_key` | the rename (TODO.md, *Code*) |
+| `matched_art`, `matched_key` | `resolved_key` | the rename (TODO.md, *Backlog*) |
+| `miss` | `no_key` | the rename (TODO.md, *Backlog*) |
 | `expected_line`, `expected_style` | `expected_art_line`, `expected_art_base` | hook, PR #36 |
 | style-exact | base-exact | never in code |
 | `art_number_raw` | `art_line` | run 1 |
