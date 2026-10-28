@@ -154,7 +154,7 @@ or unconfirmed results come into scope.
       decision
 - [ ] CLI error handling: `cli()` in `main.py` prints a traceback on an API
       failure; `capture()` in `app/routes.py` already handles it
-- [ ] 71 parser/catalogue season disagreements, untriaged
+- [ ] 70 parser/catalogue season disagreements, untriaged
       (`tests/report_art_number.py`): spot-check ten for parser bug vs
       catalogue typo
 - [ ] Set the client's and the agent's output retries explicitly, log the
@@ -180,7 +180,7 @@ or unconfirmed results come into scope.
       only on ADR-0005's trigger
 - [ ] Parser unit tests beyond the split: format detection, the `len(s) >= 8`
       guard, the `/181` strip, the `222` flag, the `'10'` carve-out. Season
-      assertions wait for the 71-row triage
+      assertions wait for the 70-row triage
 - [ ] `ArtNumberReading`'s docstring still says "framed on the ART number
       tag"; it reaches the model, so change it on its own and measure it
 - [ ] Crop to the label region before the call (resizing is under *Runs*)
