@@ -53,7 +53,9 @@ or model is a run under *Runs*, one per run.
       correct = the catalogue result is right for `expected_art_base`
       (`resolved_key` equals it if it's a catalogue key, else `no_key` and
       the parsed `art_base` equals it; ADR-0002); flagged; silent error =
-      wrong and not flagged
+      wrong and not flagged. Once the split is wired, add a fake-read mode
+      (a read returning `expected_art_line`) and delete
+      `tests/report_split_on_truth.py`
 - [ ] Scorer, per garment-side (`ReportEvaluator`, like `PerPhotoCounts`):
       correct if 2 of 3 reads are, silent error if any read is, unflagged if
       2 of 3 reads are correct and unflagged; the three

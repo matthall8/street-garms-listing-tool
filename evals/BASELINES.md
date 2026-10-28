@@ -155,3 +155,23 @@ blocks every commit while the manifest has a header and no rows:
 
 Re-run `md5 -q evals/holdout/manifest.csv` after any edit and add a row here,
 never in the table above.
+
+## Split on truth
+
+`tests/report_split_on_truth.py`: `split_art_line()` on each
+`expected_art_line`, compared to `expected_art_base`. No model, so it checks
+the labels and the split, not the pipeline.
+
+**2026-10-28:** commit `fb02f71`, manifest md5
+`94d41fd31287b33459f781fcef9672ae` (55 rows).
+
+| group | rows |
+|---|---|
+| base matches | 47 |
+| base differs | 0 |
+| no base | 0 |
+| no code (`NONE`) | 7 |
+| excluded | 1 (`expected_art_line` `UNKNOWN`) |
+
+No split problems and no edge whitespace on any line. Every checkable label agrees with ADR-0005's
+split, separator rule included; the labels predate the ADR.
