@@ -120,6 +120,25 @@ FAMILY_BASES = {
     "cp_transitional": re.compile(r"[0-9?]{2}[SW?][C?]?[P?][U?][0-9A-Z?]{6}"),
 }
 
+# Tail shapes after each family's base, in the order they're read: a field
+# appears at most once, and may be skipped. A ? fits any one character, the LOT
+# letters and hyphens included; no two shapes in a family share a length, so a
+# piece fits at most one (ADR-0005)
+FAMILY_TAILS = {
+    "si_numeric": (
+        ("art_suffix", re.compile(r"[0-9?]{2,4}")),                                    # colour code
+        ("art_lot", re.compile(
+            r"[L?][O?][T?][A-Z?][-?][0-9?]{2}[-?][0-9?]{5}"                            # short LOT
+            r"|[A-Z?][-?][0-9?]{2}[-?][L?][O?][T?][A-Z?][-?][0-9?]{4}[-?][0-9?]{5}"    # long LOT
+        )),
+    ),
+    "si_alpha": (),
+    "cp_modern": (
+        ("art_suffix", re.compile(r"[0-9?]{6}[A-Z?]")),                                # fabric code
+    ),
+    "cp_transitional": (),
+}
+
 
 @dataclass
 class Art:
@@ -150,6 +169,8 @@ class ArtSplit:
     art_base: str | None = None
     art_unmatched: tuple[str, ...] = ()
     problems: tuple[str, ...] = ()
+    art_suffix: str | None = None
+    art_lot: str | None = None
 
 
 def parse(raw: str) -> Art:
@@ -219,9 +240,18 @@ def split_art_line(art_line: str) -> ArtSplit:
         return ArtSplit(art_caption=art_caption, art_unmatched=(rest,) if rest else (),
                         problems=problems + ("art_unmatched",))
     base = re.split(r"[ \t/]", rest, maxsplit=1)[0]  # the base ends at the first separator
-    tail = rest[len(base):].strip(string.whitespace)
+    tail = rest[len(base):]
     if not FAMILY_BASES[families[0]].fullmatch(base.translate(ASCII_UPPER)):
         return ArtSplit(art_caption=art_caption, problems=problems + ("base_shape",))
-    return ArtSplit(art_caption=art_caption, art_base=base.translate(ASCII_UPPER),
+    tails = {}
+    for field, shape in FAMILY_TAILS[families[0]]:
+        # a separator, then the piece up to the next one; the separator is
+        # dropped with a matched piece and kept with an unmatched one
+        m = re.match(r"(?:[ \t]*/[ \t]*|[ \t]+)([^ \t/]*)", tail)
+        if m and shape.fullmatch(m.group(1).translate(ASCII_UPPER)):
+            tails[field] = m.group(1)  # matched in upper case, stored as read
+            tail = tail[m.end():]
+    tail = tail.strip(string.whitespace)
+    return ArtSplit(art_caption=art_caption, art_base=base.translate(ASCII_UPPER), **tails,
                     art_unmatched=(tail,) if tail else (),
                     problems=problems + (("art_unmatched",) if tail else ()))
