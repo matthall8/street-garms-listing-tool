@@ -21,6 +21,7 @@ from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 import eval_transcription
 from eval_transcription import (
     NO_ART_NUMBER,
+    BaseExactCounts,
     ConfidenceRates,
     CorrectArtBase,
     CorrectArtNumber,
@@ -509,6 +510,127 @@ class TestCorrectArtBase:
     def test_base_kind_is_a_string_not_a_bool(self):
         """As with `kind`: a bool would become an assertion."""
         assert isinstance(base_score(s.SPLIT_SI_9, s.SPLIT_SI_9)["base_kind"], str)
+
+
+RIGHT, WRONG = s.SPLIT_SI_9, s.SPLIT_SI_8   # reads of a photo whose base is RIGHT
+
+
+def base_counts(photos: dict) -> dict:
+    """Run photos through the real path with --repeat; return {title: rows}.
+
+    `photos` maps a name to (expected_art_base, garment, side, reads), one raw
+    line per repeat; None makes that read fail, as an API error would. Serial,
+    as in per_photo().
+    """
+    repeat = len(next(iter(photos.values()))[3])
+    assert all(len(p[3]) == repeat for p in photos.values())
+    queues = {name: iter(p[3]) for name, p in photos.items()}
+
+    def task(name):
+        raw = next(queues[name])
+        if raw is None:
+            raise RuntimeError("read failed")
+        return ArtNumberReading(art_number_raw=raw, art_legible="clear")
+
+    cases = [Case(name=name, inputs=name, metadata={
+                 "expected_art_base": base, "garment": garment, "side": side})
+             for name, (base, garment, side, _) in photos.items()]
+    report = Dataset(
+        name="base-exact",
+        cases=cases,
+        evaluators=[CorrectArtBase()],
+        report_evaluators=[BaseExactCounts()],
+    ).evaluate_sync(task, repeat=repeat, max_concurrency=1)
+
+    tables = {}
+    for a in report.analyses:
+        assert isinstance(a, TableResult)
+        tables[a.title] = [dict(zip(a.columns, row, strict=True)) for row in a.rows]
+    return tables
+
+
+def rates_of(tables: dict) -> tuple[str, dict]:
+    """(title, {rate: (n, of, %)}) of the base-exact rates table."""
+    [title] = [t for t in tables if t.startswith("base-exact")]
+    return title, {r[""]: (r["n"], r["of"], r["%"]) for r in tables[title]}
+
+
+def photo_rows(tables: dict) -> dict:
+    return {r["photo"]: r for r in tables["base per photo"]}
+
+
+class TestBaseExactCounts:
+    def test_two_of_three_is_correct_and_one_is_not(self):
+        rows = photo_rows(base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT, RIGHT, WRONG]),
+            "b": (RIGHT, "g2", "back", [RIGHT, WRONG, WRONG]),
+        }))
+        assert (rows["a"]["correct reads"], rows["a"]["correct"]) == (2, "✔")
+        assert (rows["b"]["correct reads"], rows["b"]["correct"]) == (1, "✗")
+
+    def test_the_rule_is_printed_with_the_rates(self):
+        title, _ = rates_of(base_counts({"a": (RIGHT, "g1", "back", [RIGHT] * 3)}))
+        assert title == "base-exact (correct: at least 2 of 3 reads)"
+
+    def test_a_single_read_needs_one(self):
+        tables = base_counts({"a": (RIGHT, "g1", "back", [RIGHT])})
+        assert rates_of(tables)[0] == "base-exact (correct: at least 1 of 1 reads)"
+        assert photo_rows(tables)["a"]["correct"] == "✔"
+
+    def test_a_lost_read_counts_against_repeat(self):
+        """Two of three still needed: a failed read can't lower the bar."""
+        rows = photo_rows(base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT, RIGHT, None]),
+            "b": (RIGHT, "g2", "back", [RIGHT, WRONG, None]),
+            "c": (RIGHT, "g3", "back", [None] * 3),
+        }))
+        assert (rows["a"]["reads"], rows["a"]["correct"]) == (2, "✔")
+        assert (rows["b"]["reads"], rows["b"]["correct"]) == (2, "✗")
+        assert (rows["c"]["reads"], rows["c"]["correct"]) == (0, "✗")
+
+    def test_rates_are_counts_over_positives(self):
+        _, rates = rates_of(base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT, RIGHT, WRONG]),
+            "b": (RIGHT, "g2", "back", [RIGHT, WRONG, None]),
+            "n": (NO_ART_NUMBER, "g3", "front", ["", "", ""]),
+        }))
+        assert rates["photos correct"] == (1, 2, 50.0)
+        assert rates["reads correct"] == (3, 5, 60.0)   # scored reads only
+        assert rates["negatives correct"] == (1, 1, 100.0)
+
+    def test_a_negative_follows_the_same_rule(self):
+        rows = photo_rows(base_counts({
+            "m": (NO_ART_NUMBER, "g1", "front", ["", "", RIGHT]),
+            "n": (NO_ART_NUMBER, "g2", "front", ["", RIGHT, RIGHT]),
+        }))
+        assert (rows["m"]["correct"], rows["n"]["correct"]) == ("✔", "✗")
+
+    def test_rows_with_no_usable_base_are_counted_and_left_out(self):
+        tables = base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT] * 3),
+            "u": ("UNKNOWN", "g2", "back", [RIGHT] * 3),
+            "v": ("", "g3", "back", [RIGHT] * 3),
+        })
+        _, rates = rates_of(tables)
+        assert rates["photos correct"] == (1, 1, 100.0)
+        assert rates["left out: unknown"][:2] == (1, 3)
+        assert rates["left out: unlabelled"][:2] == (1, 3)
+        rows = photo_rows(tables)
+        assert rows["u"]["kind"] == "unknown" and rows["u"]["correct"] is None
+
+    def test_garment_sides_are_counts_only(self):
+        """No verdict per side: dev has deliberate hard variants of one side."""
+        tables = base_counts({
+            "a": (RIGHT, "g1", "back", [RIGHT] * 3),
+            "a_rotated": (RIGHT, "g1", "back", [WRONG] * 3),
+            "b": (NO_ART_NUMBER, "g1", "front", [""] * 3),
+            "c": ("UNKNOWN", "g2", "back", [RIGHT] * 3),
+        })
+        sides = {(r["garment"], r["side"]): r for r in tables["garment-sides"]}
+        assert sides[("g1", "back")] == {"garment": "g1", "side": "back",
+                                         "photos": 2, "correct": 1, "left out": 0}
+        assert (sides[("g1", "front")]["photos"], sides[("g1", "front")]["correct"]) == (1, 1)
+        assert sides[("g2", "back")]["left out"] == 1
 
 
 class TestBaseOnlyRow:
