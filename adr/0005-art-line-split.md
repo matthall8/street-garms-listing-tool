@@ -30,8 +30,8 @@ None of the catalogue's 2,486 keys and none of the manifest's
   a look-alike letter from another alphabet) flags. The read is never
   normalised.
 - Leading and trailing whitespace is stripped. A tab counts as a space.
-- Matching is in upper case, and `art_base` is upper case. `art_line` and
-  `art_caption` stay as read.
+- Matching is in upper case, and `art_base` is upper case. `art_line`,
+  `art_caption`, `art_suffix` and `art_lot` stay as read.
 - Nothing is stripped from inside the line: leading zeros stay, and
   punctuation inside a base fails its shape.
 
