@@ -45,8 +45,8 @@ class TestFamilyAgreement:
 
     @FAMILIES
     def test_parse_agrees_with_the_split(self, code, request):
-        """parse() on the art_base finds the family the split matched, until
-        their family detection is merged (TODO.md, *Backlog*). parse() calls
+        """parse() on the art_base finds the family the split matched: each
+        detects families on its own, so this keeps them in step. parse() calls
         the SI numeric '10' counter si_namespace; to the split it's si_numeric."""
         family = self.FAMILY[request.node.callspec.id]
         assert [name for name, prefix in FAMILY_PREFIXES.items() if prefix.match(code)] == [family]

@@ -188,6 +188,7 @@ class TestNeedsReviewSynthetic:
         result = run(code)
 
         assert parse(code).format is None
+        assert parse(code).flags
         assert result.flags != []
         assert result.needs_review is True
 
