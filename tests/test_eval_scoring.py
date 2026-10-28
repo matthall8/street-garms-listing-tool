@@ -785,6 +785,64 @@ class TestPhotoRecord:
         assert "photo_hashes" in (self.saved(paths).experiment_metadata or {})
 
 
+class TestBaselineWarnings:
+    """--baseline: the output schema, user message and photos must match, or
+    the diff compares more than the one change being tested."""
+
+    RUN = {"schema": "s1", "user_message": "u1", "photo_hashes": {"p1": "h1", "p2": "h2"}}
+
+    def warnings(self, **baseline):
+        return eval_transcription.baseline_warnings(baseline, self.RUN)
+
+    def test_a_matching_baseline_warns_nothing(self):
+        assert self.warnings(**self.RUN) == []
+
+    def test_a_different_schema_warns(self):
+        [warning] = self.warnings(**{**self.RUN, "schema": "s0"})
+        assert "output schema differs" in warning and "s0 -> s1" in warning
+
+    def test_a_different_user_message_warns(self):
+        [warning] = self.warnings(**{**self.RUN, "user_message": "u0"})
+        assert "user message differs" in warning and "u0 -> u1" in warning
+
+    def test_photo_differences_are_named_by_id(self):
+        warnings = self.warnings(**{**self.RUN, "photo_hashes": {"p1": "h0", "p3": "h3"}})
+        assert warnings == ["warning: photos changed: p1",
+                            "warning: photos only in the baseline: p3",
+                            "warning: photos only in this run: p2"]
+
+    def test_a_photo_missing_now_counts_as_changed(self):
+        run = {**self.RUN, "photo_hashes": {"p1": None}}
+        assert eval_transcription.baseline_warnings(
+            {**self.RUN, "photo_hashes": {"p1": "h1"}}, run) == [
+                "warning: photos changed: p1"]
+
+    def test_a_baseline_from_before_the_fields_says_not_recorded(self):
+        assert self.warnings(model="m", prompt="abc") == [
+            "warning: the output schema is not recorded in the baseline",
+            "warning: the user message is not recorded in the baseline",
+            "warning: the photo record is not recorded in the baseline"]
+
+    def test_main_prints_them_before_any_read(self, paths, monkeypatch, capsys):
+        """End to end: a saved run, one photo byte changed, then --baseline."""
+        record = TestPhotoRecord()
+        record.run(paths, monkeypatch, record.ROWS, {"a": b"one", "b": b"two"})
+        [baseline] = (paths / "results").glob("*.json")
+        capsys.readouterr()
+
+        def read(*_, **__):
+            print("READ")
+            return ArtNumberReading(art_legible="not_visible")
+
+        monkeypatch.setattr(eval_transcription, "get_art_number_reading", read)
+        record.run(paths, monkeypatch, record.ROWS, {"a": b"one", "b": b"twO"},
+                   "--baseline", str(baseline), "--no-save")
+        out = capsys.readouterr().out
+        assert "warning: photos changed: p2" in out
+        assert out.index("warning: photos changed") < out.index("READ")
+        assert "output schema" not in out and "user message" not in out
+
+
 class TestReplay:
     """--replay end to end: a saved report's reads, rescored by main() with
     no API call."""

@@ -499,6 +499,33 @@ def replay_task(source: EvaluationReport, cases: list[Case]):
     return task, [c for c in cases if c.name in saved]
 
 
+def baseline_warnings(baseline: dict, run: dict) -> list[str]:
+    """Where the baseline's output schema, user message or photos differ from
+    this run's. Any of them changing alongside the change under test makes the
+    diff meaningless, and none shows in a prompt or model comparison. Not
+    `prompt` or `model`: a comparison usually changes one on purpose."""
+    warnings = []
+    for what, key in [("output schema", "schema"), ("user message", "user_message")]:
+        if baseline.get(key) is None:
+            warnings.append(f"warning: the {what} is not recorded in the baseline")
+        elif baseline[key] != run[key]:
+            warnings.append(f"warning: the {what} differs from the baseline's "
+                            f"({baseline[key]} -> {run[key]})")
+
+    then, now = baseline.get("photo_hashes"), run["photo_hashes"]
+    if then is None:
+        warnings.append("warning: the photo record is not recorded in the baseline")
+        return warnings
+    for what, ids in [
+        ("changed", [i for i in now if i in then and now[i] != then[i]]),
+        ("only in the baseline", [i for i in then if i not in now]),
+        ("only in this run", [i for i in now if i not in then]),
+    ]:
+        if ids:
+            warnings.append(f"warning: photos {what}: {', '.join(sorted(ids))}")
+    return warnings
+
+
 def printable(report: EvaluationReport) -> EvaluationReport:
     """The report without photo_hashes, which would fill the printed header.
     The saved report keeps them."""
@@ -616,6 +643,9 @@ def main() -> int:
         from dotenv import load_dotenv
         load_dotenv()
         metadata = {**run_metadata(args), **photo_metadata(cases)}
+        if baseline:
+            for warning in baseline_warnings(baseline.experiment_metadata or {}, metadata):
+                print(warning)
         task = partial(get_art_number_reading, model=args.model)
         workers, repeat, name = args.workers, args.repeat, args.model
 
