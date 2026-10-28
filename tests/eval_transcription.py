@@ -231,21 +231,33 @@ def load_manifest() -> list[Case]:
         for r in csv.DictReader(f):
             photo = r.get("photo", "").strip()
             expected = r.get("expected_art_number", "").strip()
+            art_base = r.get("expected_art_base", "").strip()
             if not photo:
                 continue
-            if not expected:
-                print(f"skipping {photo}: no expected_art_number "
+            # UNKNOWN is never a legacy value: scored, it would be a code no
+            # read can match. Treat it as blank, and say so below.
+            legacy_unknown = normalise(expected) == UNKNOWN
+            if legacy_unknown:
+                expected = ""
+            if not expected and normalise(art_base) in ("", UNKNOWN):
+                print(f"skipping {photo}: no expected_art_number or expected_art_base "
                       f"(use {NO_ART_NUMBER} if the photo has no ART number)")
                 continue
-            if normalise(expected) == UNKNOWN:
-                print(f"skipping {photo}: {UNKNOWN} in expected_art_number "
-                      "would be scored as a code (leave it blank instead)")
-                continue
+            if legacy_unknown:
+                print(f"{photo}: {UNKNOWN} in expected_art_number is not scored "
+                      "(leave it blank instead)")
+            # The base is kept as written, UNKNOWN and blank included: the
+            # base-exact scorer counts those, so the loader doesn't.
             cases.append(Case(
                 name=photo,
                 inputs=PHOTOS / photo,
-                expected_output=expected,
-                metadata={"note": r.get("note", "").strip()},
+                expected_output=expected or None,
+                metadata={
+                    "note": r.get("note", "").strip(),
+                    "garment": r.get("garment", "").strip(),
+                    "side": r.get("side", "").strip(),
+                    "expected_art_base": art_base,
+                },
             ))
     return cases
 

@@ -29,6 +29,7 @@ from eval_transcription import (
     normalise,
 )
 from labels.schemas import AmbiguousCharacter, ArtLegibility, ArtNumberReading
+from tests import synthetic as s
 
 
 def ctx(expected, raw, legible: ArtLegibility = "clear") -> EvaluatorContext:
@@ -519,18 +520,67 @@ class TestLoadManifest:
         assert "skipping a" in capsys.readouterr().out
 
     def test_columns_it_does_not_score_change_nothing(self, tmp_path, monkeypatch):
-        """Run 0's columns, filled or blank, leave the cases as they were."""
+        """`id` and `expected_art_line`, filled or blank, leave the cases as they were."""
         legacy = "a,123456789,faded\nb,NONE,\nc,,\n"
         self.write(tmp_path, monkeypatch, legacy)
         before = [(c.name, c.expected_output, c.metadata) for c in load_manifest()]
         self.write(
             tmp_path, monkeypatch,
-            'p1,a,g1,back,123456789,"ART. 123456789",,faded\n'
+            'p1,a,123456789,"ART. 123456789",faded\n'
+            "p2,b,NONE,NONE,\n"
+            "p3,c,,,\n",
+            header="id,photo,expected_art_number,expected_art_line,note",
+        )
+        assert [(c.name, c.expected_output, c.metadata) for c in load_manifest()] == before
+
+    def test_scored_columns_keep_every_old_case(self, tmp_path, monkeypatch):
+        """Adding the base-exact columns can't move the legacy metrics against
+        a baseline: every old case stays, with the same expected value and note."""
+        def legacy_view():
+            return [(c.name, c.expected_output, (c.metadata or {})["note"])
+                    for c in load_manifest()]
+
+        self.write(tmp_path, monkeypatch,
+                   f"a,{s.EXPECTED_CODE},faded\nb,NONE,\nc,,\n")
+        before = legacy_view()
+        self.write(
+            tmp_path, monkeypatch,
+            f"p1,a,g1,back,{s.EXPECTED_CODE},,UNKNOWN,faded\n"
             "p2,b,g1,front,NONE,NONE,NONE,\n"
             "p3,c,g2,back,,,,\n",
             header="id,photo,garment,side,expected_art_number,expected_art_line,expected_art_base,note",
         )
-        assert [(c.name, c.expected_output, c.metadata) for c in load_manifest()] == before
+        assert legacy_view() == before
+
+    FULL = "id,photo,garment,side,expected_art_number,expected_art_base,note"
+
+    def test_a_base_only_row_is_a_case_with_no_legacy_value(self, tmp_path, monkeypatch):
+        self.write(tmp_path, monkeypatch, f"p1,a,g1,back,,{s.EXPECTED_CODE},\n",
+                   header=self.FULL)
+        [case] = load_manifest()
+        assert case.expected_output is None
+        assert case.metadata == {"note": "", "garment": "g1", "side": "back",
+                                 "expected_art_base": s.EXPECTED_CODE}
+
+    def test_legacy_unknown_beside_a_base_warns_and_keeps_the_row(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        self.write(tmp_path, monkeypatch, f"p1,a,g1,back,UNKNOWN,{s.EXPECTED_CODE},\n",
+                   header=self.FULL)
+        [case] = load_manifest()
+        assert case.expected_output is None
+        out = capsys.readouterr().out
+        assert "UNKNOWN" in out and "skipping" not in out
+
+    @pytest.mark.parametrize("legacy,base", [("", ""), ("", "UNKNOWN"), ("UNKNOWN", "")])
+    def test_a_row_with_neither_value_is_skipped_with_one_line(
+        self, tmp_path, monkeypatch, capsys, legacy, base
+    ):
+        self.write(tmp_path, monkeypatch, f"p1,a,g1,back,{legacy},{base},\n",
+                   header=self.FULL)
+        assert load_manifest() == []
+        out = capsys.readouterr().out
+        assert out.count("\n") == 1 and "skipping a" in out
 
 
 class TestSentinelSafety:
