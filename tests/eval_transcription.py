@@ -474,7 +474,8 @@ def photo_metadata(cases: list[Case]) -> dict:
 
 def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
     """The scoring run's commit and manifest; the reads' model, prompt, user
-    message, schema and photos. A source from before a field existed gives None."""
+    message, schema, photos and library versions. A source from before a field
+    existed gives None."""
     read_by = source.experiment_metadata or {}
     return {
         **run_metadata(args),
@@ -484,6 +485,7 @@ def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
         "schema": read_by.get("schema"),
         "photos": read_by.get("photos"),
         "photo_hashes": read_by.get("photo_hashes"),
+        "versions": read_by.get("versions"),
         "repeat": read_by.get("repeat", 1),
         "replay_of": args.replay.name,
     }

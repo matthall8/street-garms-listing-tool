@@ -48,7 +48,7 @@ or model is a run under *Runs*, one per run.
 - [ ] `--holdout` flag: runs the test manifest, prints totals only
 - [x] Eval provenance: the header records the photos sent (by `id`), the
       user message and the library versions; `--baseline` warns when they
-      differ. Replaces the manual photo-hash and freeze steps
+      differ. Replaces the manual photo-hash and pip freeze steps
 - [ ] Usage / cost capture in code (SG billing?): before the model
       comparison. Run 0's spend is read off the Anthropic console before
       and after, and recorded in BASELINES.md

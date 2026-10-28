@@ -961,11 +961,12 @@ class TestReplay:
         assert (meta["user_message"], meta["schema"], meta["photos"], meta["photo_hashes"]) == (
             "def", "ghi", "jkl", {"p1": "mno"})
 
-    def test_it_records_its_own_versions(self, harness, monkeypatch):
-        """Like commit: the environment that scored, not the one that read."""
+    def test_it_copies_the_sources_versions(self, harness, monkeypatch):
+        """The libraries that made the reads, so --baseline against a replay
+        compares them; the scoring run's are pinned by its commit."""
         source = self.source(harness, {"a": [RIGHT]}, versions="old")
         report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
-        assert (report.experiment_metadata or {})["versions"] == eval_transcription.versions()
+        assert (report.experiment_metadata or {})["versions"] == "old"
 
     def test_a_source_from_before_the_fields_records_none(self, harness, monkeypatch):
         """Not today's values: those would claim the reads saw them."""
@@ -973,7 +974,7 @@ class TestReplay:
         report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
         meta = report.experiment_metadata or {}
         assert (meta["user_message"], meta["schema"], meta["photos"],
-                meta["photo_hashes"]) == (None, None, None, None)
+                meta["photo_hashes"], meta["versions"]) == (None, None, None, None, None)
 
     def test_a_failed_source_read_fails_again(self, harness, monkeypatch):
         """The photo keeps its --repeat runs, so the lost read still counts against it."""

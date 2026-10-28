@@ -224,8 +224,8 @@ how a parser, split or catalogue change is measured at no cost (ADR-0002).
   `--repeat` runs.
 - Saved as `<stamp>-<model>-replay.json`. Its header has what the reads
   came from, copied from the source: `model`, `prompt`, `user_message`,
-  `schema`, `photos`, `photo_hashes` and `repeat` (`None` where the source
-  predates a field). It has this run's `commit`, `dirty`, `versions` and
+  `schema`, `photos`, `photo_hashes`, `versions` and `repeat` (`None` where
+  the source predates a field). It has this run's `commit`, `dirty` and
   `manifest`, and `replay_of`. Commit first: on a dirty tree it warns, since
   the recorded commit isn't the code that scored.
 
