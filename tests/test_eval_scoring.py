@@ -644,6 +644,8 @@ class TestReplay:
 
     @pytest.fixture
     def paths(self, tmp_path, monkeypatch):
+        # A live run loads .env; unpatched, a real key would outlive the test.
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: False)
         monkeypatch.setattr(eval_transcription, "EVALS", tmp_path)
         monkeypatch.setattr(eval_transcription, "MANIFEST", tmp_path / "manifest.csv")
         monkeypatch.setattr(eval_transcription, "PHOTOS", tmp_path / "photos")

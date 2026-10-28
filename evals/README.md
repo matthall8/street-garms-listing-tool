@@ -246,10 +246,11 @@ put it in the `--note`.
 
 Each photo gets a row with:
 
-- **exact** — ✔ or ✗; the Averages row shows the share that passed. Note this
-  share pools positive and negative cases, so it is **not** comparable to a run
-  recorded before negative cases existed, and it shifts if the positive/negative
-  mix changes. The per-kind rates below are the ones to compare
+- **exact** — ✔ or ✗ against `expected_art_number`. The Averages row's pass
+  rate pools it with `base_exact`, and positive cases with negative ones, so it
+  is **not** comparable to an earlier run and shifts if the mix changes. The
+  per-kind rates below, the base-exact rates and the per-photo tables are the
+  ones to compare
 - **cer** — character error rate: edits needed to reach the expected code,
   divided by its length. It moves before exact match does, so it's the more
   sensitive signal when comparing two prompts or two models. Shown as `-` on
@@ -262,9 +263,6 @@ Each photo gets a row with:
   [Base-exact](#base-exact))
 - **base_kind** — `positive`, `negative`, `unknown` or `unlabelled`, from
   `expected_art_base`; the last two have no `base_exact`
-
-The Averages row's pass rate pools every assertion (`exact` and
-`base_exact`), so read the base-exact rate and the per-photo table instead.
 
 Below the table, rates across the whole run.
 
