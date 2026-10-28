@@ -77,9 +77,8 @@ A `corrected` resolution is a silent substitution, so it forces
 **Catalogue misses deliberately do NOT flag** (`tests/test_pipeline.py`,
 `TestNeedsReview::test_catalogue_miss_does_not_flag`). Flagging every miss
 would make the flag meaningless. This is not a bug — don't "fix" it without
-changing the product semantics. Pending: ADR-0002 requires that a misread
-that misses the catalogue never shows *looks right*, and ADR-0004 will decide
-how. Its PR replaces this rule and that test together.
+changing the product semantics. Pending: ADR-0004 will decide how misses
+flag (TODO.md, *Backlog*). Its PR replaces this rule and that test together.
 
 **Private data never enters git** (`.gitignore:229-239`). Catalogue, photos,
 manifest, results — photos can carry live Certilogo codes. Never commit them,

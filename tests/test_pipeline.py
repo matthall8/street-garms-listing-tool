@@ -212,9 +212,9 @@ class TestNeedsReviewSynthetic:
         assert result.needs_review is True
 
     def test_pin_catalogue_miss_does_not_flag(self, run):
-        """Pins current behaviour, which ADR-0002 will change: a misread that
-        misses the catalogue must not show as *looks right*. The PR that
-        implements that rule changes this test."""
+        """Pins current behaviour, which ADR-0004 will change: it decides how
+        catalogue misses flag (TODO.md, *Backlog*). The PR that implements
+        that rule changes this test."""
         result = run(s.GATE_MISS)
 
         assert result.catalogue_match == "miss"
@@ -236,9 +236,10 @@ class TestNeedsReviewSynthetic:
         assert result.needs_review is False
 
     def test_pin_unreadable_mark_in_a_clear_read_does_not_flag(self, run):
-        """Pins current behaviour, which ADR-0002 will change. A known silent
-        error (TODO.md, parser split): a `?` past the decoded prefix never
-        resolves, so the read misses, and a clear read passes unflagged."""
+        """Pins current behaviour, which the split's wiring changes (any `?`
+        flags: ADR-0005, *Flag table*). A known silent error: a `?` past the
+        decoded prefix never resolves, so the read misses, and a clear read
+        passes unflagged."""
         result = run(s.GATE_UNREADABLE_MARK)
 
         assert result.legibility == "clear"

@@ -1,7 +1,8 @@
 # ADR-0005: How the ART line is split
 
 - **Status:** Accepted, provisional until run 1.
-- **Date:** 2026-10-26
+- **Date:** 2026-10-26. ADR-0002 references updated 2026-10-28 after its
+  amendment; the rules are unchanged.
 - **Supersedes:** in part, ADR-0001's rule for where the base ends (strip
   spaces; split by fixed family length or at a printed slash; never at a
   space) (*Decision*, *Code*).
@@ -123,9 +124,8 @@ Changing a value is a product decision.
 
 - **Fused keys miss.** About 7% of catalogue keys have a suffix fused on (SI
   numeric 10–11 characters, SI alphanumeric 16–17, CP modern 17). An
-  `art_base` doesn't match them unless a bare key exists too. Under ADR-0002
-  those products count as not in the catalogue. ADR-0003's index closes the
-  gap.
+  `art_base` doesn't match them unless a bare key exists too. ADR-0003's
+  index closes the gap.
 - **Hyphen keys can't match.** The 4 catalogue keys with `-` plus a letter
   can't match a label; a label printed that way flags.
 - **SI numeric 8↔9.** An inserted or lost character that turns 8 into 9, or
@@ -168,6 +168,6 @@ Changing a value is a product decision.
   family length or at a printed slash; never at a space) is superseded; the
   rest of *Code* stands.
 - The rules live here; `GLOSSARY.md` links to them.
-- The measured effect comes from the checkpoint replay (ADR-0002) on the
-  branch that wires the split into the gate. The implementation order is in
+- The measured effect comes from replaying saved reads (ADR-0002,
+  development-set rules) on the branch that wires the split into the gate. The implementation order is in
   `TODO.md`.

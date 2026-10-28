@@ -67,9 +67,9 @@ under a different product name may be exceptions.
 | garment-side | One garment's one side: the unit results are counted in. |
 | `expected_<term>` | A hand-labelled manifest column: `expected_art_line`, `expected_art_base`. Never produced by the parser. |
 | `expected_art_number` | Legacy column, kept so older reports stay comparable. Until the phase 1 scorer (TODO.md, *Code*), the only expected column the harness scores. |
-| wrong-and-unflagged | The primary metric: would publish an `art_base` other than `expected_art_base` (any code, on a negative) with `needs_review` false. A garment-side counts if any of its reads does (ADR-0002). |
+| wrong-and-unflagged | ADR-0001's primary metric, not in the phase 1 gate (ADR-0002): would publish an `art_base` other than `expected_art_base` (any code, on a negative) with `needs_review` false. A garment-side counts if any of its reads does. |
 | silent error | A wrong-and-unflagged garment-side: wrong, but shown as *looks right*. |
-| readable / illegible / absent | The by-eye label of a photo before any run (ADR-0002): every character of the ART number can be read; some can't; there is none (a negative). Separate from the model's `art_legible`. *(not in the manifest yet)* |
+| readable / illegible / absent | The by-eye label of a photo before any run: every character of the ART number can be read; some can't; there is none (a negative). Separate from the model's `art_legible`. Every test photo is readable (ADR-0002). *(not in the manifest yet)* |
 | in the catalogue | The product's `expected_art_base` is a catalogue key. Products catalogued only under a compound key aren't, until ADR-0003's index. |
 | base-exact | `art_base` equals `expected_art_base`. |
 | line-exact | `art_line` equals `expected_art_line`; isolates the model. |
@@ -84,8 +84,8 @@ under a different product name may be exceptions.
 | `style_code` | `art_base` | never in code |
 | `art_trailing` | `art_unmatched` | never in code |
 | decoder | parser | still in comments, a test name, `Extraction.decoded` and the web page's "Decoder flags" heading; not scheduled |
-| `matched_art`, `matched_key` | `resolved_key` | the rename (TODO.md, *Code*) |
-| `miss` | `no_key` | the rename (TODO.md, *Code*) |
+| `matched_art`, `matched_key` | `resolved_key` | the rename (TODO.md, *Backlog*) |
+| `miss` | `no_key` | the rename (TODO.md, *Backlog*) |
 | `expected_line`, `expected_style` | `expected_art_line`, `expected_art_base` | hook, PR #36 |
 | style-exact | base-exact | never in code |
 | `art_number_raw` | `art_line` | run 1 |

@@ -20,7 +20,7 @@ merges. -->
 <!-- If anything sent to the model changed (prompts, user message,
 schemas, model string, MODEL_SETTINGS), use this block:
 Baseline <tag> → this run <tag> (fingerprint, manifest md5, dirty: False)
-Wrong-and-unflagged, per garment-side: <before> → <after>
+Base-exact, per garment-side (2 of 3): <before> → <after>
 Decision rule: pass / fail, wins–losses -->
 
 ## Gate impact
