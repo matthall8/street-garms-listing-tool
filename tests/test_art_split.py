@@ -2,7 +2,13 @@ import re
 
 import pytest
 
-from labels.art_number import FAMILY_TAILS, ArtSplit, parse, split_art_line
+from labels.art_number import (
+    FAMILY_PREFIXES,
+    FAMILY_TAILS,
+    ArtSplit,
+    parse,
+    split_art_line,
+)
 from tests import synthetic as s
 
 FAMILIES = pytest.mark.parametrize(
@@ -24,6 +30,28 @@ class TestFamilies:
     def test_family_table(self, code):
         """CAP-01, BASE-01 to -06: a bare code of each family is the whole base."""
         assert split_art_line(code) == ArtSplit(art_base=code)
+
+
+class TestFamilyAgreement:
+    # The split's family for each FAMILIES id
+    FAMILY = {
+        "si_9": "si_numeric", "si_8": "si_numeric", "si_namespace": "si_numeric",
+        "si_alpha": "si_alpha", "cp_modern": "cp_modern", "cp_reorder": "cp_modern",
+        "cp_transitional": "cp_transitional", "cp_transitional_11": "cp_transitional",
+    }
+
+    def test_every_family_is_covered(self):
+        assert set(self.FAMILY.values()) == set(FAMILY_PREFIXES)
+
+    @FAMILIES
+    def test_parse_agrees_with_the_split(self, code, request):
+        """parse() on the art_base finds the family the split matched, until
+        their family detection is merged (TODO.md, *Backlog*). parse() calls
+        the SI numeric '10' counter si_namespace; to the split it's si_numeric."""
+        family = self.FAMILY[request.node.callspec.id]
+        assert [name for name, prefix in FAMILY_PREFIXES.items() if prefix.match(code)] == [family]
+        decoded = parse(split_art_line(code).art_base or "").format
+        assert decoded == family or (decoded, family) == ("si_namespace", "si_numeric")
 
 
 class TestCaption:
