@@ -3,7 +3,7 @@
 import mimetypes
 from pathlib import Path
 
-from labels.art_number import parse
+from labels.art_number import art_candidate, parse, split_art_line
 from labels.catalogue import resolve
 from labels.schemas import ArtNumberReading, Extraction
 from labels.transcribe import transcribe
@@ -17,12 +17,15 @@ def from_reading(art_read: ArtNumberReading, source: str = "") -> Extraction:
     Makes no API call, so the eval replay and scorer can run it on saved
     reads: the same code the app runs. Not pure: resolve() reads the catalogue.
     """
-    decoded = parse(art_read.art_number_raw or "")
-    matched = resolve(art_read.art_number_raw, art_read.art_legible)
+    art_line = art_read.art_number_raw or ""
+    split = split_art_line(art_line)
+    decoded = parse(split.art_base or "")
+    matched = resolve(split.art_base or art_candidate(art_line), art_read.art_legible)
 
     return Extraction(
         source_image=source,
         art_number_raw=art_read.art_number_raw,
+        art_base=split.art_base,
         decoded=decoded.label,
         year=decoded.year,
         season=decoded.season,
@@ -33,11 +36,12 @@ def from_reading(art_read: ArtNumberReading, source: str = "") -> Extraction:
         matched_art=matched.matched_art,
         legibility=art_read.art_legible,
         all_reads=[a.model_dump() for a in art_read.ambiguous_characters],
-        flags=list(decoded.flags),
+        flags=list(decoded.flags) + list(split.problems),
         needs_review=(
             art_read.art_legible != "clear"
             or bool(art_read.ambiguous_characters)
             or bool(decoded.flags)
+            or bool(split.problems)
             or decoded.format is None
             or decoded.year is None
             or matched.status in ("corrected", "ambiguous")

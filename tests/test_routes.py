@@ -63,6 +63,7 @@ def _extraction(source: str) -> Extraction:
     return Extraction(
         source_image=source,
         art_number_raw="TESTCODE",
+        art_base="TESTCODE",
         decoded="test decode",
         product_name="Test Jacket",
         year=None,

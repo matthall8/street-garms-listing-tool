@@ -65,6 +65,7 @@ class Extraction:
 
     source_image: str
     art_number_raw: str | None
+    art_base: str | None
     decoded: str
     product_name: str | None
     year: int | None
