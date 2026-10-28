@@ -31,16 +31,7 @@ or model is a run under *Runs*, one per run.
 - [ ] The split (ADR-0005):
       1. done: split structure (`split_art_line`)
       2. done: split tails (`FAMILY_TAILS`)
-      3. wiring: `art_base` into `Extraction` (considered for `needs_review`);
-         remove `parse()`'s `0`→`O` repair; flips
-         `test_pin_unreadable_mark_in_a_clear_read_does_not_flag` (any `?`
-         flags: ADR-0005, *Flag table*); the rest of the *Flag table*, and
-         the lookup on `art_base` (or the candidate when the split fails).
-         The parser docstring's SI numeric shape loses its gap (split on
-         truth: no label prints one). If `catalogue.normalise` changes,
-         decide the privacy hook's normalisation separately, never change
-         the hook to match (`tests/test_privacy_hook.py`); `evals/README.md`'s
-         "strips only spacing and case" follows it
+      3. done: wiring (`from_reading()`)
 - [ ] Scorer, per read: correct = `from_reading()`'s `art_base` equals
       `expected_art_base` (base-exact, ADR-0002). `load_manifest` reads
       `expected_art_base` (today only `expected_art_number`, and it skips
