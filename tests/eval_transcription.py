@@ -45,6 +45,7 @@ from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from labels.pipeline import from_reading
 from labels.schemas import ArtNumberReading
 from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art
 
@@ -104,6 +105,28 @@ class CorrectArtNumber(Evaluator):
             result["exact"] = expected == detected
             result["cer"] = levenshtein(detected, expected) / len(expected)
         return result
+
+
+@dataclass
+class CorrectArtBase(Evaluator):
+    """Base-exact (ADR-0002): the pipeline's art_base against expected_art_base.
+
+    Runs from_reading(), the app's own code after transcription, so a live run
+    and a replay of saved reads score the same way. `base_kind` is a string so
+    it stays a label; `base_exact` is left off rows with no usable base.
+    """
+    def evaluate(self, ctx: EvaluatorContext) -> dict:
+        expected = normalise((ctx.metadata or {}).get("expected_art_base"))
+        if not expected:
+            return {"base_kind": "unlabelled"}
+        if expected == UNKNOWN:
+            return {"base_kind": "unknown"}
+
+        art_base = normalise(from_reading(ctx.output).art_base)
+        if expected == NO_ART_NUMBER:
+            return {"base_kind": "negative", "base_exact": not art_base}
+        return {"base_kind": "positive", "base_exact": art_base == expected}
+
 
 def percent(part: list, whole: list) -> float:
     return 100 * len(part) / len(whole)
@@ -380,7 +403,7 @@ def main() -> int:
     load_dotenv()
 
     dataset = Dataset(name="art-number-transcription",
-                      cases=cases, evaluators=[CorrectArtNumber()],
+                      cases=cases, evaluators=[CorrectArtNumber(), CorrectArtBase()],
                       report_evaluators=[ConfidenceRates(), PerPhotoCounts()])
     task = partial(get_art_number_reading, model=args.model)
     report = dataset.evaluate_sync(

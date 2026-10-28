@@ -236,6 +236,9 @@ Each photo gets a row with:
 - **kind** — `positive` or `negative`; the Averages row shows the mix, which is
   how you check the set still covers what you think it does
 
+The Averages row's pass rate pools every assertion (`exact` and
+`base_exact`), so read the base-exact rate and the per-photo table instead.
+
 Below the table, rates across the whole run.
 
 The first four are computed over **positive cases only**, so adding negative

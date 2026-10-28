@@ -22,6 +22,7 @@ import eval_transcription
 from eval_transcription import (
     NO_ART_NUMBER,
     ConfidenceRates,
+    CorrectArtBase,
     CorrectArtNumber,
     PerPhotoCounts,
     levenshtein,
@@ -460,6 +461,54 @@ class TestPerPhotoCounts:
         assert pooled("overconfident", positive_reads) == pytest.approx(scalars["overconfident"])
         assert pooled("fabricated clear", negative_reads) == pytest.approx(
             scalars["fabricated and declared clear"])
+
+
+def base_score(expected_base, raw, legible: ArtLegibility = "clear") -> dict:
+    """CorrectArtBase over one read. Its art_base comes from the split, not
+    the catalogue, so these tests need no catalogue patch or fixture."""
+    return CorrectArtBase().evaluate(cast(EvaluatorContext, SimpleNamespace(
+        metadata={"expected_art_base": expected_base},
+        output=ArtNumberReading(art_number_raw=raw, art_legible=legible),
+    )))
+
+
+class TestCorrectArtBase:
+    def test_the_base_read_from_a_full_line_is_correct(self):
+        line = f"ART. {s.SPLIT_SI_9}/{s.SPLIT_COLOUR[:3]}"
+        assert base_score(s.SPLIT_SI_9, line) == {
+            "base_kind": "positive", "base_exact": True}
+
+    def test_a_different_base_is_wrong(self):
+        assert base_score(s.SPLIT_SI_9, s.SPLIT_SI_8)["base_exact"] is False
+
+    def test_a_failed_split_is_wrong(self):
+        """No art_base comes back, which never equals an expected one."""
+        marked = s.SPLIT_SI_9[:5] + "?" + s.SPLIT_SI_9[6:]
+        assert base_score(s.SPLIT_SI_9, marked)["base_exact"] is False
+
+    def test_no_read_is_wrong(self):
+        assert base_score(s.SPLIT_SI_9, None, "not_visible")["base_exact"] is False
+
+    def test_the_expected_base_is_compared_ignoring_spacing_and_case(self):
+        assert base_score(f" {s.SPLIT_CP_MODERN.lower()} ", s.SPLIT_CP_MODERN)[
+            "base_exact"] is True
+
+    def test_a_negative_is_correct_with_no_base(self):
+        assert base_score(NO_ART_NUMBER, None, "not_visible") == {
+            "base_kind": "negative", "base_exact": True}
+
+    def test_a_negative_with_a_base_is_wrong(self):
+        assert base_score(NO_ART_NUMBER, s.SPLIT_SI_9)["base_exact"] is False
+
+    @pytest.mark.parametrize("expected,kind", [("", "unlabelled"), (None, "unlabelled"),
+                                               ("UNKNOWN", "unknown"), ("unknown", "unknown")])
+    def test_a_row_with_no_usable_base_is_left_out(self, expected, kind):
+        """No base_exact, so it can't pass or fail; base_kind says why."""
+        assert base_score(expected, s.SPLIT_SI_9) == {"base_kind": kind}
+
+    def test_base_kind_is_a_string_not_a_bool(self):
+        """As with `kind`: a bool would become an assertion."""
+        assert isinstance(base_score(s.SPLIT_SI_9, s.SPLIT_SI_9)["base_kind"], str)
 
 
 class TestBaseOnlyRow:
