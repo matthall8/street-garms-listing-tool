@@ -4,8 +4,8 @@ no API call, no catalogue. A mismatch is a split bug, a labelling error, or
 ADR-0005's rule not fitting a real label.
 
 Prints shapes, never values: D a digit, A an upper-case letter, a a lower-case
-one, anything else as printed, non-ASCII escaped. Once the split is wired in, the scorer's
-fake-read mode (a read that returns expected_art_line) replaces this.
+one, anything else as printed, non-ASCII escaped. Retired by the scorer's
+fake-read mode (TODO.md, Code).
 
     python tests/report_split_on_truth.py
 """
@@ -47,7 +47,8 @@ def main() -> int:
     detail = []
     for r in rows:
         line, base = r["expected_art_line"], r["expected_art_base"]
-        # exact cell values: no stripping, so a stray space shows as a mismatch
+        # exact cell values: a stray space in the base or a sentinel shows as a
+        # mismatch; split_art_line() strips the line's ends, so that is counted
         found = tuple(f"{c} {r[c] or 'blank'}" for c in COLUMNS if r[c] in ("", UNKNOWN))
         if found:
             group = "excluded"
@@ -56,13 +57,15 @@ def main() -> int:
         else:
             split = split_art_line(line)
             found = split.problems
+            if line != line.strip():
+                found += ("line has edge whitespace",)
             if split.art_base is None:
                 group = "no base"
             elif split.art_base == base:
                 group = "base matches"
             else:
                 group = "base differs"
-            if group != "base matches":
+            if group != "base matches" or found:
                 detail.append(f"{r['id']}  line {shape(line)}  expected {shape(base)}  "
                               f"split {shape(split.art_base or '')}  problems {', '.join(found) or '-'}")
         groups[group] += 1
