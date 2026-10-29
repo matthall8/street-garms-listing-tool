@@ -62,7 +62,7 @@ or model is a run under *Runs*, one per run.
       the model comparison
 
 ### Runs (development only)
-- [ ] Replay the 2026-10-08 baseline's saved reads (free): the first
+- [x] Replay the 2026-10-08 baseline's saved reads (free): the first
       base-exact number. In-sample (the split was designed against these
       failures), so a sanity check, not evidence
 - [ ] Run 0: paid, whole dev set, `--repeat 3`, once the dev set is complete
