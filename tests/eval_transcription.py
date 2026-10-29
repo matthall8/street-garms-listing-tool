@@ -24,12 +24,15 @@ Certilogo codes. See evals/README.md for setup and how to read the report.
 import argparse
 import csv
 import hashlib
+import json
+import platform
 import subprocess
 import sys
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from functools import partial
+from importlib.metadata import PackageNotFoundError, version
 from mimetypes import guess_type
 from pathlib import Path
 from typing import NamedTuple
@@ -49,7 +52,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from labels.pipeline import from_reading
 from labels.schemas import ArtNumberReading
-from labels.transcribe import ART_MODEL, ART_PROMPT, transcribe_art
+from labels.transcribe import ART_MODEL, ART_PROMPT, ART_USER_MESSAGE, transcribe_art
 
 EVALS = Path(__file__).parent.parent / "evals"
 MANIFEST = EVALS / "manifest.csv"
@@ -57,6 +60,8 @@ NO_ART_NUMBER = "NONE"
 UNKNOWN = "UNKNOWN"  # a marker for the run 0 columns, never a legacy value
 PHOTOS = EVALS / "photos"
 RESULTS = EVALS / "results"
+# Between the code and the model, or scoring what comes back.
+PACKAGES = ("pydantic-ai", "anthropic", "pydantic", "pydantic-evals")
 
 
 def levenshtein(a: str, b: str) -> int:
@@ -385,6 +390,7 @@ def load_manifest() -> list[Case]:
                 inputs=PHOTOS / photo,
                 expected_output=expected or None,
                 metadata={
+                    "id": r.get("id", "").strip(),
                     "note": r.get("note", "").strip(),
                     "garment": r.get("garment", "").strip(),
                     "side": r.get("side", "").strip(),
@@ -413,6 +419,18 @@ def fingerprint(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()[:12]
 
 
+def versions() -> str:
+    """Python and PACKAGES as installed, so a run shows its environment
+    matched the commit's uv.lock. A missing package is recorded, not fatal."""
+    def installed(package: str) -> str:
+        try:
+            return version(package)
+        except PackageNotFoundError:
+            return "not installed"
+    return ", ".join([f"python {platform.python_version()}",
+                      *(f"{p} {installed(p)}" for p in PACKAGES)])
+
+
 def run_metadata(args: argparse.Namespace) -> dict:
     """What produced this run, so a saved report can be traced back to it."""
     return {
@@ -420,19 +438,54 @@ def run_metadata(args: argparse.Namespace) -> dict:
         "commit": git("rev-parse", "--short", "HEAD"),
         "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
         "prompt": fingerprint(ART_PROMPT.encode()),
+        "user_message": fingerprint(ART_USER_MESSAGE.encode()),
+        # The output schema the model sees: field descriptions and docstrings included.
+        "schema": fingerprint(
+            json.dumps(ArtNumberReading.model_json_schema(), sort_keys=True).encode()),
+        "versions": versions(),
         "manifest": fingerprint(MANIFEST.read_bytes()),
         "limit": args.limit,
         "repeat": args.repeat,
         "note": args.note,
     }
 
+def id_problems(cases: list[Case]) -> list[str]:
+    """Blank or repeated manifest ids among the cases run: the photo record
+    is keyed by id."""
+    ids = [(c.metadata or {}).get("id", "") for c in cases]
+    problems = [f"{c.name} has no id" for c, i in zip(cases, ids, strict=True) if not i]
+    problems += [f"id {i} is on more than one row"
+                 for i in sorted({i for i in ids if i and ids.count(i) > 1})]
+    return problems
+
+
+def photo_metadata(cases: list[Case]) -> dict:
+    """The photos this run sends, by manifest id: a sha256 each, so one can be
+    checked by hand, and one fingerprint over them all. Hashed once per photo,
+    whatever --repeat is. A missing photo is None; its read fails as before."""
+    hashes = {}
+    for c in cases:
+        path = Path(c.inputs)
+        hashes[(c.metadata or {})["id"]] = (
+            hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None)
+    return {"photos": fingerprint(json.dumps(hashes, sort_keys=True).encode()),
+            "photo_hashes": hashes}
+
+
 def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
-    """The scoring run's commit and manifest; the reads' model and prompt."""
+    """The scoring run's commit and manifest; the reads' model, prompt, user
+    message, schema, photos and library versions. A source from before a field
+    existed gives None."""
     read_by = source.experiment_metadata or {}
     return {
         **run_metadata(args),
         "model": read_by.get("model"),
         "prompt": read_by.get("prompt"),
+        "user_message": read_by.get("user_message"),
+        "schema": read_by.get("schema"),
+        "photos": read_by.get("photos"),
+        "photo_hashes": read_by.get("photo_hashes"),
+        "versions": read_by.get("versions"),
         "repeat": read_by.get("repeat", 1),
         "replay_of": args.replay.name,
     }
@@ -463,6 +516,43 @@ def replay_task(source: EvaluationReport, cases: list[Case]):
         return reads.pop(0)
 
     return task, [c for c in cases if c.name in saved]
+
+
+def baseline_warnings(baseline: dict, run: dict) -> list[str]:
+    """Where the baseline's output schema, user message, library versions or
+    photos differ from this run's. Any of them changing alongside the change
+    under test makes the diff meaningless, and none shows in a prompt or model
+    comparison: a library upgrade can change what's sent without moving the
+    schema. Not `prompt` or `model`: a comparison usually changes one on purpose."""
+    warnings = []
+    for what, key in [("output schema", "schema"), ("user message", "user_message"),
+                      ("versions line", "versions")]:
+        if baseline.get(key) is None:
+            warnings.append(f"warning: the {what} is not recorded in the baseline")
+        elif baseline[key] != run[key]:
+            warnings.append(f"warning: the {what} differs from the baseline's "
+                            f"({baseline[key]} -> {run[key]})")
+
+    then, now = baseline.get("photo_hashes"), run["photo_hashes"]
+    if then is None:
+        warnings.append("warning: the photo record is not recorded in the baseline")
+        return warnings
+    for what, ids in [
+        ("changed", [i for i in now if i in then and now[i] != then[i]]),
+        ("only in the baseline", [i for i in then if i not in now]),
+        ("only in this run", [i for i in now if i not in then]),
+    ]:
+        if ids:
+            warnings.append(f"warning: photos {what}: {', '.join(sorted(ids))}")
+    return warnings
+
+
+def printable(report: EvaluationReport) -> EvaluationReport:
+    """The report without photo_hashes, which would fill the printed header.
+    The saved report keeps them."""
+    metadata = {k: v for k, v in (report.experiment_metadata or {}).items()
+                if k != "photo_hashes"}
+    return replace(report, experiment_metadata=metadata)
 
 
 def save(report, model) -> Path:
@@ -567,9 +657,16 @@ def main() -> int:
         # Serial, so each photo's saved reads are scored in saved order.
         workers, repeat, name = 1, metadata["repeat"], f"{metadata['model']}-replay"
     else:
+        if problems := id_problems(cases):
+            print("\n".join(problems))
+            print("every row run needs its own id: the photo record is keyed by it")
+            return 1
         from dotenv import load_dotenv
         load_dotenv()
-        metadata = run_metadata(args)
+        metadata = {**run_metadata(args), **photo_metadata(cases)}
+        if baseline:
+            for warning in baseline_warnings(baseline.experiment_metadata or {}, metadata):
+                print(warning)
         task = partial(get_art_number_reading, model=args.model)
         workers, repeat, name = args.workers, args.repeat, args.model
 
@@ -584,7 +681,8 @@ def main() -> int:
         name=name,
         metadata=metadata,
     )
-    report.print(include_output=True, include_expected_output=True, baseline=baseline)
+    printable(report).print(include_output=True, include_expected_output=True,
+                            baseline=printable(baseline) if baseline else None)
     if not args.no_save:
         print(f"\nwrote {save(report, name).relative_to(EVALS.parent)}")
     return 0

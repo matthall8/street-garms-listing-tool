@@ -46,13 +46,15 @@ or model is a run under *Runs*, one per run.
       no API call. Records the source report and the scoring commit; every
       replay's output is saved
 - [ ] `--holdout` flag: runs the test manifest, prints totals only
-- [ ] Eval provenance: harness hashes photos (replaces the broken recipe),
-      before run 0: the dev set freezes then
+- [x] Eval provenance: the header records the photos sent (by `id`), the
+      user message and the library versions; `--baseline` warns when they
+      differ. Replaces the manual photo-hash and pip freeze steps
 - [ ] Usage / cost capture in code (SG billing?): before the model
       comparison. Run 0's spend is read off the Anthropic console before
       and after, and recorded in BASELINES.md
-- [ ] Schema fingerprint: hash the output schema into the report's `prompt`
-      fingerprint, before any prompt or schema run
+- [x] Schema fingerprint: the output schema in its own `schema` header
+      field, beside `prompt`, so `prompt` still matches the current
+      baseline's; `--baseline` warns when it differs
 - [ ] Spend cap: print the call count up front, confirm past a threshold,
       before the model comparison
 - [ ] Model identity: if `response.model` returns only `claude-sonnet-5`, a

@@ -25,7 +25,7 @@ evals/
 
 | column | meaning |
 |---|---|
-| `id` | the row's own id: opaque, unique, and never changed once given. Not derived from the filename, a code or the product. Docs refer to a photo by it |
+| `id` | the row's own id: opaque, unique, and never changed once given. Not derived from the filename, a code or the product. Docs refer to a photo by it, and so does the report's photo record: a live run stops before any read if a row it runs has a blank or repeated `id` |
 | `photo` | filename inside `evals/photos/`, **including the extension**. The extension sets the media type sent to the model, so it must match the file's real format — a PNG saved as `.JPG` goes out labelled `image/jpeg` |
 | `garment` | an opaque id shared by every photo of one garment, negatives included. Not derived from the filename, a code or the product |
 | `side` | which face of the label the photo shows: `front` or `back` (see [Garment and side](#garment-and-side)) |
@@ -222,22 +222,22 @@ how a parser, split or catalogue change is measured at no cost (ADR-0002).
   filename. A photo in only one of the two is named on stdout and not scored.
 - A read that failed in the source run fails again, so the photo keeps its
   `--repeat` runs.
-- Saved as `<stamp>-<model>-replay.json`. Its header has the source's
-  `model`, `prompt` and `repeat`, this run's `commit`, `dirty` and `manifest`,
-  and `replay_of`. Commit first: on a dirty tree it warns, since the recorded
-  commit isn't the code that scored.
+- Saved as `<stamp>-<model>-replay.json`. Its header has what the reads
+  came from, copied from the source: `model`, `prompt`, `user_message`,
+  `schema`, `photos`, `photo_hashes`, `versions` and `repeat` (`None` where
+  the source predates a field). It has this run's `commit`, `dirty` and
+  `manifest`, and `replay_of`. Commit first: on a dirty tree it warns, since
+  the recorded commit isn't the code that scored.
 
 ### Eval run procedure
 
 `--repeat 3 --workers 1` on a clean tree. Run `uv sync --locked` first, so
-the environment is the tagged commit's `uv.lock`. Save the manifest's photo
-hashes and `uv pip freeze` (`.pip-freeze.txt`) beside the report: the
-freeze shows the sync was run. Baselines from before `uv.lock` existed are
-rebuilt from their own saved `.pip-freeze.txt`. Record the manifest md5
-before and after any edit. Hash only the manifest's photos, not the whole folder:
-`tail -n +2 evals/manifest.csv | cut -d, -f1 | (cd evals/photos && xargs shasum -a 256)`.
-Broken (the manifest now starts with `id`; a filename has a space): don't
-use; the harness will hash the photos itself (TODO.md's *Eval provenance* item).
+the environment is the tagged commit's `uv.lock`; the header's `versions`
+shows it was. The harness records the photos it sends in the header
+(`photos`, `photo_hashes`), so nothing is saved beside the report by hand.
+Baselines from before those fields keep their saved `.photos.sha256` and
+`.pip-freeze.txt`; ones from before `uv.lock` existed are rebuilt from that
+`.pip-freeze.txt`. Record the manifest md5 before and after any edit.
 Serial running is a precaution against a suspected pydantic-ai concurrency
 stall, never reproduced. `--workers` isn't recorded in the report header, so
 put it in the `--note`.
@@ -371,6 +371,11 @@ Every report records what produced it, shown in its header:
 | `commit` | the git commit the harness ran from |
 | `dirty` | `True` if tracked files had uncommitted changes — e.g. an unsaved prompt edit |
 | `prompt` | fingerprint of the ART prompt; changes if any character of it does |
+| `user_message` | fingerprint of the text sent with each photo (`ART_USER_MESSAGE`) |
+| `schema` | fingerprint of the output schema the model sees (`ArtNumberReading.model_json_schema()`), field descriptions and docstrings included |
+| `versions` | Python and the installed `pydantic-ai`, `anthropic`, `pydantic` and `pydantic-evals`; `not installed` for a missing one |
+| `photos` | fingerprint over `photo_hashes`: two runs sent the same photos if it matches |
+| `photo_hashes` | sha256 of each photo the run sent, by manifest `id`; `None` for a missing photo. Only the cases run, so `--limit` narrows it. In the saved report, not the printed header |
 | `manifest` | fingerprint of `manifest.csv`; changes if any byte does — a photo or expected value, but also a note or a column the harness doesn't score |
 | `limit`, `repeat`, `note` | as passed on the command line |
 | `replay_of` | replays only: the saved report whose reads were rescored |
@@ -397,6 +402,12 @@ Things that make a comparison meaningless:
 
 - **Different `--repeat`.** Repeats rename cases (`photo [1/3]`) and the diff
   matches cases by name, so every case shows as added. The script warns you.
+- **A different photo, `schema`, `user_message` or `versions`.** None of
+  them is the change under test, and a library upgrade can change what's
+  sent without moving `schema`. `--baseline` warns on each before any read,
+  names the photo `id`s that changed or are in one run only, and says when
+  the baseline predates the field. `prompt` and `model` don't warn: a
+  comparison usually changes one on purpose.
 - **A different `manifest` fingerprint, for a scored reason.** The runs
   scored different photos or different expected values. A note or an unscored
   column changes the fingerprint too; the md5 ledger's "what changed" column
