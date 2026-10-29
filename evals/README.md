@@ -114,7 +114,10 @@ decide; the cells record both as printed so either is possible.
 ### What counts as the ART number (legacy)
 
 This is the rule for the legacy `expected_art_number`, which the harness still
-scores; new labelling follows the section above.
+scores; new labelling follows the section above. Exception: on `p03`, `p09`
+and `p19`, `expected_art_number` holds the base plus the fabric code, against
+this rule, so their legacy metrics aren't comparable with reports scored before
+the change (md5 ledger, the first 2026-10-19 row's correction).
 
 Expected values are compared ignoring spacing and case, so a code with a space
 in it and the same code in lower case with no space both count as correct. Every other difference counts as
