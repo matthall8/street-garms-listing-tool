@@ -8,15 +8,18 @@ Results, baselines and the manifest md5 ledgers. How to run an eval:
 **2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
 (contract v1).** It stops being the comparison point once run 0's paid
 full-manifest `--repeat 3` run (TODO.md, *Runs*) is recorded as the new
-baseline; it stays as the record of contract v1.
+baseline; it stays as the record of contract v1. For base-exact, and for
+anything compared on today's manifest, use its replay (*Replay of the
+2026-10-08 baseline*, below).
 
 - Report: `evals/results/20261008T154722Z-anthropic_claude-sonnet-5.json`
   (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
 - Code: tag `eval-baseline-2026-10-08` → `6cede38`, `dirty: False`; prompt
   fingerprint `4fc3298aa412`.
 - Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; it scored `p01`–`p33` only. Those
-  rows have changed only in notes and unscored columns since (md5 ledger,
-  2026-10-09 and the first 2026-10-19 row); `p34`–`p55` (the second
+  rows have changed since in notes, unscored columns and three
+  `expected_art_number` cells (md5 ledger, 2026-10-09 and the first
+  2026-10-19 row, with its correction); `p34`–`p55` (the second
   2026-10-19 row) are not in it. `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
   positive (28 photos of 10 garments) and 15 negative.
 
@@ -139,7 +142,7 @@ row is current.
 | 2026-10-08 | `4f298e4ceb31d67d8d7c8180a332a50a` | New eval set: 27 positives + 5 negatives (correction: 28 positives; 27 was a miscount, not a ground-truth edit), 10 garments, none shared with the archived set; first C.P. photos (2 `cp_modern` garments, 1 new negative) and `_rotated` variants. The four Certilogo negatives carried over byte for byte. Not run: 13 paths did not match the files on disk. |
 | 2026-10-08 | `02cfa7cb2065ae27e6944b62731651bc` | Paths fixed to match files on disk (13 rows: zero-padding, `.JPG` case, space in p19). Colour suffix added to the expected code on both photo-7 rows: the suffix is printed attached with a slash, per the `evals/README.md` rule; checked by eye. p25 re-saved as a real 270° rotation; it had been byte-identical to the original. Expected values of photos 1, 4, 5, 9, 10, 14 and both C.P. positives re-checked by eye. Baseline `eval-baseline-2026-10-08` ran on this. |
 | 2026-10-09 | `1a83e41cb8059ab1b2624a683818a487` | Notes only: `back of label` added to photos 5 and 19, both of which show the back "Art." tag (checked by eye). No photo or expected value changed, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs, so `--baseline` will report it as changed. |
-| 2026-10-19 | `769a3e4639b11da01f1fcd4ae606b36e` | `id`, `garment`, `side`, `expected_art_line` and `expected_art_base` added in one edit, checked by eye: 33 rows, 15 garments, 21 garment-sides. The id-only version was not saved, so it has no row. Stale `upside down` note on `p15` removed: the photo is upright. `expected_art_number` unchanged, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs. |
+| 2026-10-19 | `769a3e4639b11da01f1fcd4ae606b36e` | `id`, `garment`, `side`, `expected_art_line` and `expected_art_base` added in one edit, checked by eye: 33 rows, 15 garments, 21 garment-sides. The id-only version was not saved, so it has no row. Stale `upside down` note on `p15` removed: the photo is upright. `expected_art_number` unchanged, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs. (Correction, 2026-10-29: not unchanged. On `p03`, `p09` and `p19`, the three C.P. positives, `expected_art_number` was given the whole `expected_art_line` without its caption: the base plus the fabric code, which the legacy rule leaves out. Not recorded at the time, most likely made in this edit. Found by the 2026-10-29 replay: on the same saved reads, legacy exact on positives rose from 39 to 47 of 84, all 8 on these three photos. `expected_art_base` was unaffected: it is the 2026-10-08 value on all three. The cells were left as they are, so the md5 is unchanged.) |
 | 2026-10-19 | `94d41fd31287b33459f781fcef9672ae` | 22 rows added (`p34`–`p55`), checked by eye: 20 positives + 2 negatives, 15 new garments (`g16`–`g34`, some ids unused), 21 garment-sides, none shared with earlier rows. Whole set now 55 rows (48 positives + 7 negatives), 30 garments, 42 garment-sides. `p44`'s `expected_art_line` is `UNKNOWN`: the end of the lot code is under a thumb. Earlier rows unchanged. The new rows are scored, so the 2026-10-08 baseline no longer covers the whole set. |
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
@@ -155,6 +158,44 @@ blocks every commit while the manifest has a header and no rows:
 
 Re-run `md5 -q evals/holdout/manifest.csv` after any edit and add a row here,
 never in the table above.
+
+## Replay of the 2026-10-08 baseline
+
+`--replay` (`evals/README.md`, *Replaying a saved run*): the baseline's
+saved reads through today's `from_reading()`, scored on base-exact
+([ADR-0002](../adr/0002-phase-1-acceptance.md)). The first point on this
+scale: no number from before the split was wired exists (main is tagged
+`pre-split-wiring` if one is ever wanted).
+
+**2026-10-29:** commit `e033296`, `dirty: False`, after `uv sync --locked`;
+manifest md5 `94d41fd31287b33459f781fcef9672ae`. Report
+`evals/results/20261029T100233Z-anthropic_claude-sonnet-5-replay.json`
+(gitignored), `replay_of` the 2026-10-08 report. Correct: at least 2 of 3
+reads. No failures.
+
+| rate | value |
+|---|---|
+| photos correct | 64.3% (18 of 28 positive photos) |
+| reads correct | 63.1% (53 of 84 positive reads) |
+| negatives correct | 100% (5 of 5 negative photos) |
+| left out: `UNKNOWN` | 0 of 33 photos |
+| left out: unlabelled | 0 of 33 photos |
+| legacy exact, positives | 56.0% (47 of 84) |
+
+- In-sample: the split was designed against these reads, so this is a
+  sanity check, not evidence (TODO.md, *Runs*).
+- `p34`–`p55` have no saved reads, so they aren't scored.
+- No read is legacy-exact and base-wrong.
+- Legacy exact is 47 here against the baseline's 39 on the same reads,
+  because three `expected_art_number` cells changed (md5 ledger, the first
+  2026-10-19 row's correction). Compare run 0 with this replay, which uses
+  the same manifest, not with the 2026-10-08 report.
+- The pooled Averages row moves because `base_exact` joined it, not
+  because the reads changed.
+- The source predates the provenance fields, so `user_message`, `schema`,
+  `photos` and `versions` are `None` in the header.
+- The 2026-10-08 baseline's scope applies (*Scope* above): no `si_alpha`,
+  a lopsided set; judge per photo.
 
 ## Split on truth
 
