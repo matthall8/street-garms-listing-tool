@@ -60,6 +60,11 @@ or model is a run under *Runs*, one per run.
 - [ ] Model identity: if `response.model` returns only `claude-sonnet-5`, a
       model change can't be told from a prompt change in a run diff. Before
       the model comparison
+- [ ] ADR-0006's unit in the report: each positive garment-side's correct
+      reads summed over its photos (the garment-sides table counts photos;
+      until then, sum by hand from base per photo). Same branch:
+      `PerPhotoCounts`' docstring and `TestPerPhotoCounts`' still call it
+      ADR-0006's table. Before the first iteration
 
 ### Runs (development only)
 - [x] Replay the 2026-10-08 baseline's saved reads (free): the first
@@ -71,16 +76,18 @@ or model is a run under *Runs*, one per run.
       changes before it, so its `p01`–`p33` reads compare directly with
       the 2026-10-08 reads
 - [ ] Dev set freezes when that baseline is recorded; new photos go to test
-- [ ] Prompt-change policy for phase 1 runs, before the first iteration:
-      ADR-0006's wins rule counts `missed`, but ADR-0002 judges runs on
-      base-exact. Which metric, what margin, how many repeats; its "3+
-      losses → reject" is stricter than the sign test it cites; and whether
-      its overconfident guardrail stays, now that staff review every result
-      (its own revisit trigger)
-- [ ] Iterations, until dev clears 80% with a margin: auto-rotate, image
+- [x] Prompt-change policy for phase 1 runs (ADR-0006)
+- [ ] Iterations, until dev clears 80% with a margin. The margin is
+      undecided: set it after run 0 and before the first iteration,
+      informed by how `p34`–`p55` compare with the rest. If it becomes a
+      rule, it goes in ADR-0002. Candidates: auto-rotate, image
       resizing?, compare models (Sonnet, Opus, Haiku: check current
       versions), prompt gives character classes, never lengths (ADR-0001,
       *Trust rules*: decide first whether the prompt may describe formats)
+- [ ] Once dev clears 80%: revisit a "no worse" path for a cheaper or
+      faster model (ADR-0006). If you want one, decide its rule before
+      running it: compared against the last model accepted on wins, with
+      usage / cost capture in place
 - [ ] Replace `ART_PROMPT`'s real examples with invented ones: 8–9
       characters, one with a leading zero, checked not to be catalogue keys
       or test-set codes (pass/fail, no rows printed)
@@ -97,6 +104,8 @@ or model is a run under *Runs*, one per run.
       recorded (ADR-0002, *Context*); acceptance criteria agreed with the
       product team. The result page shows the ART number only: decoder flags
       and product name hidden, code kept
+- [ ] Before the staff trial: the run rule for later runs (ADR-0006
+      revisit), with ADR-0001's per-run rule
 
 ### Backlog
 Not measured by the phase 1 gate. Kept for when flags, the catalogue lookup

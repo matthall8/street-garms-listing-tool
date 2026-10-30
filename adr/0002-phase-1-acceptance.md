@@ -5,8 +5,8 @@
 - **Date:** 2026-10-22
 - **Supersedes:** ADR-0001's launch criteria (*For launch*, under *Success
   criteria*) and, in phase 1, its per-run hard rule (no garment-side newly
-  wrong and unflagged): phase 1 runs are judged on base-exact and ADR-0006's
-  guardrails. Moves runs 3–4 of its *Rollout* out of phase 1.
+  wrong and unflagged): phase 1 runs are judged by ADR-0006's rule, on
+  base-exact. Moves runs 3–4 of its *Rollout* out of phase 1.
 - **Terms:** see `GLOSSARY.md`.
 
 ## Context

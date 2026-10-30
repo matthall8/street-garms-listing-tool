@@ -113,7 +113,7 @@ the same label was never settled before the set was archived. Photo 17 is the
 care label of 01's garment, a different label from 01's tag. The cheapest test
 for all six is a re-shoot at full phone resolution.
 
-Judged by ADR-0006's decision rule:
+Judged by ADR-0006's rule as first written:
 
 **Result, whole-label prompt change (2026-09-25): passed.** 8 wins — photos
 01, 05, 07, 11, 13, 14, 15, 16, eight different garments — and 0 losses

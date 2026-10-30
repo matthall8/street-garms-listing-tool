@@ -331,8 +331,9 @@ row, with `reads` 0. The other columns count reads out of `reads`:
 - `fabricated clear` — negatives only
 
 These use the same per-read tests as the rates above, so summed over photos
-they reproduce them. This is the table to compare two runs on: a photo is the
-unit, and the repeats of one photo are not independent evidence. Widen the
+they reproduce them. The repeats of one photo are not independent evidence;
+how two runs are judged is in
+[ADR-0006](../adr/0006-decision-rule-for-prompt-changes.md). Widen the
 terminal if the photo names are cut off; the saved report always has them in
 full.
 
@@ -382,16 +383,18 @@ Every report records what produced it, shown in its header:
 
 To test a change:
 
-1. Run a baseline before changing anything:
-   `--repeat 3 --workers 1 --note "baseline: current prompt, workers 1"`
-2. Make **one** change — a prompt edit, a model swap.
-3. Run again against it:
-   `--repeat 3 --workers 1 --note "whole-label search, workers 1" --baseline evals/results/<baseline>.json`
+1. Make **one** change — a prompt edit, a model swap — and commit it.
+2. Replay the latest baseline at that commit:
+   `--replay evals/results/<baseline>.json`. The replay is the comparison
+   point ([ADR-0006](../adr/0006-decision-rule-for-prompt-changes.md)).
+3. Run against it:
+   `--repeat 3 --workers 1 --note "whole-label search, workers 1" --baseline evals/results/<replay>.json`
 
 The diff shows what changed in the header (`prompt: 8f1e… → 3a7c…`) and, per
 photo, results that flipped (`✔ → ✗`). With `--repeat` those flips pair
 `photo [2/3]` against `photo [2/3]`, which are unrelated samples, so judge the
-change on the two **per photo** tables instead. The diff prints only the new
+change on the two **base per photo** tables instead, by
+[ADR-0006](../adr/0006-decision-rule-for-prompt-changes.md)'s rule. The diff prints only the new
 run's table; print the baseline's from its saved report:
 
 ```bash
