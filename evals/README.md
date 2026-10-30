@@ -55,7 +55,7 @@ which photos are the same evidence.
 - On a positive row, `side` is the face carrying the ART line. On a negative,
   it is the face shown.
 - A separate tag with no ART number, such as a Certilogo strip, is labelled
-  `front`.
+  `front`, whichever of its faces is shown.
 - A second shot of the same face has the same `garment` and `side` as the
   first, and its own `id`.
 - A negative whose garment is in no other row still gets a `garment`, its

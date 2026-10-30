@@ -47,7 +47,7 @@ Phase 1 passes when **at least 80% of garment-sides are correct**, out of at
 least 30 (at least 24 of 30).
 
 Photos are split by garment, so no garment is in both sets: the development
-set (about 70 photos, including all existing photos) and the 30 test
+set (about 70 photos, every existing garment-side included) and the 30 test
 garments. Development results are for tuning only and don't count towards
 the gate.
 
@@ -136,10 +136,10 @@ See *Phase 1* in TODO.md for an up-to-date list.
 - The tool must send the photo as the user saw it (EXIF orientation,
   TODO.md). Without it, the rule's premise, that the user checks the
   preview, is false in production.
-- The upright rule relies on the user's check, so the web UI's capture
-  guidance must ask for an upright photo before the staff trial. The rest
-  of it (the back tag and its Data Matrix) stays out of phase 1, with the
-  2D-code stage.
+- The upright rule relies on the user's check, so capture guidance in the
+  web UI asking for an upright photo is a prerequisite for the staff trial
+  (TODO.md, *Later*). The rest of the guidance (the back tag and its Data
+  Matrix) waits for the 2D-code stage.
 - `evals/README.md`, *Held-out set*: link here for the run limit; the
   `--holdout` flag prints totals only.
 - The auto-publish question moves to a much later phase, and brings back a

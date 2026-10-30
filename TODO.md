@@ -67,7 +67,7 @@ or model is a run under *Runs*, one per run.
       until then, sum by hand from base per photo). Same branch:
       `PerPhotoCounts`' docstring and `TestPerPhotoCounts`' still call it
       ADR-0006's table. Before the first iteration
-- [ ] EXIF orientation: no path honours the tag. The CLI (`pipeline._load`),
+- [ ] EXIF orientation: no path honours the tag. The CLI (`pipeline._photo`),
       the web form (`_read` in `app/routes.py`) and the harness all send the
       file's bytes unchanged. Browsers and Finder apply the tag, so a photo
       that looks upright can reach the model sideways. Fix on its own branch:
@@ -77,10 +77,10 @@ or model is a run under *Runs*, one per run.
       re-encode untagged ones too, changing what the model sees without
       showing in `photo_hashes`. A prerequisite of using the photo session's
       photos, since upright is judged as the model receives it (ADR-0002):
-      before the grown dev set's baseline and any gate attempt. On that
-      branch, check that no current dev photo carries an orientation tag; if
-      one does, the fix changes what the model sees, so it's a run, not
-      *Code*. Also check whether HEIC reaches the API at all today. Note: HEIC
+      before the grown dev set's baseline and any gate attempt. No current
+      dev photo carries an orientation tag (BASELINES.md, 2026-10-30 ledger
+      row), so on the dev set the fix is a no-op. On that branch, check
+      whether HEIC reaches the API at all today. Note: HEIC
       uploads are accepted, and Pillow needs `pillow-heif` to open them
 
 ### Runs (development only)
