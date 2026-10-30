@@ -5,6 +5,117 @@ Results, baselines and the manifest md5 ledgers. How to run an eval:
 
 ## Current baseline
 
+**2026-10-30 — run 0: whole-label `ART_PROMPT` on
+`anthropic:claude-sonnet-5`, upright development set.** The first paid
+base-exact baseline ([ADR-0002](../adr/0002-phase-1-acceptance.md)),
+recorded, not judged. The next run compares against its reads replayed at
+that run's commit ([ADR-0006](../adr/0006-decision-rule-for-prompt-changes.md),
+*Comparison point*). Development results don't count towards the gate.
+
+- Report: `evals/results/20261030T133451Z-anthropic_claude-sonnet-5.json`
+  (gitignored). Its header records the photos and versions; nothing is
+  saved beside it.
+- Code: `3f6efc2` (`main`), `dirty: False`. Fingerprints: prompt
+  `4fc3298aa412` (the 2026-10-08 baseline's), user_message `3b608b481703`,
+  schema `4e5d5d4c0601`, photos `5089f8d6983f`.
+- Versions: Python 3.13.3, pydantic-ai 2.32.0, anthropic 0.122.0, pydantic
+  2.13.4, pydantic-evals 2.32.0, as in `uv.lock`.
+- Set: manifest md5 `eab250f6424d97a8d1717e70c0b2222c` (md5 ledger,
+  2026-10-30): 47 photos, 40 positive and 7 negative, 30 garments, 36
+  positive garment-sides. `--repeat 3 --workers 1` (`--workers` from the
+  note).
+- Completeness: 141 of 141 reads scored, no failures; every photo has 3
+  scored reads.
+- Cost: $1.71 (Anthropic console, before and after), about $0.012 per read.
+
+| rate | value |
+|---|---|
+| positive garment-sides correct (at least 2 of 3 reads) | 88.9% (32 of 36) |
+| reads correct | 85.0% (102 of 120 positive reads) |
+| photos correct | 85.0% (34 of 40 positive photos) |
+| negatives correct | 100% (7 of 7 negative photos) |
+| negative reads returning an `art_base` (ADR-0006's guardrail) | 0 of 21 |
+| left out: `UNKNOWN` | 0 of 47 photos |
+| left out: unlabelled | 0 of 47 photos |
+
+Three positive garment-sides have several photos (`g10` back, `g13` back,
+`g13` front). On each, every photo has the same verdict, so the
+garment-side count doesn't depend on how a side's photos combine. Every
+photo returned the same read on all three repeats (47 of 47).
+
+**Out-of-sample.** `p34`–`p55` and `p58` were added after the split was
+designed against the 2026-10-08 reads; the rest (`p01`–`p33` survivors,
+`p56`, `p57`) were not. No garment-side has photos in both groups.
+
+| rate | out-of-sample | in-sample |
+|---|---|---|
+| positive garment-sides | 95.0% (19 of 20) | 81.3% (13 of 16) |
+| positive photos | 95.0% (19 of 20) | 75.0% (15 of 20) |
+| positive reads | 95.0% (57 of 60) | 75.0% (45 of 60) |
+| negative photos | 2 of 2 | 5 of 5 |
+
+Out-of-sample is 13.8 points higher on garment-sides, and 20.0 points
+higher on photos and reads. The margin is a separate decision (TODO.md,
+*Runs*, Iterations).
+
+**Wrong positive garment-sides.** All 18 wrong reads are `not_visible` with
+no characters returned: no wrong line, misread character or split failure.
+All four sides are `front`, and each garment's `back` reads correctly.
+
+| garment | side | photos | correct reads | cause |
+|---|---|---|---|---|
+| `g01` | front | `p01` | 0 of 3 | none returned |
+| `g10` | front | `p21` | 0 of 3 | none returned |
+| `g13` | front | `p26`, `p27`, `p57` | 0 of 9 | none returned |
+| `g19` | front | `p50` | 0 of 3 | none returned (out-of-sample) |
+
+Every other positive garment-side is correct on all 3 reads, so at most 4
+garment-sides can score higher in the next run.
+
+**Against the 2026-10-08 reads, photo by photo.** 23 photos are in both
+runs and weren't replaced (md5 ledger, 2026-10-30): 19 positive, 4
+negative. Between the two runs they have the same bytes, prompt, user
+message, schema, library versions and model settings. Base-exact per
+photo, against the 2026-10-29 replay:
+
+| rate | 2026-10-29 replay | run 0 |
+|---|---|---|
+| positive photos correct | 14 of 19 | 15 of 19 |
+| positive reads correct | 42 of 57 | 45 of 57 |
+| negative photos correct | 4 of 4 | 4 of 4 |
+
+One flip: `p11` (`g06` front), 0 of 3 → 3 of 3, the same on all three
+reads. Nothing the model sees changed, so it is read-to-read noise or a
+model change behind the undated alias (TODO.md, *Code*, model identity);
+the reports can't tell which. Within this run every photo read
+identically, so read-to-read noise is the less likely explanation, though
+the reports can't rule it out. No other photo's correct-read count changed.
+
+**Legacy metrics**, against the 2026-10-08 report. The photo sets differ
+(*2026-10-08 baseline*, *Set*), so the totals don't compare.
+
+| rate | run 0 | 2026-10-08 |
+|---|---|---|
+| missed | 15.0% (18 of 120 positive reads) | 25.0% (21 of 84) |
+| exact, positives | 72.5% (87 of 120) | 46.4% (39 of 84) |
+| overconfident | 10.0% (12 of 120) | 28.6% (24 of 84) |
+| clear but wrong | 12.1% (12 of 99 `clear` reads) | 38.1% (24 of 63) |
+| flagged but correct | 0% (0 of 120) | 0% (0 of 84) |
+| fabricated on no-code photos | 0% (0 of 21 negative reads) | 0% (0 of 15) |
+| fabricated and declared clear | 0% (0 of 21) | 0% (0 of 15) |
+
+The 18 missed reads are the 18 base-exact misses. The other 15 legacy
+misses, the 12 overconfident reads included, come from the legacy labels:
+they are on `p03`, `p11`, `p19`, `p34` and `p55`, which are base-exact on
+every read. No read is legacy-exact and base-wrong.
+
+**Scope.** Positives are 37 `si_numeric` and 3 `cp_modern` photos, with no
+`si_alpha`. `g13` has 5 of the 40 positive photos.
+
+## Previous baselines
+
+### 2026-10-08 baseline
+
 **2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
 (contract v1).** It stops being the comparison point once run 0's paid
 full-manifest `--repeat 3` run (TODO.md, *Runs*) is recorded as the new
@@ -48,6 +159,45 @@ each, so headline rates are weighted towards a few garments. Judge on the
 *per photo* table, and expect wins and losses to cluster by garment. Unlike
 the archived set, the positives are out-of-sample for the current prompt, and
 they are a single capture regime (1536x2048).
+
+### Replay of the 2026-10-08 baseline
+
+`--replay` (`evals/README.md`, *Replaying a saved run*): the baseline's
+saved reads through today's `from_reading()`, scored on base-exact
+([ADR-0002](../adr/0002-phase-1-acceptance.md)). The first point on this
+scale: no number from before the split was wired exists (main is tagged
+`pre-split-wiring` if one is ever wanted).
+
+**2026-10-29:** commit `e033296`, `dirty: False`, after `uv sync --locked`;
+manifest md5 `94d41fd31287b33459f781fcef9672ae`. Report
+`evals/results/20261029T100233Z-anthropic_claude-sonnet-5-replay.json`
+(gitignored), `replay_of` the 2026-10-08 report. Correct: at least 2 of 3
+reads. No failures.
+
+| rate | value |
+|---|---|
+| photos correct | 64.3% (18 of 28 positive photos) |
+| reads correct | 63.1% (53 of 84 positive reads) |
+| negatives correct | 100% (5 of 5 negative photos) |
+| left out: `UNKNOWN` | 0 of 33 photos |
+| left out: unlabelled | 0 of 33 photos |
+| legacy exact, positives | 56.0% (47 of 84) |
+
+- In-sample: the split was designed against these reads, so this is a
+  sanity check, not evidence (TODO.md, *Runs*).
+- `p34`–`p55` have no saved reads, so they aren't scored.
+- No read is legacy-exact and base-wrong.
+- Legacy exact is 47 here against the baseline's 39 on the same reads,
+  because three `expected_art_number` cells held the fabric code when this
+  ran (md5 ledger, the first 2026-10-19 row's correction). They were
+  restored on 2026-10-29, so compare run 0's legacy metrics with the
+  2026-10-08 report, and its base-exact with this replay.
+- The pooled Averages row moves because `base_exact` joined it, not
+  because the reads changed.
+- The source predates the provenance fields, so `user_message`, `schema`,
+  `photos` and `versions` are `None` in the header.
+- The 2026-10-08 baseline's scope applies (*Scope* above): no `si_alpha`,
+  a lopsided set; judge per photo.
 
 ### Previous baselines (archived set)
 
@@ -162,45 +312,6 @@ blocks every commit while the manifest has a header and no rows:
 
 Re-run `md5 -q evals/holdout/manifest.csv` after any edit and add a row here,
 never in the table above.
-
-## Replay of the 2026-10-08 baseline
-
-`--replay` (`evals/README.md`, *Replaying a saved run*): the baseline's
-saved reads through today's `from_reading()`, scored on base-exact
-([ADR-0002](../adr/0002-phase-1-acceptance.md)). The first point on this
-scale: no number from before the split was wired exists (main is tagged
-`pre-split-wiring` if one is ever wanted).
-
-**2026-10-29:** commit `e033296`, `dirty: False`, after `uv sync --locked`;
-manifest md5 `94d41fd31287b33459f781fcef9672ae`. Report
-`evals/results/20261029T100233Z-anthropic_claude-sonnet-5-replay.json`
-(gitignored), `replay_of` the 2026-10-08 report. Correct: at least 2 of 3
-reads. No failures.
-
-| rate | value |
-|---|---|
-| photos correct | 64.3% (18 of 28 positive photos) |
-| reads correct | 63.1% (53 of 84 positive reads) |
-| negatives correct | 100% (5 of 5 negative photos) |
-| left out: `UNKNOWN` | 0 of 33 photos |
-| left out: unlabelled | 0 of 33 photos |
-| legacy exact, positives | 56.0% (47 of 84) |
-
-- In-sample: the split was designed against these reads, so this is a
-  sanity check, not evidence (TODO.md, *Runs*).
-- `p34`–`p55` have no saved reads, so they aren't scored.
-- No read is legacy-exact and base-wrong.
-- Legacy exact is 47 here against the baseline's 39 on the same reads,
-  because three `expected_art_number` cells held the fabric code when this
-  ran (md5 ledger, the first 2026-10-19 row's correction). They were
-  restored on 2026-10-29, so compare run 0's legacy metrics with the
-  2026-10-08 report, and its base-exact with this replay.
-- The pooled Averages row moves because `base_exact` joined it, not
-  because the reads changed.
-- The source predates the provenance fields, so `user_message`, `schema`,
-  `photos` and `versions` are `None` in the header.
-- The 2026-10-08 baseline's scope applies (*Scope* above): no `si_alpha`,
-  a lopsided set; judge per photo.
 
 ## Split on truth
 
