@@ -1,7 +1,7 @@
 id,photo,garment,side,expected_art_number,expected_art_line,expected_art_base,note
 p01,cp_overshirt_01.jpg,g01,front,07CMSH041A 008812A,07CMSH041A 008812A,07CMSH041A,single label - art and care together
 p02,si_jacket_01.jpg,g02,back,7215G0337,Art. 7215G0337,7215G0337,art on separate seam tag
-p03,si_jacket_01_rotated.jpg,g02,back,7215G0337,Art. 7215G0337,7215G0337,same photo rotated - same garment-side
+p03,si_jacket_01_b.jpg,g02,back,7215G0337,Art. 7215G0337,7215G0337,second shot of the same face - same garment-side
 p04,si_knit_01.jpg,g03,front,771530918/162,ART. 771530918/162,771530918,faded garment dyed - colour suffix after a slash
 p05,cp_goggle_01.jpg,g04,front,14SCPUB07713,14SCPUB07713 LOT 2231,14SCPUB07713,caption on its own line above - lot code on the ART line
 p06,si_2025_01.jpg,g05,front,K1S155200043,K1S155200043,K1S155200043,alphanumeric format - printed bare

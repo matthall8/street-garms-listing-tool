@@ -54,8 +54,10 @@ which photos are the same evidence.
   text and, on newer Stone Island garments, a Data Matrix.
 - On a positive row, `side` is the face carrying the ART line. On a negative,
   it is the face shown.
-- A rotated copy of a photo, or a second shot of the same face, has the same
-  `garment` and `side` as the first, and its own `id`.
+- A separate tag with no ART number, such as a Certilogo strip, is labelled
+  `front`.
+- A second shot of the same face has the same `garment` and `side` as the
+  first, and its own `id`.
 - A negative whose garment is in no other row still gets a `garment`, its
   own.
 - A `garment` never appears in both the dev and the held-out manifest. That is
@@ -167,8 +169,7 @@ its filenames and expected codes as private, as it does the dev set's.
 
 - No garment is in both sets; holdout photos come only from new garments,
   each with a `garment` id not used in the dev manifest.
-- One photo per garment-side, so no repeat shots or rotated copies, which
-  the dev set allows.
+- One photo per garment-side, so no repeat shots, which the dev set allows.
 - Every row is labelled by eye before any run.
 - It runs only for a gate attempt, and each use is recorded in
   `evals/BASELINES.md`. Studying its failures turns those photos into dev
@@ -359,8 +360,8 @@ and counted. Three tables:
 - **base per photo**: garment, side, `base_kind`, scored reads, correct
   reads and the photo's ✔ or ✗
 - **garment-sides**: photos, correct photos and left-out photos per side.
-  Counts only: the dev set has deliberate hard variants of one side (rotated
-  copies), so no rule turns a side's photos into one verdict
+  Counts only: the dev set has several photos of one side (second shots),
+  so no rule turns a side's photos into one verdict
 
 ## Comparing runs
 
@@ -424,8 +425,9 @@ be used as a baseline.
 
 ## Choosing photos
 
-Set sizes are in [ADR-0002](../adr/0002-phase-1-acceptance.md). Aim for a
-spread, not many of the same thing:
+Set sizes are in [ADR-0002](../adr/0002-phase-1-acceptance.md), and so is
+the rule that every photo is **upright** (`GLOSSARY.md`). Aim for a spread,
+not many of the same thing:
 
 - C.P. Company pieces where one label carries everything
 - Stone Island where the ART number is on its own tag
