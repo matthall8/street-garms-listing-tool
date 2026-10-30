@@ -1,12 +1,18 @@
 # ADR-0002: Phase 1 acceptance
 
 - **Status:** Accepted; amended 2026-10-28 (the gate is one bar, for a
-  stage where staff confirm every result)
+  stage where staff confirm every result); amended 2026-10-30 (photos are
+  upright and the tool doesn't rotate; run 0 runs on the current
+  development set, which grows once, at the photo session)
 - **Date:** 2026-10-22
 - **Supersedes:** ADR-0001's launch criteria (*For launch*, under *Success
   criteria*) and, in phase 1, its per-run hard rule (no garment-side newly
   wrong and unflagged): phase 1 runs are judged by ADR-0006's rule, on
-  base-exact. Moves runs 3–4 of its *Rollout* out of phase 1.
+  base-exact. Moves runs 2–4 of its *Rollout* out of phase 1. Run 2 has
+  nothing to measure on upright-only sets; its orientation gate is the
+  safety net for when the user's check fails, which matters once results
+  publish without a person confirming them; run 2 needs its own rotated
+  photos then.
 - **Terms:** see `GLOSSARY.md`.
 
 ## Context
@@ -29,6 +35,14 @@ before any run; a photo that isn't readable is replaced with another
 garment's, never dropped after a run. Photos with no ART number aren't in the
 test set. Both sets cover every ART format family, `si_alpha` included.
 
+Every photo, in both sets, is **upright**. The user checks this before
+upload; the tool doesn't rotate. The rule covers rotation only, so a
+zoomed-out photo that is upright stays in scope. Like readability, it is
+judged when the photo is labelled, before any run. A photo that isn't
+upright is rotated by hand, never dropped. A development photo is replaced
+by an upright rotation of itself, so every garment-side stays in the set; a
+test photo is rotated before the test manifest's md5 is recorded.
+
 Phase 1 passes when **at least 80% of garment-sides are correct**, out of at
 least 30 (at least 24 of 30).
 
@@ -48,8 +62,13 @@ bar (wrong and unflagged) must be added to the gate first.
 
 Rules for the development set:
 
-- Complete (about 70 photos, every format family) before the first paid
-  baseline.
+- Run 0, the first paid baseline, runs on the development set as it is,
+  without waiting for the photo session.
+- It grows once, at the photo session, to about 70 photos covering every
+  format family. The session's new garments are split between development
+  and test by the rule fixed before the session for choosing test garments.
+  The accepted configuration (the latest baseline's) is then re-run on the
+  grown set and recorded as the new baseline, not judged.
 - Frozen when that baseline is recorded. New photos go to the test set only.
 - Any parser, gate or catalogue change is measured by
   replaying the latest baseline's saved reads, which costs nothing. That
@@ -75,6 +94,7 @@ See *Phase 1* in TODO.md for an up-to-date list.
 - Asking the model for other information from the photo (colour, brand, size
   etc.): ADR-0001's run 4.
 - Flags (`needs_review`) and the catalogue lookup: not measured by this gate.
+- Text orientation and its gate: ADR-0001's run 2.
 - The next line under the ART number: ADR-0001's run 3.
 - The 2D-code stage (Data Matrix) and capture guidance in the web UI.
 - The compound-key catalogue index (ADR-0003).
@@ -94,16 +114,32 @@ See *Phase 1* in TODO.md for an up-to-date list.
   evidence, so a pass would mean nothing.
 - **A bigger test set (70 test, 30 development):** rejected for now.
   Development needs variety to find new kinds of failure.
+- **Rotate in the tool (auto-rotate, deskew):** rejected (amended
+  2026-10-30). The user checks the photo is upright before upload.
+- **Drop non-upright development photos:** rejected. An upright rotation
+  keeps every garment-side in the set.
+- **Complete the development set before run 0** (this ADR before the
+  amendment): replaced (amended 2026-10-30). Run 0 doesn't wait for the
+  photo session; the grown set gets its own baseline.
 
 ## Consequences
 
 - A bigger test set comes before any automation.
 - ADR-0001: its launch criteria, and in phase 1 its per-run hard rule, are
-  superseded (*Supersedes* line); runs 3 and 4 are out of Phase 1
-  (*Rollout*).
+  superseded (*Supersedes* line); runs 2–4 are out of Phase 1
+  (*Rollout*), and its open `sideways` decision stays as written, in a
+  later phase.
 - TODO.md is organised around this gate (*Phase 1*): run 0's replay and the
   paid baseline are separate items; the 2D-code stage, capture guidance and
-  runs 3–4 move to *Later*; the Data Matrix ADR takes a new number.
+  runs 2–4 move to *Later*; the Data Matrix ADR takes a new number.
+- Auto-rotate and deskew are out of phase 1's iterations (TODO.md, *Runs*).
+- The tool must send the photo as the user saw it (EXIF orientation,
+  TODO.md). Without it, the rule's premise, that the user checks the
+  preview, is false in production.
+- The upright rule relies on the user's check, so the web UI's capture
+  guidance must ask for an upright photo before the staff trial. The rest
+  of it (the back tag and its Data Matrix) stays out of phase 1, with the
+  2D-code stage.
 - `evals/README.md`, *Held-out set*: link here for the run limit; the
   `--holdout` flag prints totals only.
 - The auto-publish question moves to a much later phase, and brings back a

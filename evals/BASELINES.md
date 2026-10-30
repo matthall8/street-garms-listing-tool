@@ -15,13 +15,14 @@ replay (*Replay of the 2026-10-08 baseline*, below).
   (gitignored), with `.photos.sha256` and `.pip-freeze.txt` beside it.
 - Code: tag `eval-baseline-2026-10-08` → `6cede38`, `dirty: False`; prompt
   fingerprint `4fc3298aa412`.
-- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; it scored `p01`–`p33` only. Those
-  rows now differ from it only in notes and unscored columns; three
+- Set: manifest md5 `02cfa7cb2065ae27e6944b62731651bc`; it scored `p01`–`p33` only. Ten
+  of those rows were removed by the upright rule (md5 ledger, 2026-10-30);
+  the rest now differ from it only in notes and unscored columns; three
   `expected_art_number` cells changed in between and were restored (md5
   ledger, 2026-10-09, the first 2026-10-19 row's correction, and
   2026-10-29);
-  `p34`–`p55` (the second
-  2026-10-19 row) are not in it. `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
+  `p34`–`p58` (the second
+  2026-10-19 row, and 2026-10-30) are not in it. `--repeat 3 --workers 1`. 99 reads scored, no failures: 84
   positive (28 photos of 10 garments) and 15 negative.
 
 | rate | value |
@@ -146,6 +147,7 @@ row is current.
 | 2026-10-19 | `769a3e4639b11da01f1fcd4ae606b36e` | `id`, `garment`, `side`, `expected_art_line` and `expected_art_base` added in one edit, checked by eye: 33 rows, 15 garments, 21 garment-sides. The id-only version was not saved, so it has no row. Stale `upside down` note on `p15` removed: the photo is upright. `expected_art_number` unchanged, so the 2026-10-08 baseline still scores this set, but the `manifest` fingerprint differs. (Correction, 2026-10-29: not unchanged. On `p03`, `p09` and `p19`, the three C.P. positives, `expected_art_number` was given the whole `expected_art_line` without its caption: the base plus the fabric code, which the legacy rule leaves out. Not recorded at the time, most likely made in this edit. Found by the 2026-10-29 replay: on the same saved reads, legacy exact on positives rose from 39 to 47 of 84, all 8 on these three photos. `expected_art_base` was unaffected: it is the 2026-10-08 value on all three. Restored on 2026-10-29: that row.) |
 | 2026-10-19 | `94d41fd31287b33459f781fcef9672ae` | 22 rows added (`p34`–`p55`), checked by eye: 20 positives + 2 negatives, 15 new garments (`g16`–`g34`, some ids unused), 21 garment-sides, none shared with earlier rows. Whole set now 55 rows (48 positives + 7 negatives), 30 garments, 42 garment-sides. `p44`'s `expected_art_line` is `UNKNOWN`: the end of the lot code is under a thumb. Earlier rows unchanged. The new rows are scored, so the 2026-10-08 baseline no longer covers the whole set. (Correction, 2026-10-29: on `p34`, the C.P. positive, `expected_art_number` holds the base plus the fabric code, as on the three in the row above. Found by a manifest check on 2026-10-29, not by the replay: `p34` has no saved reads. `expected_art_base` was unaffected. Restored on 2026-10-29: that row.) |
 | 2026-10-29 | `3c07d6ba25db6fc918a0361fb5bd7fa7` | Fixes after the 2026-10-29 replay and manifest check, checked by eye. `expected_art_number` on `p03`, `p09`, `p19` and `p34` set to `expected_art_base`: the fabric code removed, per the legacy rule (both 2026-10-19 rows' corrections), so legacy metrics on `p03`, `p09` and `p19` match the 2026-10-08 baseline again. `p11`'s `expected_art_line` given the `ART.` caption its unrotated original `p08` shows. `p35`'s note says what the photo shows. `rotated` added to the notes of `p11`, `p13`, `p15`, `p18`, `p19`, `p23`, `p25` and `p31`. No `expected_art_base` changed, so base-exact results are unaffected. Saved twice: the first save (`0b3043bb2b5ce1f5624b4279b684c2a9`, the `p11` and `p35` edits) has no row of its own. |
+| 2026-10-30 | `eab250f6424d97a8d1717e70c0b2222c` | ADR-0002's upright rule (amended 2026-10-30): the dev set is now upright-only. 11 rows removed, 3 added. Removed, as each has an upright rotated copy already in the set: `p08`, `p09`, `p12`, `p14`, `p17`, `p22`, `p24`, `p32`. Replaced by a new row holding an upright rotation of the same photo: `p28` → `p56` (g14 front, negative), `p30` → `p57` (g13 front, a quarter turn; its remaining tilt is kept), `p35` → `p58` (g16 front, negative: a separate Certilogo tag, labelled `front` as `p35` was; `evals/README.md`, *Garment and side*). `p26` and `p27` (g13) are tilted less than 45°, so upright as they are. No photo carries an orientation tag. Whole set now 47 rows (40 positives + 7 negatives), 30 garments, 42 garment-sides. None left out of base-exact. The removed rows' reads in the 2026-10-08 baseline have no manifest row now, so a replay doesn't score them (`evals/README.md`, *Replaying a saved run*). Saved twice: the first save (`0e19ad02edce68d990e5421776546f06`, `p58` labelled `back`) has no row of its own. |
 
 Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.
