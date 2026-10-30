@@ -55,8 +55,8 @@ Terms: [GLOSSARY.md](GLOSSARY.md).
 
 ## Where it stands
 
-Phase 1 has not been attempted yet. The run 0 code changes, a paid baseline
-and a held-out set of 30 garments come first ([TODO.md](TODO.md)).
+Phase 1 has not been attempted yet. A held-out set of 30 garments comes
+first ([TODO.md](TODO.md)).
 
 **Phase 1 gate.** Phase 1 passes on a held-out set of 30 garments, read 3
 times each, when at least 80% of garment-sides (24 of 30) read the ART
@@ -64,9 +64,10 @@ number's base correctly. Staff confirm every result at the next stage, so the
 gate measures only that. Full gate and set rules:
 [ADR-0002](adr/0002-phase-1-acceptance.md).
 
-**Current baseline, 2026-10-08:** 46% of positive reads were exact, and 18 of
-84 would have been published wrong without review. The set is small and has
-no `si_alpha`. Results, earlier baselines and
+**Current baseline, run 0 (2026-10-30):** on the development set, 32 of 36
+garment-sides (89%) read the ART number's base correctly; development results
+don't count towards the gate. The set is small and has no `si_alpha`.
+Results, earlier baselines and
 the decision rule for prompt changes
 ([ADR-0006](adr/0006-decision-rule-for-prompt-changes.md)) are in
 [evals/BASELINES.md](evals/BASELINES.md); the harness is in

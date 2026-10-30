@@ -87,7 +87,7 @@ or model is a run under *Runs*, one per run.
 - [x] Replay the 2026-10-08 baseline's saved reads (free): the first
       base-exact number. In-sample (the split was designed against these
       failures), so a sanity check, not evidence
-- [ ] Run 0: paid, the current dev set, `--repeat 3`, without waiting for
+- [x] Run 0: paid, the current dev set, `--repeat 3`, without waiting for
       the photo session; recorded as the new baseline, not judged (ADR-0002,
       ADR-0006). `p34`–`p55` and `p58` (`p35`'s upright copy) also
       reported separately: the first out-of-sample reads. Nothing the model
