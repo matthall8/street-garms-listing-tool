@@ -624,10 +624,10 @@ class TestBaseExactCounts:
         assert rows["u"]["kind"] == "unknown" and rows["u"]["correct"] is None
 
     def test_garment_sides_are_counts_only(self):
-        """No verdict per side: dev has deliberate hard variants of one side."""
+        """No verdict per side: dev has second shots of one side."""
         tables = base_counts({
             "a": (RIGHT, "g1", "back", [RIGHT] * 3),
-            "a_rotated": (RIGHT, "g1", "back", [WRONG] * 3),
+            "a_second": (RIGHT, "g1", "back", [WRONG] * 3),
             "b": (NO_ART_NUMBER, "g1", "front", [""] * 3),
             "c": ("UNKNOWN", "g2", "back", [RIGHT] * 3),
         })

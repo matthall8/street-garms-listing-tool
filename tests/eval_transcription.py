@@ -295,8 +295,8 @@ class BaseExactCounts(ReportEvaluator):
     one photo). A photo is correct when a majority of its --repeat runs read
     the right base. A failed read is one of those runs, so it counts as wrong.
 
-    Garment-sides are counts only: dev has deliberate hard variants of a side,
-    such as rotated copies, so no rule joins its photos into one verdict.
+    Garment-sides are counts only: dev has several photos of some sides,
+    such as second shots, so no rule joins its photos into one verdict.
     """
     def evaluate(self, ctx: ReportEvaluatorContext) -> list[TableResult]:
         # Every run of a photo, failed ones included: their number is --repeat.

@@ -10,16 +10,18 @@ or model is a run under *Runs*, one per run.
 
 ### Photos
 - [ ] Photo session: reach ~70 development photos and ~30 test garments (one photo
-      per garment-side for test). Run the timing study at the same session.
+      per garment-side for test); the session shoots upright (ADR-0002). The
+      dev set grows only here: new garments split between dev and test by
+      the rule below. Run the timing study at the same session.
 - [ ] Label every photo by eye: `garment`, `side`, `expected_art_line`,
       `expected_art_base`. Re-check by eye every `expected_art_base` that
       isn't a catalogue key
 - [ ] `evals/README.md`: the catalogue may prompt a re-check, never supply
       a label value
-- [ ] Test set: readable photos only, judged by eye when labelled, each
-      with a known `expected_art_base` (never `UNKNOWN`); no no-code photos;
-      one that doesn't qualify is replaced, never dropped after a run
-      (ADR-0002)
+- [ ] Test set: readable, upright photos only, judged by eye when labelled,
+      each with a known `expected_art_base` (never `UNKNOWN`); no no-code
+      photos; one that doesn't qualify is replaced (rotated by hand, if it's
+      only not upright), never dropped after a run (ADR-0002)
 - [ ] Test garments chosen by a rule fixed before the session (e.g. the
       next N off the rail), not by eye
 - [ ] Decide who takes the test photos: some by staff, or note the single
@@ -65,25 +67,49 @@ or model is a run under *Runs*, one per run.
       until then, sum by hand from base per photo). Same branch:
       `PerPhotoCounts`' docstring and `TestPerPhotoCounts`' still call it
       ADR-0006's table. Before the first iteration
+- [ ] EXIF orientation: no path honours the tag. The CLI (`pipeline._photo`),
+      the web form (`_read` in `app/routes.py`) and the harness all send the
+      file's bytes unchanged. Browsers and Finder apply the tag, so a photo
+      that looks upright can reach the model sideways. Fix on its own branch:
+      Pillow's `exif_transpose` on every path, the harness included (Pillow
+      isn't a dependency yet). The original bytes go out unchanged unless the
+      tag requires a rotation: opening and re-saving every photo would
+      re-encode untagged ones too, changing what the model sees without
+      showing in `photo_hashes`. A prerequisite of using the photo session's
+      photos, since upright is judged as the model receives it (ADR-0002):
+      before the grown dev set's baseline and any gate attempt. No current
+      dev photo carries an orientation tag (BASELINES.md, 2026-10-30 ledger
+      row), so on the dev set the fix is a no-op. On that branch, check
+      whether HEIC reaches the API at all today. Note: HEIC
+      uploads are accepted, and Pillow needs `pillow-heif` to open them
 
 ### Runs (development only)
 - [x] Replay the 2026-10-08 baseline's saved reads (free): the first
       base-exact number. In-sample (the split was designed against these
       failures), so a sanity check, not evidence
-- [ ] Run 0: paid, whole dev set, `--repeat 3`, once the dev set is complete
-      (ADR-0002); recorded as the new baseline. `p34`–`p55` also reported
-      separately: the first out-of-sample reads. Nothing the model sees
-      changes before it, so its `p01`–`p33` reads compare directly with
-      the 2026-10-08 reads
-- [ ] Dev set freezes when that baseline is recorded; new photos go to test
+- [ ] Run 0: paid, the current dev set, `--repeat 3`, without waiting for
+      the photo session; recorded as the new baseline, not judged (ADR-0002,
+      ADR-0006). `p34`–`p55` and `p58` (`p35`'s upright copy) also
+      reported separately: the first out-of-sample reads. Nothing the model
+      sees changes before it, so its `p01`–`p33` reads compare directly
+      with the 2026-10-08 reads, photo by photo, for photos that weren't
+      replaced by an upright rotation (md5 ledger). Garment-side and
+      whole-set totals don't compare
+- [ ] Dev set grows once, at the photo session (*Photos*). Then the accepted
+      configuration is re-run on the grown set, `--repeat 3`, and recorded
+      as the new baseline, not judged; EXIF orientation (*Code*) first. Dev
+      freezes when that baseline is recorded; new photos go to test
+      (ADR-0002)
 - [x] Prompt-change policy for phase 1 runs (ADR-0006)
 - [ ] Iterations, until dev clears 80% with a margin. The margin is
       undecided: set it after run 0 and before the first iteration,
-      informed by how `p34`–`p55` compare with the rest. If it becomes a
-      rule, it goes in ADR-0002. Candidates: auto-rotate, image
-      resizing?, compare models (Sonnet, Opus, Haiku: check current
-      versions), prompt gives character classes, never lengths (ADR-0001,
-      *Trust rules*: decide first whether the prompt may describe formats)
+      informed by how run 0's out-of-sample photos compare with the rest. If it becomes a
+      rule, it goes in ADR-0002. Candidates: image resizing?, compare
+      models (Sonnet, Opus, Haiku: check current versions), prompt gives
+      character classes, never lengths (ADR-0001, *Trust rules*: decide
+      first whether the prompt may describe formats). Format-specific
+      prompt changes, character classes included, wait until every format
+      family is in dev (the photo session)
 - [ ] Once dev clears 80%: revisit a "no worse" path for a cheaper or
       faster model (ADR-0006). If you want one, decide its rule before
       running it: compared against the last model accepted on wins, with
@@ -106,6 +132,8 @@ or model is a run under *Runs*, one per run.
       and product name hidden, code kept
 - [ ] Before the staff trial: the run rule for later runs (ADR-0006
       revisit), with ADR-0001's per-run rule
+- [ ] Before the staff trial: capture guidance in the web UI: the photo
+      must be upright (ADR-0002)
 
 ### Backlog
 Not measured by the phase 1 gate. Kept for when flags, the catalogue lookup
@@ -183,7 +211,9 @@ or unconfirmed results come into scope.
       stage returns nothing
 - [ ] Capture guidance in the web UI: back tag with the square code in frame,
       decode on upload, prompt for a retake if nothing decodes
-- [ ] ADR-0001 runs 3 (`next_line`) and 4 (size, brand, colour)
+- [ ] ADR-0001 runs 2 (`text_orientation`, on its own rotated photos;
+      decides whether `sideways` blocks), 3 (`next_line`) and 4 (size,
+      brand, colour)
 - [ ] Catalogue index (ADR-0003)
 - [ ] Catalogue inspection: bare/compound duplicates, keys with a suffix
       typed on, odd-length rows. The Stone Island numeric era-length table
