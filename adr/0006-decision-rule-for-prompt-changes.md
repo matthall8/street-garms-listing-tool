@@ -29,8 +29,9 @@ commit, so only what the model sees differs. Run 0 is recorded as the first
 baseline, not judged. A run that passes becomes the next baseline; one that
 fails doesn't.
 
-**Repeats:** `--repeat 3` in both runs. Every photo must have 3 scored reads
-in both; a run where any has fewer is rerun, not judged.
+**Repeats:** `--repeat 3` in both runs. Every positive and negative photo
+must have 3 scored reads in both runs; a run where any has fewer is rerun,
+not judged.
 
 Counts are read from the report's **base per photo** table
 (`evals/README.md`, *Base-exact*).

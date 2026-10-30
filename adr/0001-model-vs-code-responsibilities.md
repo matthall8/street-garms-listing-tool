@@ -283,8 +283,8 @@ garment don't skew them.
 
 - no garment-side is newly wrong and unflagged (hard rule);
 - the guardrails in ADR-0006 (*Decision rule for prompt changes*) hold
-  (phase 1 only; the rule for later runs is set before the staff trial,
-  ADR-0006).
+  (ADR-0006's rule is phase 1 only; the guardrails for later runs are set
+  before the staff trial).
 
 **For launch**, on a held-out set of at least `<N>` garments that played no
 part in tuning:
