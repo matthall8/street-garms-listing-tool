@@ -21,7 +21,8 @@ merges. -->
 schemas, model string, MODEL_SETTINGS), use this block:
 Baseline <tag> → this run <tag> (fingerprint, manifest md5, dirty: False)
 Base-exact, per garment-side (2 of 3): <before> → <after>
-Decision rule: pass / fail, wins–losses -->
+Decision rule (ADR-0006): pass / fail, wins–losses in garment-sides,
+losing garment-sides, fabrication guardrail held / failed -->
 
 ## Gate impact
 <None, or what changed and the covering test>
