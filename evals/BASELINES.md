@@ -15,7 +15,7 @@ that run's commit ([ADR-0006](../adr/0006-decision-rule-for-prompt-changes.md),
 - Report: `evals/results/20261030T133451Z-anthropic_claude-sonnet-5.json`
   (gitignored). Its header records the photos and versions; nothing is
   saved beside it.
-- Code: `3f6efc2` (`main`), `dirty: False`. Fingerprints: prompt
+- Code: tag `eval-baseline-2026-10-30` → `3f6efc2`, `dirty: False`. Fingerprints: prompt
   `4fc3298aa412` (the 2026-10-08 baseline's), user_message `3b608b481703`,
   schema `4e5d5d4c0601`, photos `5089f8d6983f`.
 - Versions: Python 3.13.3, pydantic-ai 2.32.0, anthropic 0.122.0, pydantic
@@ -117,9 +117,8 @@ every read. No read is legacy-exact and base-wrong.
 ### 2026-10-08 baseline
 
 **2026-10-08 — whole-label `ART_PROMPT` on `anthropic:claude-sonnet-5`
-(contract v1).** It stops being the comparison point once run 0's paid
-full-manifest `--repeat 3` run (TODO.md, *Runs*) is recorded as the new
-baseline; it stays as the record of contract v1. For base-exact, use its
+(contract v1).** Replaced as the comparison point by run 0 (*Current
+baseline*); it stays as the record of contract v1. For base-exact, use its
 replay (*Replay of the 2026-10-08 baseline*, below).
 
 - Report: `evals/results/20261008T154722Z-anthropic_claude-sonnet-5.json`
