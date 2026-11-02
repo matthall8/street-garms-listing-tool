@@ -6,7 +6,8 @@ Results, baselines and the manifest md5 ledgers. How to run an eval:
 ## Current baseline
 
 **2026-10-30 — run 0: whole-label `ART_PROMPT` on
-`anthropic:claude-sonnet-5`, upright development set.** The first paid
+`anthropic:claude-sonnet-5`, upright development set** (except `p04`, sent
+sideways: the 2026-11-02 row under *Manifest md5*). The first paid
 base-exact baseline ([ADR-0002](../adr/0002-phase-1-acceptance.md)),
 recorded, not judged. The next run compares against its reads replayed at
 that run's commit ([ADR-0006](../adr/0006-decision-rule-for-prompt-changes.md),

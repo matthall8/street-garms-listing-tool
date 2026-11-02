@@ -61,7 +61,7 @@ UNKNOWN = "UNKNOWN"  # a marker for the run 0 columns, never a legacy value
 PHOTOS = EVALS / "photos"
 RESULTS = EVALS / "results"
 # Between the code and the model, or scoring what comes back.
-PACKAGES = ("pydantic-ai", "anthropic", "pydantic", "pydantic-evals")
+PACKAGES = ("pydantic-ai", "anthropic", "pydantic", "pydantic-evals", "pillow")
 
 
 def levenshtein(a: str, b: str) -> int:

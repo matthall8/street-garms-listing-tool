@@ -67,11 +67,6 @@ or model is a run under *Runs*, one per run.
       until then, sum by hand from base per photo). Same branch:
       `PerPhotoCounts`' docstring and `TestPerPhotoCounts`' still call it
       ADR-0006's table. Before the first iteration
-- [x] EXIF orientation: every path (CLI, web form, harness) sends the photo
-      as a person sees it. `transcribe_art` applies the tag
-      (`labels/photo.py`); untagged photos go out byte-for-byte. One dev
-      photo is tagged, `p04` (orientation 6, which `sips` doesn't report):
-      earlier runs sent it sideways (BASELINES.md, 2026-11-02 ledger row)
 - [ ] Hash the bytes actually sent: `photo_hashes` hashes the file, so a
       rotation by `upright()` (`p04`'s) doesn't show in it. Its own branch,
       before the next paid run
@@ -95,9 +90,14 @@ or model is a run under *Runs*, one per run.
       with the 2026-10-08 reads, photo by photo, for photos that weren't
       replaced by an upright rotation (md5 ledger). Garment-side and
       whole-set totals don't compare
+- [x] EXIF orientation: every path (CLI, web form, harness) sends the photo
+      as a person sees it. `transcribe_art` applies the tag
+      (`labels/photo.py`); untagged photos go out byte-for-byte. One dev
+      photo is tagged, `p04` (orientation 6, which `sips` doesn't report):
+      earlier runs sent it sideways (BASELINES.md, 2026-11-02 ledger row)
 - [ ] Dev set grows once, at the photo session (*Photos*). Then the accepted
       configuration is re-run on the grown set, `--repeat 3`, and recorded
-      as the new baseline, not judged; EXIF orientation (*Code*) first. Dev
+      as the new baseline, not judged; EXIF orientation (above) first. Dev
       freezes when that baseline is recorded; new photos go to test
       (ADR-0002)
 - [x] Prompt-change policy for phase 1 runs (ADR-0006)
@@ -134,6 +134,9 @@ or model is a run under *Runs*, one per run.
       revisit), with ADR-0001's per-run rule
 - [ ] Before the staff trial: capture guidance in the web UI: the photo
       must be upright (ADR-0002)
+- [ ] Before the staff trial: measure real phone uploads through the form
+      (size, dimensions) against the API's per-image limit. `upright()`
+      re-encodes a tagged photo, and `p04` came out 16% larger
 
 ### Backlog
 Not measured by the phase 1 gate. Kept for when flags, the catalogue lookup
