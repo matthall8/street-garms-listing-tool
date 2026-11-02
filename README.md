@@ -8,8 +8,9 @@ first step towards filling in a listing (product name, season, garment type)
 for a reseller of second-hand pieces. A vision model copies the code off the
 photo, a rule-based parser decodes it, and a private catalogue matches it to a
 real product. Pre-launch, one developer, no users: a proof of concept that
-moves on once it reads at least 24 of 30 labels correctly from garments it has
-never seen ([ADR-0002](adr/0002-phase-1-acceptance.md)).
+moves on once at least 80% of garment-sides (a garment's front or back label)
+read correctly, out of at least 30 from garments it has never seen (at least
+24 of 30; [ADR-0002](adr/0002-phase-1-acceptance.md)).
 
 ## The problem
 
@@ -138,12 +139,14 @@ Most serious first.
   unverified.
 - **Thin test coverage in CI.** CI runs 33 of the 40 `needs_review` test
   cases, on a synthetic catalogue; the other 7 need the real one. `parse()` is
-  tested directly only for format family, flags and whether a year is found:
-  no test pins a decoded season, year, brand or garment to an expected value.
-  Seasons are checked only against the catalogue, by a hand-run report.
+  tested directly for format family and flags. No test checks a decoded
+  season, year, brand or garment against a known value: year is checked only
+  for presence or absence, brand and garment only for absence, and season not
+  at all. Seasons are checked only against the catalogue, by a hand-run report.
 - **Recognition.** In run 0, every missed garment-side was a front label, read
-  as `not_visible`: no code was invented, so it fails safely, but it needs a
-  retake ([evals/BASELINES.md](evals/BASELINES.md)).
+  as `not_visible`: no code was invented, so the miss fails safely. Every back
+  label read correctly on all 3 reads
+  ([evals/BASELINES.md](evals/BASELINES.md)).
 - **Operations.** There is no per-call cost tracking or eval spend cap.
   `claude-sonnet-5` has no dated snapshot, so a silent model update can't be
   told apart from other changes in a run diff. The web form has no auth or
