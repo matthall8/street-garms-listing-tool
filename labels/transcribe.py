@@ -9,6 +9,7 @@ from functools import cache
 
 from pydantic_ai import Agent, BinaryContent, ModelSettings
 
+from labels.photo import upright
 from labels.schemas import ArtNumberReading, LabelReading
 
 ART_MODEL = "anthropic:claude-sonnet-5"
@@ -103,7 +104,12 @@ def get_art_agent(model: str = ART_MODEL) -> Agent[None, ArtNumberReading]:
 def transcribe_art(
     data: bytes, media_type: str, model: str = ART_MODEL
 ) -> ArtNumberReading:
-    """Read the ART number from a photo of the ART number tag or a whole label."""
+    """Read the ART number from a photo of the ART number tag or a whole label.
+
+    Every path to the model (CLI, web form, eval harness) comes through here,
+    so this is where the photo is turned upright.
+    """
+    data, media_type = upright(data, media_type)
     return get_art_agent(model).run_sync([
         ART_USER_MESSAGE,
         BinaryContent(data=data, media_type=media_type),

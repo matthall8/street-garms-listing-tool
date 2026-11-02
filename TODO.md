@@ -67,21 +67,16 @@ or model is a run under *Runs*, one per run.
       until then, sum by hand from base per photo). Same branch:
       `PerPhotoCounts`' docstring and `TestPerPhotoCounts`' still call it
       ADR-0006's table. Before the first iteration
-- [ ] EXIF orientation: no path honours the tag. The CLI (`pipeline._photo`),
-      the web form (`_read` in `app/routes.py`) and the harness all send the
-      file's bytes unchanged. Browsers and Finder apply the tag, so a photo
-      that looks upright can reach the model sideways. Fix on its own branch:
-      Pillow's `exif_transpose` on every path, the harness included (Pillow
-      isn't a dependency yet). The original bytes go out unchanged unless the
-      tag requires a rotation: opening and re-saving every photo would
-      re-encode untagged ones too, changing what the model sees without
-      showing in `photo_hashes`. A prerequisite of using the photo session's
-      photos, since upright is judged as the model receives it (ADR-0002):
-      before the grown dev set's baseline and any gate attempt. No current
-      dev photo carries an orientation tag (BASELINES.md, 2026-10-30 ledger
-      row), so on the dev set the fix is a no-op. On that branch, check
-      whether HEIC reaches the API at all today. Note: HEIC
-      uploads are accepted, and Pillow needs `pillow-heif` to open them
+- [ ] Hash the bytes actually sent: `photo_hashes` hashes the file, so a
+      rotation by `upright()` (`p04`'s) doesn't show in it. Its own branch,
+      before the next paid run
+- [ ] HEIC: the web form (`ACCEPTED` in `app/routes.py`) and the CLI accept
+      it, but the API takes only JPEG, PNG, GIF and WebP, so a HEIC upload
+      fails at the API (from the SDK's types; not checked with a live call).
+      Recommendation: drop HEIC from `ACCEPTED` so it fails clearly at the
+      form, since Safari and in-app capture already send JPEG; add
+      `pillow-heif` only if desktop HEIC uploads turn out to matter. Its own
+      small branch
 
 ### Runs (development only)
 - [x] Replay the 2026-10-08 baseline's saved reads (free): the first
@@ -95,9 +90,14 @@ or model is a run under *Runs*, one per run.
       with the 2026-10-08 reads, photo by photo, for photos that weren't
       replaced by an upright rotation (md5 ledger). Garment-side and
       whole-set totals don't compare
+- [x] EXIF orientation: every path (CLI, web form, harness) sends the photo
+      as a person sees it. `transcribe_art` applies the tag
+      (`labels/photo.py`); untagged photos go out byte-for-byte. One dev
+      photo is tagged, `p04` (orientation 6, which `sips` doesn't report):
+      earlier runs sent it sideways (BASELINES.md, 2026-11-02 ledger row)
 - [ ] Dev set grows once, at the photo session (*Photos*). Then the accepted
       configuration is re-run on the grown set, `--repeat 3`, and recorded
-      as the new baseline, not judged; EXIF orientation (*Code*) first. Dev
+      as the new baseline, not judged; EXIF orientation (above) first. Dev
       freezes when that baseline is recorded; new photos go to test
       (ADR-0002)
 - [x] Prompt-change policy for phase 1 runs (ADR-0006)
@@ -134,6 +134,9 @@ or model is a run under *Runs*, one per run.
       revisit), with ADR-0001's per-run rule
 - [ ] Before the staff trial: capture guidance in the web UI: the photo
       must be upright (ADR-0002)
+- [ ] Before the staff trial: measure real phone uploads through the form
+      (size, dimensions) against the API's per-image limit. `upright()`
+      re-encodes a tagged photo, and `p04` came out 16% larger
 
 ### Backlog
 Not measured by the phase 1 gate. Kept for when flags, the catalogue lookup
