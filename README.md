@@ -2,20 +2,20 @@
 
 ![Street Garms Logo](assets/logosg.png)
 
-Reads the ART number from photos of Stone Island and C.P. Company garment
-labels, the first step towards structured listing data (product name, season,
-garment type) for a reseller of second-hand pieces. A vision model transcribes
-the label, a deterministic parser parses the ART number, and a private
-catalogue resolves it to a real product. Pre-launch, one developer, no users:
-a proof of concept that moves on when it meets the phase 1 gate
-([ADR-0002](adr/0002-phase-1-acceptance.md)).
+Give it a photo of a Stone Island or C.P. Company garment label and it reads
+the ART number, the product code that identifies the garment. That is the
+first step towards filling in a listing (product name, season, garment type)
+for a reseller of second-hand pieces. A vision model copies the code off the
+photo, a rule-based parser decodes it, and a private catalogue matches it to a
+real product. Pre-launch, one developer, no users: a proof of concept that
+moves on once it reads at least 24 of 30 labels correctly from garments it has
+never seen ([ADR-0002](adr/0002-phase-1-acceptance.md)).
 
 ## The problem
 
 Each listing starts with the ART number, the product code on the label.
 Reading it by eye and then identifying the product and season is slow, and one
-misread character can point to a different garment. It represents an area for
-automation and efficiency using a combination of AI and code.
+misread character can point to a different garment.
 
 ## The key decision: the model only transcribes
 
@@ -65,9 +65,10 @@ gate measures only that. Full gate and set rules:
 [ADR-0002](adr/0002-phase-1-acceptance.md).
 
 **Current baseline, run 0 (2026-10-30):** on the development set, 32 of 36
-garment-sides (89%) read the ART number's base correctly; development results
-don't count towards the gate. The set is small and has no `si_alpha`.
-Results, earlier baselines and
+garment-sides (89%) read the ART number's base correctly, and no read of a
+photo without an ART number returned one (0 of 21 reads, ADR-0006's
+guardrail). Development results don't count towards the gate. The set is
+small and has no `si_alpha`. Results, earlier baselines and
 the decision rule for prompt changes
 ([ADR-0006](adr/0006-decision-rule-for-prompt-changes.md)) are in
 [evals/BASELINES.md](evals/BASELINES.md); the harness is in
@@ -131,15 +132,18 @@ Most serious first.
   `exact` and isn't flagged (10 of the 12,829 synthetic misreads above). On an
   exact match the season comes from the parser, not the catalogue, so title and
   season can disagree unflagged; which source wins is undecided.
-- **Unverified ground.** The eval has never tested `si_alpha`. Parser seasons
-  agree with the catalogue on 2,287 of 2,357 checkable rows; the 70
-  disagreements are untriaged, so that ground truth is unverified.
+- **Untested format, unverified seasons.** The eval has never tested
+  `si_alpha`. Parser seasons agree with the catalogue on 2,287 of 2,357
+  checkable rows; the 70 disagreements are untriaged, so that ground truth is
+  unverified.
 - **Thin test coverage in CI.** CI runs 33 of the 40 `needs_review` test
-  cases, on a synthetic catalogue; the other 7 need the real one. The parser
-  has no unit tests.
-- **Recognition.** Images are sent uncropped and unresized. On the archived set,
-  5 of the 6 photos missed on every read were 1200x1600
-  ([evals/BASELINES.md](evals/BASELINES.md)).
+  cases, on a synthetic catalogue; the other 7 need the real one. `parse()` is
+  tested directly only for format family, flags and whether a year is found:
+  no test pins a decoded season, year, brand or garment to an expected value.
+  Seasons are checked only against the catalogue, by a hand-run report.
+- **Recognition.** In run 0, every missed garment-side was a front label, read
+  as `not_visible`: no code was invented, so it fails safely, but it needs a
+  retake ([evals/BASELINES.md](evals/BASELINES.md)).
 - **Operations.** There is no per-call cost tracking or eval spend cap.
   `claude-sonnet-5` has no dated snapshot, so a silent model update can't be
   told apart from other changes in a run diff. The web form has no auth or
