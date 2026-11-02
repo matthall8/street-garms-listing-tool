@@ -67,21 +67,21 @@ or model is a run under *Runs*, one per run.
       until then, sum by hand from base per photo). Same branch:
       `PerPhotoCounts`' docstring and `TestPerPhotoCounts`' still call it
       ADR-0006's table. Before the first iteration
-- [ ] EXIF orientation: no path honours the tag. The CLI (`pipeline._photo`),
-      the web form (`_read` in `app/routes.py`) and the harness all send the
-      file's bytes unchanged. Browsers and Finder apply the tag, so a photo
-      that looks upright can reach the model sideways. Fix on its own branch:
-      Pillow's `exif_transpose` on every path, the harness included (Pillow
-      isn't a dependency yet). The original bytes go out unchanged unless the
-      tag requires a rotation: opening and re-saving every photo would
-      re-encode untagged ones too, changing what the model sees without
-      showing in `photo_hashes`. A prerequisite of using the photo session's
-      photos, since upright is judged as the model receives it (ADR-0002):
-      before the grown dev set's baseline and any gate attempt. No current
-      dev photo carries an orientation tag (BASELINES.md, 2026-10-30 ledger
-      row), so on the dev set the fix is a no-op. On that branch, check
-      whether HEIC reaches the API at all today. Note: HEIC
-      uploads are accepted, and Pillow needs `pillow-heif` to open them
+- [x] EXIF orientation: every path (CLI, web form, harness) sends the photo
+      as a person sees it. `transcribe_art` applies the tag
+      (`labels/photo.py`); untagged photos go out byte-for-byte. One dev
+      photo is tagged, `p04` (orientation 6, which `sips` doesn't report):
+      earlier runs sent it sideways (BASELINES.md, 2026-11-02 ledger row)
+- [ ] Hash the bytes actually sent: `photo_hashes` hashes the file, so a
+      rotation by `upright()` (`p04`'s) doesn't show in it. Its own branch,
+      before the next paid run
+- [ ] HEIC: the web form (`ACCEPTED` in `app/routes.py`) and the CLI accept
+      it, but the API takes only JPEG, PNG, GIF and WebP, so a HEIC upload
+      fails at the API (from the SDK's types; not checked with a live call).
+      Recommendation: drop HEIC from `ACCEPTED` so it fails clearly at the
+      form, since Safari and in-app capture already send JPEG; add
+      `pillow-heif` only if desktop HEIC uploads turn out to matter. Its own
+      small branch
 
 ### Runs (development only)
 - [x] Replay the 2026-10-08 baseline's saved reads (free): the first
