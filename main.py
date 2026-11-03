@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from labels.pipeline import extract
+from labels.pipeline import UnsupportedImageType, extract
 
 
 def cli() -> None:
@@ -26,7 +26,11 @@ def cli() -> None:
     if not args.art_image.is_file():
         ap.error(f"no such image: {args.art_image}")
 
-    print(json.dumps(asdict(extract(args.art_image)), indent=2))
+    try:
+        extraction = extract(args.art_image)
+    except UnsupportedImageType as exc:
+        ap.error(str(exc))
+    print(json.dumps(asdict(extraction), indent=2))
 
 
 if __name__ == "__main__":

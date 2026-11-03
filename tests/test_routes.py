@@ -96,6 +96,16 @@ def test_unsupported_file_type_is_a_400(client):
     assert b"Unsupported image" in response.data
 
 
+@pytest.mark.parametrize("media_type", ["image/heic", "image/heif"])
+def test_heic_and_heif_are_rejected(client, extract_calls, media_type):
+    """The API doesn't take HEIC, so the form refuses it before any call."""
+    data = _upload("label." + media_type.split("/")[1], media_type)
+    response = client.post("/", data=data, content_type="multipart/form-data")
+    assert response.status_code == 400
+    assert b"Unsupported image" in response.data
+    assert extract_calls == []
+
+
 def test_failed_extraction_is_a_502(client, monkeypatch):
     monkeypatch.setattr(routes, "extract_bytes", failing_extract)
     data = _upload("a.png", "image/png")

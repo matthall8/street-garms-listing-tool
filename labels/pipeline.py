@@ -10,6 +10,13 @@ from labels.transcribe import transcribe
 
 Photo = tuple[bytes, str]  # (image_bytes, media_type)
 
+# Types the form and the CLI send on. The API also takes GIF; not offered.
+ACCEPTED = frozenset({"image/jpeg", "image/png", "image/webp"})
+
+
+class UnsupportedImageType(ValueError):
+    """A photo of a type the API won't take, caught before any API call."""
+
 
 def from_reading(art_read: ArtNumberReading, source: str = "") -> Extraction:
     """Parse, resolve and gate one ART read: everything after transcription.
@@ -57,6 +64,8 @@ def extract_bytes(art: Photo, source: str = "") -> Extraction:
 
 def _photo(path: Path) -> Photo:
     media_type = mimetypes.guess_type(path.name)[0] or "image/jpeg"
+    if media_type not in ACCEPTED:
+        raise UnsupportedImageType(f"Unsupported image type: {media_type}")
     return path.read_bytes(), media_type
 
 

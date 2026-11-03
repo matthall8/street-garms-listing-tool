@@ -70,13 +70,9 @@ or model is a run under *Runs*, one per run.
 - [ ] Hash the bytes actually sent: `photo_hashes` hashes the file, so a
       rotation by `upright()` (`p04`'s) doesn't show in it. Its own branch,
       before the next paid run
-- [ ] HEIC: the web form (`ACCEPTED` in `app/routes.py`) and the CLI accept
-      it, but the API takes only JPEG, PNG, GIF and WebP, so a HEIC upload
-      fails at the API (from the SDK's types; not checked with a live call).
-      Recommendation: drop HEIC from `ACCEPTED` so it fails clearly at the
-      form, since Safari and in-app capture already send JPEG; add
-      `pillow-heif` only if desktop HEIC uploads turn out to matter. Its own
-      small branch
+- [x] HEIC: the form and the CLI reject it before any API call
+      (`ACCEPTED` in `labels/pipeline.py`). `pillow-heif` is the option if
+      desktop HEIC uploads turn out to matter
 
 ### Runs (development only)
 - [x] Replay the 2026-10-08 baseline's saved reads (free): the first

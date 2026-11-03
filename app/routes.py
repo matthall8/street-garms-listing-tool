@@ -5,11 +5,9 @@ from dataclasses import asdict
 
 from flask import Blueprint, render_template, request
 
-from labels.pipeline import extract_bytes
+from labels.pipeline import ACCEPTED, UnsupportedImageType, extract_bytes
 
 bp = Blueprint("main", __name__)
-
-ACCEPTED = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
 
 
 def _read(field: str):
@@ -19,7 +17,7 @@ def _read(field: str):
         return None
     media_type = f.mimetype or "image/jpeg"
     if media_type not in ACCEPTED:
-        raise ValueError(f"Unsupported image type: {media_type}")
+        raise UnsupportedImageType(f"Unsupported image type: {media_type}")
     return (f.read(), media_type), f.filename
 
 
@@ -32,7 +30,7 @@ def index():
 def capture():
     try:
         art = _read("art_photo")
-    except ValueError as exc:
+    except UnsupportedImageType as exc:
         return render_template("index.html", error=str(exc)), 400
 
     if art is None:
