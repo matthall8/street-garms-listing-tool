@@ -372,6 +372,38 @@ class TestOneRead:
                                 BinaryContent(data=PHOTO[0], media_type=PHOTO[1])]
 
 
+class TestUnsupportedType:
+    """The API doesn't take HEIC, so the CLI path refuses it before any call."""
+
+    @pytest.fixture
+    def sent(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(pipeline, "extract_bytes",
+                            lambda art, source="": calls.append(art))
+        return calls
+
+    @pytest.mark.parametrize("suffix", [".heic", ".HEIC", ".heif"])
+    def test_heic_never_reaches_extract_bytes(self, sent, tmp_path, suffix):
+        path = (tmp_path / "label").with_suffix(suffix)
+        path.write_bytes(b"x")
+        with pytest.raises(pipeline.UnsupportedImageType, match="image/hei"):
+            pipeline.extract(path)
+        assert sent == []
+
+    def test_the_cli_exits_with_a_usage_error(self, sent, tmp_path, monkeypatch, capsys):
+        import main
+
+        path = (tmp_path / "label").with_suffix(".heic")
+        path.write_bytes(b"x")
+        monkeypatch.setattr(main, "load_dotenv", lambda *args, **kwargs: False)
+        monkeypatch.setattr("sys.argv", ["main.py", str(path)])
+        with pytest.raises(SystemExit) as exit_:
+            main.cli()
+        assert exit_.value.code == 2
+        assert "Unsupported image type: image/heic" in capsys.readouterr().err
+        assert sent == []
+
+
 # ---------------------------------------------------------------------------
 # 5. from_reading() — what the eval replay and scorer call on a saved read
 # ---------------------------------------------------------------------------

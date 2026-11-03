@@ -51,7 +51,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 ## Domain invariants
 
 **`needs_review` is the gate between a bad read and a published listing**
-(`labels/pipeline.py:40-48`). Any new field in `Extraction` must explicitly be
+(`labels/pipeline.py:47-55`). Any new field in `Extraction` must explicitly be
 considered for this gate. Changing what flags is a product decision, not a
 refactor.
 
