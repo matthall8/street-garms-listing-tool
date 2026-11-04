@@ -4,14 +4,13 @@
 ## Review
 **Verdict:** <verdict> · HEAD `<sha>` · tests <p>/<f>/<s>, exit <code>
 **Findings:** <None, or one line each>
-<!-- One line per Must fix / Should fix: problem → fixed in <sha>,
-or why not. -->
+<!-- One line per Must fix / Should fix: problem → fixed, or
+problem → noted: why. -->
 
 <details><summary>Full reviewer report</summary>
 
 <!-- Paste the final report. The PR body is PUBLIC: check it for private
-values first. Re-run the reviewer after any fix so the SHA matches what
-merges. -->
+values first. -->
 
 </details>
 

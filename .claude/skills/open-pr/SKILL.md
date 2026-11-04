@@ -26,6 +26,9 @@ Stop and tell me if any of these fail:
 - There is a title. If $ARGUMENTS is empty, propose one (short
   conventional form, describing this branch's diff) and ask.
 
+If `docs/briefs/<branch>/brief.md` exists, read it: step 3 uses its
+*Not in this branch* lines.
+
 ## 2. Checks
 
 Run the checks CI runs, and note each exit status:
@@ -38,28 +41,6 @@ report it with the skip reasons.
 
 ## 3. Review
 
-**Ledger-only diff.** If the branch only appends md5 ledger rows, skip
-the reviewer and the rest of this step; go to step 4. Decide from the
-diff, never from the title, branch name or commit messages. It is
-ledger-only only if both hold:
-- `git diff main...HEAD --name-only` lists one file, the one holding the
-  md5 ledgers (CLAUDE.md, *One home per fact*).
-- Every changed line in `git diff -U0 main...HEAD` is an added row of
-  the *Manifest md5* or *Held-out manifest md5* table, and the added
-  rows of each table come directly after its last row on `main`,
-  contiguous at the end of the table. Any removed line (an edited or
-  deleted row), a row added anywhere else, or any change to a table's
-  heading or paragraph takes the full path: `check_md5` checks only the
-  last row, so any other row needs the reviewer.
-
-Anything else, however small, takes the full path. Steps 2 and 5 still
-run in full. Step 5's `--range main...HEAD` check still compares each
-manifest's md5 with the last row of its ledger at HEAD (`check_md5` in
-`hooks/check_private.py`), so the ledger row itself is verified without
-the reviewer. The reviewer's read of changed docs for a quoted garment
-name (code-reviewer.md, *Privacy*) doesn't run, so read the added lines
-for one yourself; a hit is a privacy Must fix, handled as below.
-
 Findings ledger: `docs/pr-findings.md` (gitignored) keeps each review
 round and each Must fix, Should fix and inherited finding across
 sessions, one line each: `- round <n> | <reviewed sha>` per reviewer
@@ -71,9 +52,19 @@ SHAs are on this branch but not on `main` (`git merge-base --is-ancestor
 <sha> HEAD`, and not an ancestor of `main`); otherwise replace it with an
 empty ledger for this branch.
 
-**One re-review.** Review, fix, re-review once. Round 1 is the first
-reviewer run on the branch; round 2 re-reviews after its fixes. From
-round 2 on, only a Must fix triggers another round.
+**Re-review only when it can find something.** Round 1 is the first
+reviewer run on the branch. After any round, run another only if one
+of its Must fixes was fixed (a noted one changes nothing to re-check),
+or `git diff --name-only <last reviewed sha>..HEAD` lists any of:
+- a file that isn't `.md`
+- `CLAUDE.md` or `evals/BASELINES.md`
+- anything under `adr/` or `.claude/`
+
+Otherwise skip it: step 5 still checks every commit for privacy, and
+step 4 marks the commits since the last reviewed SHA as not re-reviewed.
+The check doesn't match one- and two-word product names, so read the
+lines added since the last reviewed SHA for a quoted garment name
+yourself; a hit is a privacy Must fix, handled as below.
 
 Run the code-reviewer subagent against `main`, and add its round line
 (the ledger's last round + 1, or 1 if none). From round 2, give it the
@@ -108,6 +99,15 @@ doing anything else:
   because the pushed history would still hold the value: I rewrite that
   commit myself, then start again from step 1.
 
+**Follow-ups.** Once no finding is waiting on me, collect the ledger's
+`inherited` entries, each `noted` entry that leaves work to do (not one
+noted as needing none), each proposed separate branch, and the
+brief's *Not in this branch* lines (step 1). Add each one that no open
+TODO.md item already covers as one line in the section it belongs to
+(*Backlog* if unsure), and commit them together:
+`docs(todo): follow-ups from review`. It's a docs-only change, so it
+doesn't trigger another round. No new lines, no commit.
+
 ## 4. Body
 
 Write `docs/pr-body.md` from `.github/pull_request_template.md`. Keep
@@ -117,19 +117,14 @@ every section short; the whole body should fit on one screen with the
 - **Review:** the report's Verdict line, unchanged. Findings: one line
   per `fix` or `noted` ledger finding, not round lines or `inherited`
   ones (step 3; privacy Must fixes are never in it), as
-  "problem → fixed in <sha>" or
-  "problem → noted: <reason>", or "None". For a fix, the SHA is the
-  first commit after the reviewed SHA that changed that file
-  (`git log --reverse --format=%h <reviewed sha>..HEAD -- <file> | head -1`).
-  If none did, the fix may be in another file: ask me which commit fixed
-  it. If the verdict is not Ready to merge, say why in one line per gap,
-  and what evidence covers it (e.g. a commit message).
+  "problem → fixed" or "problem → noted: <reason>", or "None". The fix
+  commits are in the PR's history. If the verdict is not Ready to merge,
+  say why in one line per gap,
+  and what evidence covers it (e.g. a commit message). If HEAD is past
+  the last reviewed SHA, add under the Verdict line: "Docs-only commits
+  since `<reviewed sha>`, not re-reviewed."
 - **Full reviewer report** inside `<details>`, as the reviewer wrote it.
   No Resolved list from earlier runs.
-- **Ledger-only diff** (step 3): the Verdict line is
-  "**Verdict:** Not reviewed: ledger-only diff · HEAD `<sha>` · tests
-  <passed>/<failed>/<skipped>, exit <code>", Findings is "None", and the
-  `<details>` block is deleted.
 - **Eval:** "None" unless something sent to the model changed (prompt,
   the schemas sent to it, model strings, MODEL_SETTINGS). Those schemas
   are `ArtNumberReading` and the types inside it (`AmbiguousCharacter`,
@@ -145,7 +140,10 @@ every section short; the whole body should fit on one screen with the
   unticked and add "Not fully: <reason>".
 - **Not in this PR:** one line per deliberate follow-up, built from the
   ledger, not the last report: each `inherited` and each `noted: after
-  re-review` entry, then each proposed separate branch. Don't reveal
+  re-review` entry, each proposed separate branch, then the brief's
+  *Not in this branch* lines (step 1). End each line
+  with where it's tracked, "(TODO.md, *<section>*)", or "(no follow-up
+  needed)" for a noted entry that leaves no work. Don't reveal
   facts about private data here either, such as which strings are real
   catalogue keys.
 - Any number in the body or the diff that was derived rather than
@@ -158,13 +156,15 @@ placeholders remain outside the `<details>`/`<summary>` tags.
 
 ## 5. Privacy
 
-Run both; each must exit 0:
+Run all three; each must exit 0. The branch name is public once pushed,
+so it gets checked too:
 `.venv/bin/python hooks/check_private.py --file docs/pr-body.md`
 `.venv/bin/python hooks/check_private.py --text '<title>'`
-Wherever the title goes into a shell command (here and in step 6), put
-it in single quotes, writing any `'` in it as `'\''`. Never use double
-quotes: titles often contain backticks or `$`, which the shell would
-run or expand.
+`.venv/bin/python hooks/check_private.py --text '<branch>'`
+Wherever the title or branch goes into a shell command (here and in
+step 6), put it in single quotes, writing any `'` in it as `'\''`. Never
+use double quotes: titles often contain backticks or `$`, which the
+shell would run or expand.
 Check the branch as a whole, which includes the manifest md5 against the
 ledger at HEAD; it must exit 0:
 `.venv/bin/python hooks/check_private.py --range main...HEAD`
@@ -206,9 +206,11 @@ Then re-check `md5 -q docs/pr-body.md`. If it differs from
 step 5 (I edited the body), run step 5 again on the edited version, and
 tell me if anything fails. If I give a different title when approving,
 run the `--text` check on the new title first. Then:
-`git push -u origin <branch>`
+`git push -u origin '<branch>'`
 `gh pr create --base main --title '<title>' --body-file docs/pr-body.md`
 and give me the PR URL.
 
-Never merge. After CI runs, if the body states a derived number, compare
-it with the CI log and tell me whether it matched.
+Never merge. If the body states a derived number, wait for CI with
+`gh pr checks <number> --watch`, run in the background (CI can outlast
+a foreground command's timeout), then compare the number with the CI
+log and tell me whether it matched.
