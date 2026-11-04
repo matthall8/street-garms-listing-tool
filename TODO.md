@@ -70,6 +70,18 @@ or model is a run under *Runs*, one per run.
 - [ ] Hash the bytes actually sent: `photo_hashes` hashes the file, so a
       rotation by `upright()` (`p04`'s) doesn't show in it. Its own branch,
       before the next paid run
+- [ ] ADR-0006: how a fix ADR-0002 requires to the photo sent to the model
+      is judged while dev is saturated (PR #61 merged one with a Must fix
+      noted). Before the next such fix
+- [ ] One definition of what the model is sent, which `/open-pr`'s *Eval*
+      bullet and the reviewer's *Prompt contract* check both point to.
+      Today they differ: only the reviewer counts the user message and
+      the image handling in `labels/photo.py`; only `/open-pr` has the
+      `model_json_schema()` exception. Replace the reviewer's
+      `git diff <cited-tag>` coverage check, read by hand today, with a
+      comparison of the header fingerprints; the image's needs the
+      sent-bytes hash above. With the ADR-0006 item above, before the
+      first iteration
 - [x] HEIC: the form and the CLI reject it before any API call
       (`ACCEPTED` in `labels/pipeline.py`). `pillow-heif` is the option if
       desktop HEIC uploads turn out to matter
@@ -228,6 +240,8 @@ or unconfirmed results come into scope.
 - [ ] Rename the harness's "flagged but correct" to "ambiguous but correct":
       it counts `ambiguous_characters`, not `needs_review`, so
       `evals/README.md` and BASELINES.md describe it wrongly
+- [ ] A test that the references in tracked docs resolve (files, symbols,
+      test names); the reviewer's *Docs* check then drops that question
 - [ ] `hooks/check_private.py`: take `TODO.md` out of `LEDGER_FILES`, so
       ledgers live only in `evals/BASELINES.md` (stricter; a `hooks/`
       change, needs sign-off)

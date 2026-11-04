@@ -15,8 +15,8 @@ git config core.hooksPath hooks
 ## What it checks
 
 - **Values:** catalogue keys and product names, photo filenames and expected
-  codes from both eval manifests, plus the reviewer's code-shaped and
-  image-filename patterns.
+  codes from both eval manifests, plus a code-shaped and an image-filename
+  pattern (`CODE_SHAPED` and `IMAGE_NAME` in the script).
 - **When a value blocks:** when a file's added lines hold it more often than
   its removed lines, so a swapped code blocks too.
 - **Output:** findings print as type plus `file:line`, never the value; any
@@ -25,6 +25,10 @@ git config core.hooksPath hooks
   appear anyway (format examples, placeholder image names), never the values.
   A hash of a short code can be reversed by brute force, so only non-private
   values belong there.
+- **Allowed locations:** in diff modes, the patterns skip the places
+  CLAUDE.md allows code-shaped literals (`PATTERN_EXEMPT_FILES` and
+  `PATTERN_EXEMPT_REGIONS` in the script) and the filenames of tracked
+  images. `--file` and `--text` apply no exemptions.
 
 ## Manifest ledgers
 
