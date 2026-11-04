@@ -25,8 +25,9 @@ $ARGUMENTS
   reads (its `Read(...)` ask and deny rules), and never ask to. Search
   and list tracked files only, with `git grep` and `git ls-files`; never
   `grep -r`, `find` or a repo-wide glob. To find a brief, list
-  `docs/briefs/`. The free reports in CLAUDE.md's *Commands* table print
-  shapes, not values.
+  `docs/briefs/`. Of the free reports in CLAUDE.md's *Commands* table,
+  only the split on truth prints shapes; the parser score prints
+  catalogue values, so never quote its output.
 - Briefs and artifacts get copied into commits and PR bodies: describe
   codes by shape and photos by manifest `id`; never a code's value, a
   product name or a photo's filename.

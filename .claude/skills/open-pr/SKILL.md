@@ -62,6 +62,9 @@ or `git diff --name-only <last reviewed sha>..HEAD` lists any of:
 
 Otherwise skip it: step 5 still checks every commit for privacy, and
 step 4 marks the commits since the last reviewed SHA as not re-reviewed.
+The check doesn't match one- and two-word product names, so read the
+lines added since the last reviewed SHA for a quoted garment name
+yourself; a hit is a privacy Must fix, handled as below.
 
 Run the code-reviewer subagent against `main`, and add its round line
 (the ledger's last round + 1, or 1 if none). From round 2, give it the
@@ -137,7 +140,8 @@ every section short; the whole body should fit on one screen with the
   unticked and add "Not fully: <reason>".
 - **Not in this PR:** one line per deliberate follow-up, built from the
   ledger, not the last report: each `inherited` and each `noted: after
-  re-review` entry, then each proposed separate branch. End each line
+  re-review` entry, each proposed separate branch, then the brief's
+  *Not in this branch* lines (step 1). End each line
   with where it's tracked, "(TODO.md, *<section>*)", or "(no follow-up
   needed)" for a noted entry that leaves no work. Don't reveal
   facts about private data here either, such as which strings are real

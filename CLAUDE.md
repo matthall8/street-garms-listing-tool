@@ -182,7 +182,7 @@ the PR. (The skill numbers its own steps separately.)
    then check no <…> placeholders remain outside the
    `<details>`/`<summary>` tags. Then stop and ask me to read it: the PR is
    public.
-4. After I approve: `git push -u origin <branch>`, then
+4. After I approve: `git push -u origin '<branch>'`, then
    `gh pr create --base main --title '<title>' --body-file docs/pr-body.md`.
 5. Never merge. I merge after reading the diff and the CI result.
 
