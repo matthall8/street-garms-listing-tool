@@ -100,9 +100,9 @@ This project:
 
   A new log line, exception message or report that prints a code,
   product name or photo filename passes the check, because the diff
-  holds a variable, not the value. In the free reports (CLAUDE.md,
-  *Commands*), which print shapes only: Must fix. Elsewhere: Should fix,
-  except the product's own output to the user.
+  holds a variable, not the value. In a report CLAUDE.md's *Commands*
+  table says prints shapes (today, the split on truth): Must fix.
+  Elsewhere: Should fix, except the product's own output to the user.
 
   Report privacy as section 6 says: pass/fail only, never counts or the
   value.
