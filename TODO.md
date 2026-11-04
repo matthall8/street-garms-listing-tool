@@ -410,3 +410,8 @@ a quiet moment.
 ## Inbox
 Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
 sort them into a section.
+- ADR-0002 names two baselines after the pin: its development-set rules say run 0
+  stays the latest baseline until a run passes ADR-0006, but the pin run
+  becomes the new baseline unjudged. Name the pin as the second exception,
+  drop the "may differ from run 0's" reason, and point **grown-baseline**
+  at the pin run, not run 0
