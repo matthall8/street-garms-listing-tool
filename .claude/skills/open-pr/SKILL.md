@@ -26,8 +26,8 @@ Stop and tell me if any of these fail:
 - There is a title. If $ARGUMENTS is empty, propose one (short
   conventional form, describing this branch's diff) and ask.
 
-If `docs/briefs/<branch>.md` exists, read it: step 3 uses its *Not in
-this branch* lines.
+If `docs/briefs/<branch>/brief.md` exists, read it: step 3 uses its
+*Not in this branch* lines.
 
 ## 2. Checks
 
