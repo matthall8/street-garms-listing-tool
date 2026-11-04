@@ -25,7 +25,8 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
 
 ## Phase 1
 
-Any change to what the model sees is a run, one per run (*Iterations*).
+Any change to what the model sees is a run, one per run (*Iterations*),
+except the model pin (**model-identity**).
 
 ### Gate attempt
 The test-set rules, build order and what's recorded are in ADR-0002.
@@ -55,7 +56,8 @@ By Friday 2026-11-06:
   `model_settings` header field, with `--baseline` warning on a
   difference; set explicitly at today's defaults. Before
   **gate-attempt**: the gate and the staff trial run the pinned
-  snapshot, recorded, not judged (ADR-0002)
+  snapshot, recorded, not judged, by a paid dev run that becomes the new
+  baseline (ADR-0002)
 - **retries**: set the client's and the agent's output retries
   explicitly (CLAUDE.md, *Engineering constraints*); each retry is
   another paid call. Log the request count per call; record worst-case
@@ -147,17 +149,21 @@ Only after a failed gate: the test set joins dev (ADR-0002).
   with **cost-capture** in place
 
 ## Staff trial
-Phase 2, after a pass at *Gate attempt*: route B, decided with the founder
-(ADR-0002, *Consequences*).
+Phase 2, after a pass at *Gate attempt*: route B, agreed with the wider
+team (ADR-0002, *Consequences*).
 
-- **trial-stop-rule**. Decision (founder): when the trial pauses, e.g.
-  corrections above X% after N items. Agreed before **staff-trial**
+- **adr-phase-2**. Decision (wider team): the phase 2 ADR (ADR-0007):
+  route B's scope and what's stored, the stop rule (e.g. corrections
+  above X% after N items), the Sheet field (`art_base` or the full
+  `art_line`, GLOSSARY.md), the manual-entry time the trial's time taken
+  is compared with, and the trial's acceptance criteria. Before
+  **staff-trial**
 - **catalogue-required**. Decision first: does route B's app use the
-  catalogue at all (it drives corrections and flags, and decides
-  whether the catalogue is hosted)? If it does: the app refuses to
-  start without the catalogue (today `load_catalogue()` returns `{}` and every read shows
-  as a miss, unflagged), plus a `/health` route. App only: the CLI,
-  tests and CI still run without it
+  catalogue at all (it drives corrections and flags, and decides whether
+  the catalogue is hosted)? If it does: the app refuses to start without
+  the catalogue (today `load_catalogue()` returns `{}` and every read shows
+  as a miss, unflagged), plus a `/health` route. App only: the CLI, tests
+  and CI still run without it
 - **privacy-adr**: a Certilogo code is never shown as a code, never in
   an identifying field and never logged; it is stored alongside the
   photo. Also: the logging allowlist (enums and fingerprints only,
@@ -183,8 +189,8 @@ Phase 2, after a pass at *Gate attempt*: route B, decided with the founder
   read → confirm or edit), storing the photo, the read, the final value
   and the time taken (route B, ADR-0002)
 - **sheets-push**: the confirmed ART number goes into the existing
-  Google Sheet. Decision: `art_base` or the full `art_line`
-  (GLOSSARY.md). After **privacy-adr** (what goes to the Sheet)
+  Google Sheet, in the field **adr-phase-2** sets. After **privacy-adr**
+  (what goes to the Sheet)
 - **observability**: one allowlisted record per read (**privacy-adr**):
   request ID, version (commit, prompt fingerprint, model), latency,
   tokens, cost, status, `needs_review` reasons, catalogue outcome, staff
@@ -206,9 +212,9 @@ Phase 2, after a pass at *Gate attempt*: route B, decided with the founder
   limit, shrink only photos above it, on its own branch (resizing is an
   iteration variable)
 - **staff-trial**: staff confirm or correct every result before it's
-  recorded (ADR-0002, *Context*); acceptance criteria agreed with the
-  product team. The result page shows the ART number only: decoder
-  flags and product name hidden, code kept
+  recorded (ADR-0002, *Context*), under **adr-phase-2**. The result page
+  shows the ART number only: decoder flags and product name hidden, code
+  kept
 
 ## Later
 - **feedback-loop**: production photos join an eval set only after
@@ -243,7 +249,7 @@ Phase 2, after a pass at *Gate attempt*: route B, decided with the founder
 - **dvc-eval-set**: version the manifest, photos and `evals/results/`
   (and the catalogue, if it should be restorable) with DVC, local
   remote only (an external drive or an encrypted disk image), never a
-  cloud remote, and with the founder's agreement (Street Garms' data).
+  cloud remote (Street Garms' data; agreed with the wider team, 2026-11-04).
   Git gets only `.dvc` hashes; check one against `check_private.py`
   before the first commit
 - **mlops-stack**: MLflow Tracing, Terraform: add a tool only when it

@@ -13,14 +13,16 @@
 A change needs a rule for when its eval result counts as a win, fixed before
 any result exists so the result can't move it. ADR-0002 judges phase 1 runs
 on base-exact; the rule as first written counted `missed` per photo. The
-development set is small (about 70 photos), so the rule must work when few
+development set is small (ADR-0002), so the rule must work when few
 garment-sides change.
 
 ## Decision
 
 **Scope:** phase 1 development runs, for any change to what the model sees:
 the prompt, user message, schema, image handling, model or model settings.
-It replaces the rule as first written outright. Before the staff trial, it
+It replaces the rule as first written outright. A model pin is the
+exception: recorded, not judged (ADR-0002, *Rules for the test set*).
+Before the staff trial, it
 is revisited to set the rule for later runs, including the guardrails
 ADR-0001's per-run rule cites.
 

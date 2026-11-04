@@ -110,10 +110,12 @@ Rules for the test set:
 - The gate runs the latest baseline's configuration with the model pinned
   to a dated snapshot, and the staff trial runs the same configuration.
   The pin is recorded, not judged: the development set can't judge it
-  (ADR-0006).
+  (ADR-0006). Its record is a paid development run of the pinned
+  configuration, `--repeat 3`, compared with run 0 and recorded as the
+  new baseline, like run 0 itself.
 - Run once, from a tagged commit, and recorded in `evals/BASELINES.md`. On
   a fail, the test set joins the development set and the result goes back
-  to the founder; the next gate attempt needs a new test set.
+  to the wider team; the next gate attempt needs a new test set.
 - Totals only, never results per photo. If per-photo results are ever opened,
   those garments move to development.
 
@@ -169,20 +171,20 @@ See *Phase 1* in TODO.md for an up-to-date list.
 
 ## Consequences
 
-- On a pass, the staff trial follows (decided with the founder,
-  2026-11-04): staff confirm or edit each read; the photo, the read, the
+- On a pass, the staff trial follows (agreed with the wider
+  team, 2026-11-04): staff confirm or edit each read; the photo, the read, the
   final value and the time taken are stored, so the trial gives a
   correction rate; and the confirmed code goes into the Google Sheet. Its
-  stop rule is agreed with the founder first (TODO.md, *Staff trial*).
+  stop rule is set before the trial (TODO.md, *adr-phase-2*).
 - A bigger test set comes before any automation.
 - ADR-0001: its launch criteria, and in phase 1 its per-run hard rule, are
   superseded (*Supersedes* line); runs 2–4 are out of Phase 1
   (*Rollout*), and its open `sideways` decision stays as written, in a
   later phase.
 - Auto-rotate and deskew are out of phase 1's iterations.
-- The tool must send the photo as the user saw it (EXIF orientation,
-  TODO.md). Without it, the rule's premise, that the user checks the
-  preview, is false in production.
+- The tool must send the photo as the user saw it: `upright()` in
+  `labels/photo.py` applies the EXIF orientation. Without it, the rule's
+  premise, that the user checks the preview, is false in production.
 - The upright rule relies on the user's check, so capture guidance in the
   web UI asking for an upright photo is a prerequisite for the staff trial
   (TODO.md, *upright-guidance*). The rest of the guidance (the back tag and its Data
@@ -205,4 +207,5 @@ See *Phase 1* in TODO.md for an up-to-date list.
   session.
 - **2026-11-04:** no photo session. The test set is the garments
   photographed by 2026-11-06, at least 15 garment-sides, run once; the
-  development set is frozen as it is until a test set fails.
+  development set is frozen as it is until a test set fails. Agreed with
+  the wider team.
