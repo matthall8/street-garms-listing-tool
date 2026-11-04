@@ -32,11 +32,12 @@ except the model pin (**model-identity**).
 The test-set rules, build order and what's recorded are in ADR-0002.
 
 By Friday 2026-11-06:
-- **incoming-photos**: 19 photos received 2026-11-03, in
-  `images/incoming-2026-11/` (about 9 garments, several shots each, 4
-  not upright). Test candidates under ADR-0002's rules; a garment
-  already in dev is left out. Not in a manifest and not run until
-  **freeze-test**
+- **incoming-photos**: 39 photos: 19 received 2026-11-03 in
+  `images/incoming-3-11-2026/` (about 9 garments, several shots each, 4
+  not upright) and 20 received 2026-11-04 in
+  `images/incoming-4-11-2026/`. No exact duplicates. Test candidates
+  under ADR-0002's rules; a garment already in dev is left out. Not in
+  a manifest and not run until **freeze-test**
 - **test-photographer**. Decision: who takes the test photos: some by
   staff, or note the single capture regime as a limitation
 - **label-source-rule**: `evals/README.md`: the catalogue may prompt a
@@ -57,7 +58,9 @@ By Friday 2026-11-06:
   difference; set explicitly at today's defaults. Before
   **gate-attempt**: the gate and the staff trial run the pinned
   snapshot, recorded, not judged, by a paid dev run that becomes the new
-  baseline (ADR-0002)
+  baseline (ADR-0002). Its BASELINES.md row says a difference can't be
+  put down to the pin alone: `upright()` and `pillow` (PR #61) came
+  after run 0, so expect "versions line differs"
 - **retries**: set the client's and the agent's output retries
   explicitly (CLAUDE.md, *Engineering constraints*); each retry is
   another paid call. Log the request count per call; record worst-case
@@ -89,8 +92,7 @@ Only after a failed gate: the test set joins dev (ADR-0002).
 #### Before the first
 - **grown-baseline**: a paid run of the accepted configuration on the
   grown dev set, `--repeat 3`, recorded as the new baseline, not judged
-  (ADR-0002). Expect "versions line differs" against run 0 (`pillow`
-  added, PR #61); record it in the run's row
+  (ADR-0002)
 - **margin**. Decision: the dev margin above 80%, informed by how run
   0's out-of-sample photos compare with the rest (BASELINES.md). If it
   becomes a rule, it goes in ADR-0002
@@ -410,8 +412,3 @@ a quiet moment.
 ## Inbox
 Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
 sort them into a section.
-- ADR-0002 names two baselines after the pin: its development-set rules say run 0
-  stays the latest baseline until a run passes ADR-0006, but the pin run
-  becomes the new baseline unjudged. Name the pin as the second exception,
-  drop the "may differ from run 0's" reason, and point **grown-baseline**
-  at the pin run, not run 0

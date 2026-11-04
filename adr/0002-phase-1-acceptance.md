@@ -82,13 +82,13 @@ bar (wrong and unflagged) must be added to the gate first.
 Rules for the development set:
 
 - Frozen from 2026-11-04. There is no photo session and no grown-set
-  baseline: run 0 (2026-10-30) stays the latest baseline until a run
-  passes ADR-0006's rule. New photos go to the test set only; the only
-  photos to join the development set are a failed test set's (below).
+  baseline: run 0 (2026-10-30) stays the latest baseline until the model
+  pin's recorded run replaces it (*Rules for the test set*), and that run
+  until a run passes ADR-0006's rule. New photos go to the test set
+  only; the only photos to join the development set are a failed test
+  set's (below).
   The grown set then gets a paid baseline of the accepted configuration,
-  recorded, not judged, before the next development run. The gate run's
-  reads don't stand in for it: its configuration may differ from run 0's
-  (a pinned model, for example).
+  recorded, not judged, before the next development run.
 - Any parser, gate or catalogue change is measured by
   replaying the latest baseline's saved reads, which costs nothing. That
   replay is the comparison point for the next paid run.
@@ -99,9 +99,9 @@ Rules for the test set:
   the same product (the same `expected_art_base`), is in the development
   set, or if its `expected_art_base` appears in `ART_PROMPT`'s examples
   (checked pass/fail, no values printed). Each garment-side's photo is its
-  first readable shot in the order taken (EXIF capture time; filename
-  order where that is missing), rotated by hand if it isn't upright; its
-  other shots are dropped.
+  first readable shot in filename order, rotated by hand if it isn't
+  upright; its other shots are dropped. Exports can rewrite EXIF capture
+  times, so they don't set the order.
 - Built in this order, after 2026-11-06: label every shot by eye, apply
   the rule above, rotate the chosen photos, then record in
   `evals/BASELINES.md` the manifest's md5, the count needed to pass, the
