@@ -1,9 +1,7 @@
 # ADR-0002: Phase 1 acceptance
 
-- **Status:** Accepted; amended 2026-10-28 (the gate is one bar, for a
-  stage where staff confirm every result); amended 2026-10-30 (photos are
-  upright and the tool doesn't rotate; run 0 runs on the current
-  development set, which grows once, at the photo session)
+- **Status:** Accepted; amended 2026-10-28, 2026-10-30 and 2026-11-04
+  (*Amendments*)
 - **Date:** 2026-10-22
 - **Supersedes:** ADR-0001's launch criteria (*For launch*, under *Success
   criteria*) and, in phase 1, its per-run hard rule (no garment-side newly
@@ -20,20 +18,28 @@
 The app is currently at proof of concept stage. To move to the next stage
 (staff using it in their workflow and giving feedback on every result), it
 needs to read the ART number correctly in at least 80% of cases. Below that,
-it costs staff more time than it saves. The 80% is an estimate.
+it costs staff more time than it saves and undermines the app's credibility. The 80% is an estimate based on past experiences.
 
-In that stage staff confirm or correct every result before anything is
+In phase 2, staff confirm or correct every result before anything is
 recorded, so a wrong read can't reach a listing unseen. That is why this gate
-measures only the correct rate.
+measures only the correct rate. It is also why the test set can be small:
+the staff trial records every confirmation and edit, so it measures the
+rate on far more photos than a test set holds. That rate is for the
+garments staff process, not all future garments.
 
 ## Decision
 
-The gate is measured on a **held-out test set of 30 garments**, one photo
-per garment-side. Every test photo is readable: every character of its ART
-number can be read by eye. Readability is judged when the photo is labelled,
-before any run; a photo that isn't readable is replaced with another
-garment's, never dropped after a run. Photos with no ART number aren't in the
-test set. Both sets cover every ART format family, `si_alpha` included.
+The gate is measured on a **held-out test set**: every garment photographed
+by 2026-11-06 that meets the rules below, with **at least 15
+garment-sides**, one photo per garment-side. Every test photo is readable:
+every character of its ART number can be read by eye. A character whose
+shape in this photo could be read two ways (such as `0` or `O`, `1` or `I`, `5` or `S`, `8` or
+`B`) makes it not readable. Readability is judged when the photo is
+labelled, before any run; a garment-side with no readable shot isn't in the
+test set. Nothing is dropped after a run. Photos with no ART number aren't
+in the test set. If fewer than 15 garment-sides qualify by 2026-11-06, the
+cutoff moves until 15 do; the gate never runs on fewer. A format family the test
+set misses is a stated limitation, not a blocker.
 
 Every photo, in both sets, is **upright**. The user checks this before
 upload; the tool doesn't rotate. The rule covers rotation only, so a
@@ -43,13 +49,26 @@ upright is rotated by hand, never dropped. A development photo is replaced
 by an upright rotation of itself, so every garment-side stays in the set; a
 test photo is rotated before the test manifest's md5 is recorded.
 
-Phase 1 passes when **at least 80% of garment-sides are correct**, out of at
-least 30 (at least 24 of 30).
+Phase 1 passes when **at least 80% of the test set's garment-sides are
+correct**, rounded up (12 of 15, 16 of 20, 24 of 30). Each gate result
+also gives the share of reads correct, as a total: what one read, as in
+production, gets right. It doesn't decide the gate.
+
+A pass on a set this small means good enough to try in the staff trial, not
+a proven 80%. How often a reader passes, by its true rate (binomial; sides
+of one garment aren't independent, so the gate discriminates less than
+this: a 70% reader passes more often, a 90% reader less often):
+
+| garment-sides | to pass | true 70% | true 80% | true 90% |
+|---|---|---|---|---|
+| 15 | 12 | 30% | 65% | 94% |
+| 20 | 16 | 24% | 63% | 96% |
+| 30 | 24 | 16% | 61% | 97% |
 
 Photos are split by garment, so no garment is in both sets: the development
-set (about 70 photos, every existing garment-side included) and the 30 test
-garments. Development results are for tuning only and don't count towards
-the gate.
+set, frozen as it is (the last row of the manifest md5 ledger,
+`evals/BASELINES.md`), and the test set. Development results are for tuning
+only and don't count towards the gate.
 
 Each garment-side is read 3 times. It's correct if at least 2 of its 3 reads
 are. A read is correct when the pipeline's `art_base` equals the manifest's
@@ -62,26 +81,39 @@ bar (wrong and unflagged) must be added to the gate first.
 
 Rules for the development set:
 
-- Run 0, the first paid baseline, runs on the development set as it is,
-  without waiting for the photo session.
-- It grows once, at the photo session, to about 70 photos covering every
-  format family. The session's new garments are split between development
-  and test by the rule fixed before the session for choosing test garments.
-  The accepted configuration (the latest baseline's) is then re-run on the
-  grown set and recorded as the new baseline, not judged.
-- Frozen when that baseline is recorded. New photos go to the test set only.
+- Frozen from 2026-11-04. There is no photo session and no grown-set
+  baseline: run 0 (2026-10-30) stays the latest baseline until a run
+  passes ADR-0006's rule. New photos go to the test set only; the only
+  photos to join the development set are a failed test set's (below).
+  The grown set then gets a paid baseline of the accepted configuration,
+  recorded, not judged, before the next development run. The gate run's
+  reads don't stand in for it: its configuration may differ from run 0's
+  (a pinned model, for example).
 - Any parser, gate or catalogue change is measured by
   replaying the latest baseline's saved reads, which costs nothing. That
   replay is the comparison point for the next paid run.
 
 Rules for the test set:
 
-- Labelled by eye during the photo session, and its md5 recorded in
-  `evals/BASELINES.md` that day, before any run.
-- Run from a tagged commit, at most 3 times in Phase 1, each run recorded in
-  `evals/BASELINES.md`. On a fail, tune on the development set and rerun. If
-  the third run fails, the test set moves to development and a new one is
-  collected.
+- Chosen by rule, not by eye. A garment is left out if it, or a garment of
+  the same product (the same `expected_art_base`), is in the development
+  set, or if its `expected_art_base` appears in `ART_PROMPT`'s examples
+  (checked pass/fail, no values printed). Each garment-side's photo is its
+  first readable shot in the order taken (EXIF capture time; filename
+  order where that is missing), rotated by hand if it isn't upright; its
+  other shots are dropped.
+- Built in this order, after 2026-11-06: label every shot by eye, apply
+  the rule above, rotate the chosen photos, then record in
+  `evals/BASELINES.md` the manifest's md5, the count needed to pass, the
+  number of garments, the format families covered, and how many
+  garment-sides were left out, by reason. Only then run.
+- The gate runs the latest baseline's configuration with the model pinned
+  to a dated snapshot, and the staff trial runs the same configuration.
+  The pin is recorded, not judged: the development set can't judge it
+  (ADR-0006).
+- Run once, from a tagged commit, and recorded in `evals/BASELINES.md`. On
+  a fail, the test set joins the development set and the result goes back
+  to the founder; the next gate attempt needs a new test set.
 - Totals only, never results per photo. If per-photo results are ever opened,
   those garments move to development.
 
@@ -114,24 +146,39 @@ See *Phase 1* in TODO.md for an up-to-date list.
   evidence, so a pass would mean nothing.
 - **A bigger test set (70 test, 30 development):** rejected for now.
   Development needs variety to find new kinds of failure.
+- **A photo session for 30 test garments, growing the development set to
+  about 70** (this ADR before the 2026-11-04 amendment): replaced. It delays
+  the staff trial, which measures the real rate on more photos (see
+  *Context*).
+- **Tune and rerun on the same test set, up to 3 times** (this ADR before
+  the 2026-11-04 amendment): replaced. On a small set each rerun is another
+  chance to pass by luck. With the development set saturated (ADR-0006),
+  no tuning change can pass there anyway; a failed test set joining it
+  gives it garment-sides that can still improve.
+- **Picking the best shot of each garment-side for the test set:**
+  rejected. A rule fixed before labelling keeps the choice from favouring
+  easy photos.
 - **Rotate in the tool (auto-rotate, deskew):** rejected (amended
   2026-10-30). The user checks the photo is upright before upload.
 - **Drop non-upright development photos:** rejected. An upright rotation
   keeps every garment-side in the set.
 - **Complete the development set before run 0** (this ADR before the
   amendment): replaced (amended 2026-10-30). Run 0 doesn't wait for the
-  photo session; the grown set gets its own baseline.
+  photo session; the grown set gets its own baseline. The photo session was
+  itself dropped on 2026-11-04.
 
 ## Consequences
 
+- On a pass, the staff trial follows (decided with the founder,
+  2026-11-04): staff confirm or edit each read; the photo, the read, the
+  final value and the time taken are stored, so the trial gives a
+  correction rate; and the confirmed code goes into the Google Sheet. Its
+  stop rule is agreed with the founder first (TODO.md, *Staff trial*).
 - A bigger test set comes before any automation.
 - ADR-0001: its launch criteria, and in phase 1 its per-run hard rule, are
   superseded (*Supersedes* line); runs 2–4 are out of Phase 1
   (*Rollout*), and its open `sideways` decision stays as written, in a
   later phase.
-- TODO.md is organised around this gate (*Phase 1*): run 0's replay and the
-  paid baseline are separate items; the 2D-code stage, capture guidance and
-  runs 2–4 move to *Later*; the Data Matrix ADR takes a new number.
 - Auto-rotate and deskew are out of phase 1's iterations.
 - The tool must send the photo as the user saw it (EXIF orientation,
   TODO.md). Without it, the rule's premise, that the user checks the
@@ -148,3 +195,14 @@ See *Phase 1* in TODO.md for an up-to-date list.
   shows as *looks right*. ADR-0004 still decides how misses flag, for a
   later phase; CLAUDE.md's pending note under *Catalogue misses* stops
   citing this ADR.
+
+## Amendments
+
+- **2026-10-28:** the gate is one bar, for a stage where staff confirm
+  every result.
+- **2026-10-30:** photos are upright and the tool doesn't rotate; run 0
+  runs on the current development set, which grows once, at the photo
+  session.
+- **2026-11-04:** no photo session. The test set is the garments
+  photographed by 2026-11-06, at least 15 garment-sides, run once; the
+  development set is frozen as it is until a test set fails.
