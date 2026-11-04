@@ -57,7 +57,7 @@ designed against the 2026-10-08 reads; the rest (`p01`–`p33` survivors,
 
 Out-of-sample is 13.8 points higher on garment-sides, and 20.0 points
 higher on photos and reads. The margin is a separate decision (TODO.md,
-*Runs*, Iterations).
+*margin*).
 
 **Wrong positive garment-sides.** All 18 wrong reads are `not_visible` with
 no characters returned: no wrong line, misread character or split failure.

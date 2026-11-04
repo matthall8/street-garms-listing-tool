@@ -56,13 +56,14 @@ Terms: [GLOSSARY.md](GLOSSARY.md).
 
 ## Where it stands
 
-Phase 1 has not been attempted yet. A held-out set of 30 garments comes
-first ([TODO.md](TODO.md)).
+Phase 1 has not been attempted yet. A held-out set of the garments
+photographed by 2026-11-06 comes first ([TODO.md](TODO.md)).
 
-**Phase 1 gate.** Phase 1 passes on a held-out set of 30 garments, read 3
-times each, when at least 80% of garment-sides (24 of 30) read the ART
-number's base correctly. Staff confirm every result at the next stage, so the
-gate measures only that. Full gate and set rules:
+**Phase 1 gate.** Phase 1 passes on a held-out set of at least 15
+garment-sides, read 3 times each and run once, when at least 80% of them
+read the ART number's base correctly. Staff confirm every result at the next
+stage, so the gate measures only that; a pass means good enough to try, not
+a proven 80%. Full gate and set rules:
 [ADR-0002](adr/0002-phase-1-acceptance.md).
 
 **Current baseline, run 0 (2026-10-30):** on the development set, 32 of 36

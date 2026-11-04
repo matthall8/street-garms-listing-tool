@@ -97,6 +97,6 @@ below refers to, is in `evals/BASELINES.md`, *Previous baselines (archived set)*
 The rule as first written also required confirming a pass on photos outside
 this set before merging, because a pass here is in-sample. That condition was
 **waived for this merge** by decision, on confidence that the change is better
-generally. It still applies in spirit: when new photos are added (TODO.md,
-*Photos*), run the previous and current baselines on them and check the
-gain holds.
+generally. It still applies in spirit: when photos join the development
+set (a failed test set, ADR-0002), run the previous and current baselines
+on them and check the gain holds.

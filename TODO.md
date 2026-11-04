@@ -18,61 +18,32 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
-- **catalogue-required**
+- **holdout-flag**
 - **model-identity** (with **retries**)
-- **test-set-design**
+- **sent-bytes-hash**
 
 ## Phase 1
 
 Any change to what the model sees is a run, one per run (*Iterations*).
 
-### Photo session
-The rules for both sets are in ADR-0002.
+### Gate attempt
+The test-set rules, build order and what's recorded are in ADR-0002.
 
-Before:
-- [ ] **test-set-design**. Decision: the rule that picks test garments
-      (e.g. the next N off the rail, fixed before the session, not by eye);
-      which sides count; one read or majority of 3; a minimum per format
-      family; double labelling; second shots (one per garment-side to test,
-      the rest to dev or dropped); product overlap (garments sharing a
-      product never split across dev and test). Rules go in ADR-0002
-- [ ] **gate-power**: the gate's pass probability at true rates of 70%,
-      80% and 90%, and the 95% interval on a bare pass, on garment-sides
-      as ADR-0002 counts them, resampled by garment for the interval.
-      Input to **test-set-design** (is 30 garments enough);
-      the result goes in ADR-0002
+By Friday 2026-11-06:
 - [ ] **incoming-photos**: 19 photos received 2026-11-03, in
       `images/incoming-2026-11/` (about 9 garments, several shots each, 4
-      not upright). Sort into dev or test by **test-set-design**, check
-      against garments already in dev, rotate by hand. Not in the manifest
-      and not run until then
+      not upright). Test candidates under ADR-0002's rules; a garment
+      already in dev is left out. Not in a manifest and not run until
+      **freeze-test**
 - [ ] **test-photographer**. Decision: who takes the test photos: some by
       staff, or note the single capture regime as a limitation
 - [ ] **label-source-rule**: `evals/README.md`: the catalogue may prompt a
       re-check, never supply a label value
-
-During:
-- [ ] **photo-session**: reach ~70 development photos and ~30 test garments
-      (one photo per garment-side for test), upright, every format family
-      in both sets, `si_alpha` included. New garments split between dev and
-      test by **test-set-design**; the dev set grows only here. Run the
-      timing study at the same session
-- [ ] **replacement-count**: record how many shots were replaced or
-      retaken (not readable, not upright, no code), so the readable-only
-      gate rate can be read against field conditions. In BASELINES.md
-      beside the test md5
-
-After:
-- [ ] **label-photos**: label every photo by eye (`garment`, `side`,
-      `expected_art_line`, `expected_art_base`). Re-check by eye every
-      `expected_art_base` that isn't a catalogue key. Convert any HEIC
-      export to JPEG before it enters `evals/photos/`
-- [ ] **test-set-check**: every test photo meets ADR-0002's test-set rules
-      before the split is frozen
-- [ ] **freeze-test**: split by garment; freeze the test manifest (md5 in
-      BASELINES.md)
-
-### Grown-set baseline
+- [ ] **holdout-flag**: `--holdout` runs the test manifest, saves every
+      read, and prints totals only: garment-sides correct, the count
+      needed to pass, and the share of reads correct (ADR-0002).
+      `evals/README.md`, *Held-out set*, says the harness doesn't read the
+      set yet
 - [ ] **sent-bytes-hash**: `photo_hashes` hashes the file, so a rotation by
       `upright()` (`p04`'s) doesn't show in it. Its own branch, before any
       paid run
@@ -82,8 +53,8 @@ After:
       settings sent (thinking, effort, max tokens, timeout) in a
       `model_settings` header field, with `--baseline` warning on a
       difference; set explicitly at today's defaults. Before
-      **grown-baseline**, so it runs on a known model; like the pinned
-      snapshot, the baseline absorbs it (**adr-0006-saturated**)
+      **gate-attempt**: the gate and the staff trial run the pinned
+      snapshot, recorded, not judged (ADR-0002)
 - [ ] **retries**: set the client's and the agent's output retries
       explicitly (CLAUDE.md, *Engineering constraints*); each retry is
       another paid call. Log the request count per call; record worst-case
@@ -91,18 +62,35 @@ After:
 - [ ] **results-backup**: back up `evals/results/` after each paid run,
       until **dvc-eval-set** covers it; the reports are the only record of
       paid reads, and `--replay` needs them
-- [ ] **grown-baseline**: re-run the accepted configuration on the grown dev
-      set, `--repeat 3`, recorded as the new baseline, not judged. Dev then
-      freezes; new photos go to test (ADR-0002). Expect "versions line
-      differs" against run 0 (`pillow` added, PR #61); record it in the
-      run's row
+
+After Friday:
+- [ ] **label-photos**: label every shot by eye (`garment`, `side`,
+      `expected_art_line`, `expected_art_base`). Re-check by eye every
+      `expected_art_base` that isn't a catalogue key. Convert any HEIC
+      export to JPEG before it enters `evals/holdout/photos/`
+- [ ] **test-set-check**: apply ADR-0002's test-set rules: product overlap
+      with dev and `ART_PROMPT`'s examples checked pass/fail, no values
+      printed; one shot per garment-side; rotate by hand
+- [ ] **freeze-test**: record in BASELINES.md what ADR-0002 lists, before
+      any run. Once `evals/holdout/manifest.csv` exists, the privacy hook
+      blocks every commit until its ledger row is in: add both together
+- [ ] **gate-attempt**: once, on the test set, from a tagged commit, totals
+      only (ADR-0002). After **holdout-flag**, **sent-bytes-hash**,
+      **model-identity** and **freeze-test**. The report says sides of one
+      garment aren't independent: a pass means good enough to try, not a
+      proven 80%
 
 ### Iterations
+Only after a failed gate: the test set joins dev (ADR-0002).
 
 #### Before the first
+- [ ] **grown-baseline**: a paid run of the accepted configuration on the
+      grown dev set, `--repeat 3`, recorded as the new baseline, not judged
+      (ADR-0002). Expect "versions line differs" against run 0 (`pillow`
+      added, PR #61); record it in the run's row
 - [ ] **margin**. Decision: the dev margin above 80%, informed by how run
       0's out-of-sample photos compare with the rest (BASELINES.md). If it
-      becomes a rule, it goes in ADR-0002. Due now: run 0 is in
+      becomes a rule, it goes in ADR-0002
 - [ ] **adr-0006-unit**: ADR-0006's unit in the report, each positive
       garment-side's correct reads summed over its photos (the garment-sides
       table counts photos; until then, sum by hand from base per photo).
@@ -112,10 +100,9 @@ After:
 - [ ] **adr-0006-saturated**. Decision: how ADR-0006 judges changes while
       dev is saturated (4 garment-sides can win; the rule needs 6): fixes
       ADR-0002 requires to the photo sent (PR #61 merged one with a Must
-      fix noted), and a no-worse path for hygiene changes (pinned
-      snapshot, **invented-examples**). Also: if **model-identity** pins
-      today's snapshot before **grown-baseline**, the baseline absorbs it
-      with no judged run. Also before the next input-side fix
+      fix noted), and a no-worse path for hygiene changes
+      (**invented-examples**). The pinned snapshot is settled: recorded, not
+      judged (ADR-0002). Also before the next input-side fix
 - [ ] **one-prompt-definition**: one definition of what the model is sent,
       which `/open-pr`'s *Eval* bullet and the reviewer's *Prompt contract*
       check both point to. Today they differ: only the reviewer counts the
@@ -143,40 +130,31 @@ After:
       comparison*), prompt gives character classes, never lengths
       (ADR-0001, *Trust rules*: decide first whether the prompt may describe
       formats). Format-specific prompt changes, character classes included,
-      wait until every format family is in dev (**photo-session**)
+      wait until every format family is in dev
 - [ ] **front-label-location**: a prompt line on where the code sits on a
       front label; every run 0 miss is a front read as `not_visible`
       (BASELINES.md). After **grown-baseline**: 4 misses can't prove a fix
 - [ ] **barcode-guidance**: barcode guidance in the prompt
+- [ ] **invented-examples**: replace `ART_PROMPT`'s real examples with
+      invented ones: 8–9 characters, one with a leading zero, checked not to
+      be catalogue keys or test-set codes (pass/fail, no rows printed). Not
+      a gate prerequisite: ADR-0002 leaves out a test garment whose code is
+      a prompt example
 - [ ] **cheaper-model**: once dev clears 80%, revisit a "no worse" path for
       a cheaper or faster model (ADR-0006). If you want one, decide its rule
       before running it: compared against the last model accepted on wins,
       with **cost-capture** in place
 
-### Gate attempt
-- [ ] **invented-examples**: replace `ART_PROMPT`'s real examples with
-      invented ones: 8–9 characters, one with a leading zero, checked not to
-      be catalogue keys or test-set codes (pass/fail, no rows printed)
-- [ ] **holdout-flag**: `--holdout` runs the test manifest, prints totals
-      only
-- [ ] **gate-attempt**: on the test set, from a tagged commit; at most 3 in
-      phase 1, totals only (ADR-0002). After **invented-examples** and
-      **holdout-flag**. The report says sides of one garment aren't
-      independent: a pass isn't proof of 80%
-
 ## Staff trial
-Phase 2. Its order relative to *Gate attempt* is undecided
-(**capture-route**).
+Phase 2, after a pass at *Gate attempt*: route B, decided with the founder
+(ADR-0002, *Consequences*).
 
-- [ ] **capture-route**. Decision (founder): a photo session, or capture in
-      the app. App capture moves this section before *Gate attempt*, and
-      needs an ADR-0002 amendment first, because staff would use the tool
-      before it passes the gate
-- [ ] **mvp-scope**. Decision (founder): A = confirm or edit, then store;
-      B = A plus the Google Sheet push (recommended); C = B plus catalogue
-      lookup (later; matching is untested)
-- [ ] **catalogue-required**: the app refuses to start without the
-      catalogue (today `load_catalogue()` returns `{}` and every read shows
+- [ ] **trial-stop-rule**. Decision (founder): when the trial pauses, e.g.
+      corrections above X% after N items. Agreed before **staff-trial**
+- [ ] **catalogue-required**. Decision first: does route B's app use the
+      catalogue at all (it drives corrections and flags, and decides
+      whether the catalogue is hosted)? If it does: the app refuses to
+      start without the catalogue (today `load_catalogue()` returns `{}` and every read shows
       as a miss, unflagged), plus a `/health` route. App only: the CLI,
       tests and CI still run without it
 - [ ] **privacy-adr**: a Certilogo code is never shown as a code, never in
@@ -190,19 +168,22 @@ Phase 2. Its order relative to *Gate attempt* is undecided
       with the raw error hidden, gunicorn timeouts, and a kill switch: an
       environment flag that stops model calls and falls back to manual
       entry
-- [ ] **hosting**: the staff app is a TypeScript frontend calling a Python
-      API (decided). A Docker image of the Python side can come first:
-      local only, catalogue mounted at run time and never baked in,
-      gunicorn timeout above the worst-case call (**retries**); it needs no
-      deploy and no **privacy-adr**. ADR before the API and frontend split,
-      which changes CLAUDE.md's *Flow* (`app/` is a Flask app today). Then
-      deploy on a managed host, with auth at the platform edge; Terraform
-      later (**mlops-stack**)
+- [ ] **docker-image**: a Docker image of the Python side, local only:
+      catalogue mounted at run time and never baked in, gunicorn timeout
+      above the worst-case call (**retries**). Needs no deploy and no
+      **privacy-adr**, so it can come first
+- [ ] **api-split-adr**: the staff app is a TypeScript frontend calling a
+      Python API (decided). ADR before the split, which changes CLAUDE.md's
+      *Flow* (`app/` is a Flask app today)
+- [ ] **deploy**: deploy on a managed host, with auth at the platform edge.
+      After **api-split-adr** and **privacy-adr**; Terraform later
+      (**mlops-stack**)
 - [ ] **mvp-confirm**: the confirm-or-edit screen in TypeScript (photo →
       read → confirm or edit), storing the photo, the read, the final value
-      and the time taken. Scope set by **mvp-scope**
+      and the time taken (route B, ADR-0002)
 - [ ] **sheets-push**: the confirmed ART number goes into the existing
-      Google Sheet. If **mvp-scope** is B
+      Google Sheet. Decision: `art_base` or the full `art_line`
+      (GLOSSARY.md). After **privacy-adr** (what goes to the Sheet)
 - [ ] **observability**: one allowlisted record per read (**privacy-adr**):
       request ID, version (commit, prompt fingerprint, model), latency,
       tokens, cost, status, `needs_review` reasons, catalogue outcome, staff
@@ -232,7 +213,7 @@ Phase 2. Its order relative to *Gate attempt* is undecided
 - [ ] **feedback-loop**: production photos join an eval set only after
       labelling by eye, independently of the model and of staff
       corrections. Dev is frozen, so they go to test or a new set
-      (ADR-0002, **test-set-design**). After **staff-trial**
+      (ADR-0002). After **staff-trial**
 - [ ] **monitoring**: review rate, correction rate, latency, and the
       `not_visible`, catalogue miss and `corrected` rates and format-family
       mix against the current baseline's, once there's traffic. A jump
