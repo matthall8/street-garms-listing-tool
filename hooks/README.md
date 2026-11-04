@@ -25,6 +25,10 @@ git config core.hooksPath hooks
   appear anyway (format examples, placeholder image names), never the values.
   A hash of a short code can be reversed by brute force, so only non-private
   values belong there.
+- **Allowed locations:** in diff modes, the patterns skip the places
+  CLAUDE.md allows code-shaped literals (`PATTERN_EXEMPT_FILES` and
+  `PATTERN_EXEMPT_REGIONS` in the script) and the filenames of tracked
+  images. `--file` and `--text` apply no exemptions.
 
 ## Manifest ledgers
 

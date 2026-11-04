@@ -77,10 +77,11 @@ or model is a run under *Runs*, one per run.
       bullet and the reviewer's *Prompt contract* check both point to.
       Today they differ: only the reviewer counts the user message and
       the image handling in `labels/photo.py`; only `/open-pr` has the
-      `model_json_schema()` exception. Replace the
-      reviewer's `git diff <cited-tag>` coverage check, read by hand
-      today, with a comparison of the header fingerprints. With the
-      ADR-0006 item above, before the first iteration
+      `model_json_schema()` exception. Replace the reviewer's
+      `git diff <cited-tag>` coverage check, read by hand today, with a
+      comparison of the header fingerprints; the image's needs the
+      sent-bytes hash above. With the ADR-0006 item above, before the
+      first iteration
 - [x] HEIC: the form and the CLI reject it before any API call
       (`ACCEPTED` in `labels/pipeline.py`). `pillow-heif` is the option if
       desktop HEIC uploads turn out to matter
