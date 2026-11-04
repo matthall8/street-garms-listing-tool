@@ -103,8 +103,8 @@ doing anything else:
 `inherited` entries, each `noted` entry that leaves work to do (not one
 noted as needing none), each proposed separate branch, and the
 brief's *Not in this branch* lines (step 1). Add each one that no open
-TODO.md item already covers as one line in the section it belongs to
-(*Backlog* if unsure), and commit them together:
+TODO.md item already covers as one line under TODO.md's *Inbox*, which
+I sort later, and commit them together:
 `docs(todo): follow-ups from review`. It's a docs-only change, so it
 doesn't trigger another round. No new lines, no commit.
 
@@ -142,7 +142,8 @@ every section short; the whole body should fit on one screen with the
   ledger, not the last report: each `inherited` and each `noted: after
   re-review` entry, each proposed separate branch, then the brief's
   *Not in this branch* lines (step 1). End each line
-  with where it's tracked, "(TODO.md, *<section>*)", or "(no follow-up
+  with where it's tracked, "(TODO.md, *<item name>*)" for an existing
+  item, "(TODO.md, *Inbox*)" for a new one, or "(no follow-up
   needed)" for a noted entry that leaves no work. Don't reveal
   facts about private data here either, such as which strings are real
   catalogue keys.

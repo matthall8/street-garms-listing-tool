@@ -1,7 +1,7 @@
 # ADR-0006: Decision rule for prompt changes
 
 - **Status:** Accepted. Phase 1 only; the rule for later runs is set before
-  the staff trial (TODO.md, *Later*).
+  the staff trial (TODO.md, *later-run-rule*).
 - **Date:** 2026-09-25. Moved from `TODO.md` 2026-10-19, word for word.
   Links to `TODO.md` sections updated 2026-10-22 after ADR-0002, and its
   phase 1 metric 2026-10-28 after ADR-0002's amendment. Updated 2026-10-30
@@ -80,7 +80,7 @@ result (ADR-0002). It returns with ADR-0002's silent-error bar. `missed` and
   than the test it cites, and with per-read scores, noise on hard photos
   alone could reject a real gain.
 - **A "no worse" path for a cheaper or faster model:** revisited once dev
-  clears 80% (TODO.md, *Runs*). Until then, phase 1 needs better reads, and
+  clears 80% (TODO.md, *cheaper-model*). Until then, phase 1 needs better reads, and
   with this few garment-sides "not detectably worse" is weak evidence.
 - **Keeping the overconfident guardrail as a veto:** rejected for phase 1.
   It guards against unseen publishing, which phase 1 doesn't allow.

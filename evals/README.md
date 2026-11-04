@@ -183,7 +183,7 @@ its filenames and expected codes as private, as it does the dev set's.
   blocks every commit in a clone where the held-out manifest is missing.
 
 The harness doesn't read it yet: a `--holdout` flag that prints totals only
-is planned (TODO.md, *Code*).
+is planned (TODO.md, *holdout-flag*).
 
 ## Running
 
@@ -377,7 +377,7 @@ Every report records what produced it, shown in its header:
 | `schema` | fingerprint of the output schema the model sees (`ArtNumberReading.model_json_schema()`), field descriptions and docstrings included |
 | `versions` | Python and the installed `pydantic-ai`, `anthropic`, `pydantic`, `pydantic-evals` and `pillow`; `not installed` for a missing one |
 | `photos` | fingerprint over `photo_hashes`: two runs sent the same photo files if it matches |
-| `photo_hashes` | sha256 of each photo file the run sent, by manifest `id`: a rotation by `upright()` doesn't show in it (TODO.md, *Hash the bytes actually sent*); `None` for a missing photo. Only the cases run, so `--limit` narrows it. In the saved report, not the printed header |
+| `photo_hashes` | sha256 of each photo file the run sent, by manifest `id`: a rotation by `upright()` doesn't show in it (TODO.md, *sent-bytes-hash*); `None` for a missing photo. Only the cases run, so `--limit` narrows it. In the saved report, not the printed header |
 | `manifest` | fingerprint of `manifest.csv`; changes if any byte does — a photo or expected value, but also a note or a column the harness doesn't score |
 | `limit`, `repeat`, `note` | as passed on the command line |
 | `replay_of` | replays only: the saved report whose reads were rescored |

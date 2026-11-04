@@ -95,8 +95,8 @@ sections above `## Status` and leave *Status* as it is. The brief:
 ```
 # <branch>
 Worker: read this first. Append ## Status at the end; don't edit above it.
-Topic: <TODO item and section, or "new: <where it goes in TODO.md; the
-worker adds it>">
+Topic: <TODO item name, or "new: <proposed name>; the worker adds it to
+TODO.md">
 Mode: implement / pairing
 HITL: <steps needing my decision mid-branch, or none>
 

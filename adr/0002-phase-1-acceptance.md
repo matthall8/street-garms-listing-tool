@@ -132,13 +132,13 @@ See *Phase 1* in TODO.md for an up-to-date list.
 - TODO.md is organised around this gate (*Phase 1*): run 0's replay and the
   paid baseline are separate items; the 2D-code stage, capture guidance and
   runs 2–4 move to *Later*; the Data Matrix ADR takes a new number.
-- Auto-rotate and deskew are out of phase 1's iterations (TODO.md, *Runs*).
+- Auto-rotate and deskew are out of phase 1's iterations.
 - The tool must send the photo as the user saw it (EXIF orientation,
   TODO.md). Without it, the rule's premise, that the user checks the
   preview, is false in production.
 - The upright rule relies on the user's check, so capture guidance in the
   web UI asking for an upright photo is a prerequisite for the staff trial
-  (TODO.md, *Later*). The rest of the guidance (the back tag and its Data
+  (TODO.md, *upright-guidance*). The rest of the guidance (the back tag and its Data
   Matrix) waits for the 2D-code stage.
 - `evals/README.md`, *Held-out set*: link here for the run limit; the
   `--holdout` flag prints totals only.

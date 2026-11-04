@@ -3,253 +3,422 @@
 Current state and in-flight work. Stable architecture and invariants are in
 CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md.
 
+- Each item starts with a short bold name. Refer to items by name, never by
+  position.
+- One line per item where possible, linking to the rule's home (ADR,
+  CLAUDE.md, BASELINES.md) rather than restating it.
+- A section is named after the milestone it leads to and ends with that
+  milestone. A "before X" section holds only X's real prerequisites.
+- `Decision:` marks an item that needs my call before work starts. An item
+  without it can go straight to a worker.
+- *Next* names at most three items, chosen by me.
+- Delete an item when its PR merges, and remove its name from *Next*; git
+  holds the history.
+- New items go in *Inbox*, where `/open-pr` adds them; I sort them into a
+  section.
+
+## Next
+- **catalogue-required**
+- **model-identity** (with **retries**)
+- **test-set-design**
+
 ## Phase 1
 
-*Code* changes nothing the model sees. A change to the prompt, schema, image
-or model is a run under *Runs*, one per run.
+Any change to what the model sees is a run, one per run (*Iterations*).
 
-### Photos
-- [ ] Photo session: reach ~70 development photos and ~30 test garments (one photo
-      per garment-side for test); the session shoots upright (ADR-0002). The
-      dev set grows only here: new garments split between dev and test by
-      the rule below. Run the timing study at the same session.
-- [ ] Label every photo by eye: `garment`, `side`, `expected_art_line`,
-      `expected_art_base`. Re-check by eye every `expected_art_base` that
-      isn't a catalogue key
-- [ ] `evals/README.md`: the catalogue may prompt a re-check, never supply
-      a label value
-- [ ] Test set: readable, upright photos only, judged by eye when labelled,
-      each with a known `expected_art_base` (never `UNKNOWN`); no no-code
-      photos; one that doesn't qualify is replaced (rotated by hand, if it's
-      only not upright), never dropped after a run (ADR-0002)
-- [ ] Test garments chosen by a rule fixed before the session (e.g. the
-      next N off the rail), not by eye
-- [ ] Decide who takes the test photos: some by staff, or note the single
-      capture regime as a limitation
-- [ ] Split by garment; freeze the test manifest (md5 in BASELINES.md)
-- [ ] Both sets cover every format family, `si_alpha` included (ADR-0002)
+### Photo session
+The rules for both sets are in ADR-0002.
 
-### Code
-- [ ] The split (ADR-0005):
-      1. done: split structure (`split_art_line`)
-      2. done: split tails (`FAMILY_TAILS`)
-      3. done: wiring (`from_reading()`)
-- [x] Scorer, per read: correct = `from_reading()`'s `art_base` equals
-      `expected_art_base` (base-exact, ADR-0002). `load_manifest` reads
-      `expected_art_base`. Dev rows whose `expected_art_base` is `UNKNOWN`
-      are left out and counted
-- [x] Scorer, per garment-side (`ReportEvaluator`, like `PerPhotoCounts`):
-      correct if 2 of 3 reads are; the correct rate. Mean per-read accuracy
-      beside it (production reads once). Needs `garment` and `side` in case
-      metadata. Dev garment-sides with several photos are also reported per
-      photo
-- [x] Scorer tests, offline, synthetic values only, so they run in CI
-- [x] Replay mode: rescore a saved report's reads through `from_reading()`,
-      no API call. Records the source report and the scoring commit; every
-      replay's output is saved
-- [ ] `--holdout` flag: runs the test manifest, prints totals only
-- [x] Eval provenance: the header records the photos sent (by `id`), the
-      user message and the library versions; `--baseline` warns when they
-      differ. Replaces the manual photo-hash and pip freeze steps
-- [ ] Usage / cost capture in code (SG billing?): before the model
-      comparison. Run 0's spend is read off the Anthropic console before
-      and after, and recorded in BASELINES.md
-- [x] Schema fingerprint: the output schema in its own `schema` header
-      field, beside `prompt`, so `prompt` still matches the current
-      baseline's; `--baseline` warns when it differs
-- [ ] Spend cap: print the call count up front, confirm past a threshold,
-      before the model comparison
-- [ ] Model identity: if `response.model` returns only `claude-sonnet-5`, a
-      model change can't be told from a prompt change in a run diff. Before
-      the model comparison
-- [ ] ADR-0006's unit in the report: each positive garment-side's correct
-      reads summed over its photos (the garment-sides table counts photos;
-      until then, sum by hand from base per photo). Same branch:
-      `PerPhotoCounts`' docstring and `TestPerPhotoCounts`' still call it
-      ADR-0006's table. Before the first iteration
-- [ ] Hash the bytes actually sent: `photo_hashes` hashes the file, so a
-      rotation by `upright()` (`p04`'s) doesn't show in it. Its own branch,
-      before the next paid run
-- [ ] ADR-0006: how a fix ADR-0002 requires to the photo sent to the model
-      is judged while dev is saturated (PR #61 merged one with a Must fix
-      noted). Before the next such fix
-- [ ] One definition of what the model is sent, which `/open-pr`'s *Eval*
-      bullet and the reviewer's *Prompt contract* check both point to.
-      Today they differ: only the reviewer counts the user message and
-      the image handling in `labels/photo.py`; only `/open-pr` has the
-      `model_json_schema()` exception. Replace the reviewer's
-      `git diff <cited-tag>` coverage check, read by hand today, with a
-      comparison of the header fingerprints; the image's needs the
-      sent-bytes hash above. With the ADR-0006 item above, before the
-      first iteration
-- [x] HEIC: the form and the CLI reject it before any API call
-      (`ACCEPTED` in `labels/pipeline.py`). `pillow-heif` is the option if
-      desktop HEIC uploads turn out to matter
+Before:
+- [ ] **test-set-design**. Decision: the rule that picks test garments
+      (e.g. the next N off the rail, fixed before the session, not by eye);
+      which sides count; one read or majority of 3; a minimum per format
+      family; double labelling; second shots (one per garment-side to test,
+      the rest to dev or dropped); product overlap (garments sharing a
+      product never split across dev and test). Rules go in ADR-0002
+- [ ] **gate-power**: the gate's pass probability at true rates of 70%,
+      80% and 90%, and the 95% interval on a bare pass, on garment-sides
+      as ADR-0002 counts them, resampled by garment for the interval.
+      Input to **test-set-design** (is 30 garments enough);
+      the result goes in ADR-0002
+- [ ] **incoming-photos**: 19 photos received 2026-11-03, in
+      `images/incoming-2026-11/` (about 9 garments, several shots each, 4
+      not upright). Sort into dev or test by **test-set-design**, check
+      against garments already in dev, rotate by hand. Not in the manifest
+      and not run until then
+- [ ] **test-photographer**. Decision: who takes the test photos: some by
+      staff, or note the single capture regime as a limitation
+- [ ] **label-source-rule**: `evals/README.md`: the catalogue may prompt a
+      re-check, never supply a label value
 
-### Runs (development only)
-- [x] Replay the 2026-10-08 baseline's saved reads (free): the first
-      base-exact number. In-sample (the split was designed against these
-      failures), so a sanity check, not evidence
-- [x] Run 0: paid, the current dev set, `--repeat 3`, without waiting for
-      the photo session; recorded as the new baseline, not judged (ADR-0002,
-      ADR-0006). `p34`–`p55` and `p58` (`p35`'s upright copy) also
-      reported separately: the first out-of-sample reads. Nothing the model
-      sees changes before it, so its `p01`–`p33` reads compare directly
-      with the 2026-10-08 reads, photo by photo, for photos that weren't
-      replaced by an upright rotation (md5 ledger). Garment-side and
-      whole-set totals don't compare
-- [x] EXIF orientation: every path (CLI, web form, harness) sends the photo
-      as a person sees it. `transcribe_art` applies the tag
-      (`labels/photo.py`); untagged photos go out byte-for-byte. One dev
-      photo is tagged, `p04` (orientation 6, which `sips` doesn't report):
-      earlier runs sent it sideways (BASELINES.md, 2026-11-02 ledger row)
-- [ ] Dev set grows once, at the photo session (*Photos*). Then the accepted
-      configuration is re-run on the grown set, `--repeat 3`, and recorded
-      as the new baseline, not judged; EXIF orientation (above) first. Dev
-      freezes when that baseline is recorded; new photos go to test
-      (ADR-0002)
-- [x] Prompt-change policy for phase 1 runs (ADR-0006)
-- [ ] Iterations, until dev clears 80% with a margin. The margin is
-      undecided: set it after run 0 and before the first iteration,
-      informed by how run 0's out-of-sample photos compare with the rest. If it becomes a
-      rule, it goes in ADR-0002. Candidates: image resizing?, compare
-      models (Sonnet, Opus, Haiku: check current versions), prompt gives
-      character classes, never lengths (ADR-0001, *Trust rules*: decide
-      first whether the prompt may describe formats). Format-specific
-      prompt changes, character classes included, wait until every format
-      family is in dev (the photo session)
-- [ ] Once dev clears 80%: revisit a "no worse" path for a cheaper or
-      faster model (ADR-0006). If you want one, decide its rule before
-      running it: compared against the last model accepted on wins, with
-      usage / cost capture in place
-- [ ] Replace `ART_PROMPT`'s real examples with invented ones: 8–9
-      characters, one with a leading zero, checked not to be catalogue keys
-      or test-set codes (pass/fail, no rows printed)
-- [ ] Barcode guidance in the prompt
+During:
+- [ ] **photo-session**: reach ~70 development photos and ~30 test garments
+      (one photo per garment-side for test), upright, every format family
+      in both sets, `si_alpha` included. New garments split between dev and
+      test by **test-set-design**; the dev set grows only here. Run the
+      timing study at the same session
+- [ ] **replacement-count**: record how many shots were replaced or
+      retaken (not readable, not upright, no code), so the readable-only
+      gate rate can be read against field conditions. In BASELINES.md
+      beside the test md5
 
-### Gate
-- [ ] Gate attempt on the test set, from a tagged commit; at most 3 in
-      phase 1, totals only (ADR-0002). Not before `ART_PROMPT`'s real
-      examples are replaced. The report says sides of one garment aren't
+After:
+- [ ] **label-photos**: label every photo by eye (`garment`, `side`,
+      `expected_art_line`, `expected_art_base`). Re-check by eye every
+      `expected_art_base` that isn't a catalogue key. Convert any HEIC
+      export to JPEG before it enters `evals/photos/`
+- [ ] **test-set-check**: every test photo meets ADR-0002's test-set rules
+      before the split is frozen
+- [ ] **freeze-test**: split by garment; freeze the test manifest (md5 in
+      BASELINES.md)
+
+### Grown-set baseline
+- [ ] **sent-bytes-hash**: `photo_hashes` hashes the file, so a rotation by
+      `upright()` (`p04`'s) doesn't show in it. Its own branch, before any
+      paid run
+- [ ] **model-identity**: pin the dated snapshot the alias resolves to
+      today, and record the reported model name and token usage from the
+      run result (outside `Extraction`) in the run header. Also the model
+      settings sent (thinking, effort, max tokens, timeout) in a
+      `model_settings` header field, with `--baseline` warning on a
+      difference; set explicitly at today's defaults. Before
+      **grown-baseline**, so it runs on a known model; like the pinned
+      snapshot, the baseline absorbs it (**adr-0006-saturated**)
+- [ ] **retries**: set the client's and the agent's output retries
+      explicitly (CLAUDE.md, *Engineering constraints*); each retry is
+      another paid call. Log the request count per call; record worst-case
+      latency in CLAUDE.md. Same branch as **model-identity**
+- [ ] **results-backup**: back up `evals/results/` after each paid run,
+      until **dvc-eval-set** covers it; the reports are the only record of
+      paid reads, and `--replay` needs them
+- [ ] **grown-baseline**: re-run the accepted configuration on the grown dev
+      set, `--repeat 3`, recorded as the new baseline, not judged. Dev then
+      freezes; new photos go to test (ADR-0002). Expect "versions line
+      differs" against run 0 (`pillow` added, PR #61); record it in the
+      run's row
+
+### Iterations
+
+#### Before the first
+- [ ] **margin**. Decision: the dev margin above 80%, informed by how run
+      0's out-of-sample photos compare with the rest (BASELINES.md). If it
+      becomes a rule, it goes in ADR-0002. Due now: run 0 is in
+- [ ] **adr-0006-unit**: ADR-0006's unit in the report, each positive
+      garment-side's correct reads summed over its photos (the garment-sides
+      table counts photos; until then, sum by hand from base per photo).
+      Same branch: `PerPhotoCounts`' docstring and `TestPerPhotoCounts`'
+      still call it ADR-0006's table; and the report prints ADR-0006's
+      verdict (wins, losses, threshold, guardrail), not a hand count
+- [ ] **adr-0006-saturated**. Decision: how ADR-0006 judges changes while
+      dev is saturated (4 garment-sides can win; the rule needs 6): fixes
+      ADR-0002 requires to the photo sent (PR #61 merged one with a Must
+      fix noted), and a no-worse path for hygiene changes (pinned
+      snapshot, **invented-examples**). Also: if **model-identity** pins
+      today's snapshot before **grown-baseline**, the baseline absorbs it
+      with no judged run. Also before the next input-side fix
+- [ ] **one-prompt-definition**: one definition of what the model is sent,
+      which `/open-pr`'s *Eval* bullet and the reviewer's *Prompt contract*
+      check both point to. Today they differ: only the reviewer counts the
+      user message and the image handling in `labels/photo.py`; only
+      `/open-pr` has the `model_json_schema()` exception. Replace the
+      reviewer's `git diff <cited-tag>` coverage check, read by hand today,
+      with a comparison of the header fingerprints; the image's needs
+      **sent-bytes-hash**. With **adr-0006-saturated**
+- [ ] **flagged-rename**: rename the harness's "flagged but correct" to
+      "ambiguous but correct": it counts `ambiguous_characters`, not
+      `needs_review`, so `evals/README.md` and BASELINES.md describe it
+      wrongly in the reports iterations are judged on
+
+#### Before the model comparison
+- [ ] **cost-capture**: usage / cost capture in code (SG billing?). Run 0's
+      spend was read off the Anthropic console before and after, and
+      recorded in BASELINES.md
+- [ ] **spend-cap**: print the call count up front, confirm past a
+      threshold
+
+#### Candidates
+- [ ] **iterations**: one change per run, until dev clears 80% with
+      **margin**. Candidates: image resizing?, compare models (Sonnet,
+      Opus, Haiku: check current versions; after *Before the model
+      comparison*), prompt gives character classes, never lengths
+      (ADR-0001, *Trust rules*: decide first whether the prompt may describe
+      formats). Format-specific prompt changes, character classes included,
+      wait until every format family is in dev (**photo-session**)
+- [ ] **front-label-location**: a prompt line on where the code sits on a
+      front label; every run 0 miss is a front read as `not_visible`
+      (BASELINES.md). After **grown-baseline**: 4 misses can't prove a fix
+- [ ] **barcode-guidance**: barcode guidance in the prompt
+- [ ] **cheaper-model**: once dev clears 80%, revisit a "no worse" path for
+      a cheaper or faster model (ADR-0006). If you want one, decide its rule
+      before running it: compared against the last model accepted on wins,
+      with **cost-capture** in place
+
+### Gate attempt
+- [ ] **invented-examples**: replace `ART_PROMPT`'s real examples with
+      invented ones: 8–9 characters, one with a leading zero, checked not to
+      be catalogue keys or test-set codes (pass/fail, no rows printed)
+- [ ] **holdout-flag**: `--holdout` runs the test manifest, prints totals
+      only
+- [ ] **gate-attempt**: on the test set, from a tagged commit; at most 3 in
+      phase 1, totals only (ADR-0002). After **invented-examples** and
+      **holdout-flag**. The report says sides of one garment aren't
       independent: a pass isn't proof of 80%
 
-## Later
-- [ ] Phase 2: staff trial. Staff confirm or correct every result before it's
-      recorded (ADR-0002, *Context*); acceptance criteria agreed with the
-      product team. The result page shows the ART number only: decoder flags
-      and product name hidden, code kept
-- [ ] Before the staff trial: the run rule for later runs (ADR-0006
-      revisit), with ADR-0001's per-run rule
-- [ ] Before the staff trial: capture guidance in the web UI: the photo
-      must be upright (ADR-0002)
-- [ ] Before the staff trial: measure real phone uploads through the form
+## Staff trial
+Phase 2. Its order relative to *Gate attempt* is undecided
+(**capture-route**).
+
+- [ ] **capture-route**. Decision (founder): a photo session, or capture in
+      the app. App capture moves this section before *Gate attempt*, and
+      needs an ADR-0002 amendment first, because staff would use the tool
+      before it passes the gate
+- [ ] **mvp-scope**. Decision (founder): A = confirm or edit, then store;
+      B = A plus the Google Sheet push (recommended); C = B plus catalogue
+      lookup (later; matching is untested)
+- [ ] **catalogue-required**: the app refuses to start without the
+      catalogue (today `load_catalogue()` returns `{}` and every read shows
+      as a miss, unflagged), plus a `/health` route. App only: the CLI,
+      tests and CI still run without it
+- [ ] **privacy-adr**: a Certilogo code is never shown as a code, never in
+      an identifying field and never logged; it is stored alongside the
+      photo. Also: the logging allowlist (enums and fingerprints only,
+      never `asdict(extraction)`), where stored photos and results live and
+      for how long, what goes to the Google Sheet, and what tracing may
+      record. Before **observability**
+- [ ] **web-hardening**: CSRF, rate limits, security headers, upload
+      checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type logged
+      with the raw error hidden, gunicorn timeouts, and a kill switch: an
+      environment flag that stops model calls and falls back to manual
+      entry
+- [ ] **hosting**: the staff app is a TypeScript frontend calling a Python
+      API (decided). A Docker image of the Python side can come first:
+      local only, catalogue mounted at run time and never baked in,
+      gunicorn timeout above the worst-case call (**retries**); it needs no
+      deploy and no **privacy-adr**. ADR before the API and frontend split,
+      which changes CLAUDE.md's *Flow* (`app/` is a Flask app today). Then
+      deploy on a managed host, with auth at the platform edge; Terraform
+      later (**mlops-stack**)
+- [ ] **mvp-confirm**: the confirm-or-edit screen in TypeScript (photo →
+      read → confirm or edit), storing the photo, the read, the final value
+      and the time taken. Scope set by **mvp-scope**
+- [ ] **sheets-push**: the confirmed ART number goes into the existing
+      Google Sheet. If **mvp-scope** is B
+- [ ] **observability**: one allowlisted record per read (**privacy-adr**):
+      request ID, version (commit, prompt fingerprint, model), latency,
+      tokens, cost, status, `needs_review` reasons, catalogue outcome, staff
+      confirmation or edit, and input size, dimensions and whether it was
+      rotated. Never a code, product name or photo filename. Alerts on
+      daily spend, error rate, the `not_visible` rate and p95 latency
+- [ ] **result-provenance**: each recorded result carries the model ID and
+      prompt fingerprint that produced it, so a corrected result traces to
+      its configuration
+- [ ] **audit-sample**: check a random sample of confirmed results by eye
+      now and then, and log the outcome; a confirmation isn't ground truth
+- [ ] **later-run-rule**: the run rule for later runs (ADR-0006 revisit),
+      with ADR-0001's per-run rule
+- [ ] **upright-guidance**: capture guidance in the web UI: the photo must
+      be upright (ADR-0002)
+- [ ] **phone-upload-size**: measure real phone uploads through the form
       (size, dimensions) against the API's per-image limit. `upright()`
-      re-encodes a tagged photo, and `p04` came out 16% larger
+      re-encodes a tagged photo, and `p04` came out 16% larger. If near the
+      limit, shrink only photos above it, on its own branch (resizing is an
+      iteration variable)
+- [ ] **staff-trial**: staff confirm or correct every result before it's
+      recorded (ADR-0002, *Context*); acceptance criteria agreed with the
+      product team. The result page shows the ART number only: decoder
+      flags and product name hidden, code kept
+
+## Later
+- [ ] **feedback-loop**: production photos join an eval set only after
+      labelling by eye, independently of the model and of staff
+      corrections. Dev is frozen, so they go to test or a new set
+      (ADR-0002, **test-set-design**). After **staff-trial**
+- [ ] **monitoring**: review rate, correction rate, latency, and the
+      `not_visible`, catalogue miss and `corrected` rates and format-family
+      mix against the current baseline's, once there's traffic. A jump
+      means a capture problem or a model change
+- [ ] **pillow-heif**: if desktop HEIC uploads turn out to matter (the form
+      and the CLI reject HEIC today)
+- [ ] **content-sniff**: detect the image type from the bytes, not the
+      extension or the browser's mimetype
+- [ ] **run-history**: a table at the top of BASELINES.md, one row per run
+      (date, the variable changed, tag, fingerprint, base-exact per
+      garment-side, guardrail, cost, rule result), linked from README
+- [ ] **portfolio-docs**: a model card, an ADR index (0003 and 0004
+      listed as reserved, not yet written), a short note on why
+      the process is heavy, a README line on `/explore` and briefs, and a
+      README section, *How it's operated*, linking provenance, ledgers, the
+      privacy hooks, CI and cost capture. For one line per change, point
+      readers at the PR list or `git log --first-parent --oneline main`
+      (merge commits titled by PR title)
+- [ ] **mlflow-tracking**: log runs to MLflow with cost (**cost-capture**),
+      backfilled with run 0 and the replay. Params and metrics only;
+      anything else as **privacy-adr** allows
+- [ ] **zenml-eval-pipeline**: a ZenML pipeline that orchestrates the eval
+      harness (today `tests/eval_transcription.py`); scoring stays in one
+      place. After **packaging** and **adr-0006-unit**: its promotion step
+      uses the report's verdict
+- [ ] **dvc-eval-set**: version the manifest, photos and `evals/results/`
+      (and the catalogue, if it should be restorable) with DVC, local
+      remote only (an external drive or an encrypted disk image), never a
+      cloud remote, and with the founder's agreement (Street Garms' data).
+      Git gets only `.dvc` hashes; check one against `check_private.py`
+      before the first commit
+- [ ] **mlops-stack**: MLflow Tracing, Terraform: add a tool only when it
+      solves a problem the repo has
+- [ ] **reviewer-eval**: plant known defects on a scratch branch and count
+      what the reviewer catches; shares setup with **mutation-test**
 
 ### Backlog
-Not measured by the phase 1 gate. Kept for when flags, the catalogue lookup
-or unconfirmed results come into scope.
+Not measured by the phase 1 gate, and blocking no milestone. Kept for when
+flags, the catalogue lookup or unconfirmed results come into scope, or for
+a quiet moment.
 
-- [ ] Split steps 4 (product decisions, one per branch) and 5 (renames,
-      including `matched_art` → `resolved_key`, `miss` → `no_key`;
-      GLOSSARY.md, *Renamed*)
-- [ ] Scorer, flags: per read, flagged and silent error (wrong and not
+- [ ] **split-steps-4-5**: split steps 4 (product decisions, one per branch)
+      and 5 (renames, including `matched_art` → `resolved_key`, `miss` →
+      `no_key`; GLOSSARY.md, *Renamed*)
+- [ ] **flag-scorer**: per read, flagged and silent error (wrong and not
       flagged); per garment-side, silent error if any read is, unflagged if
       2 of 3 reads are correct and unflagged. Prints correct/wrong ×
       flagged/unflagged, silent errors split by catalogue outcome (a wrong
       exact hit vs `no_key`). Align GLOSSARY.md's *silent error* with the
       ADRs on a clean read of an illegible photo. Needed before any result
       is used without a person confirming it (ADR-0002)
-- [ ] Wrong-and-unflagged replay against `expected_art_base`, a diagnostic
-      once the flag scorer exists (ADR-0001, *Evidence*, measured 18 of 84
-      against `expected_art_number`)
-- [ ] Scorer, catalogue: correct = the catalogue result is right for
+- [ ] **mutation-test**: one mutation-testing run over `needs_review` in
+      `pipeline.py` and `split_art_line`; add a test for each surviving
+      mutant. Once, not in CI. Before results are used unconfirmed, with
+      **flag-scorer**
+- [ ] **silent-error-replay**: wrong-and-unflagged replay against
+      `expected_art_base`, a diagnostic once **flag-scorer** exists
+      (ADR-0001, *Evidence*, measured 18 of 84 against
+      `expected_art_number`)
+- [ ] **catalogue-scorer**: correct = the catalogue result is right for
       `expected_art_base` (`resolved_key` equals it if it's a catalogue key,
       else `no_key` and `art_base` equals it). Adds the catalogue md5 to the
       run fingerprint
-- [ ] Line-exact per photo, for dev diagnosis
-- [ ] Error types per read: missed, confusion-pair swap, other single edit,
-      joined text, wrong line, invented. Replaces CER, or CER stays
+- [ ] **line-exact**: line-exact per photo, for dev diagnosis
+- [ ] **error-types**: per read, missed, confusion-pair swap, other single
+      edit, joined text, wrong line, invented. Replaces CER, or CER stays
       dev-only
-- [ ] `expected_legibility` (readable / illegible / absent) and an excluded
-      count, if dev needs illegible photos scored apart. Classify it in
-      `MANIFEST_COLUMNS` first, add it to GLOSSARY.md
-- [ ] Fake-read mode (a read returning `expected_art_line`), then delete
+- [ ] **expected-legibility**: `expected_legibility` (readable / illegible /
+      absent) and an excluded count, if dev needs illegible photos scored
+      apart. Classify it in `MANIFEST_COLUMNS` first, add it to GLOSSARY.md
+- [ ] **fake-read-mode**: a read returning `expected_art_line`, then delete
       `tests/report_split_on_truth.py`
-- [ ] multi_line (a newline in the read): undecided; only if a dev run
+- [ ] **multi-line**: a newline in the read; undecided, only if a dev run
       shows one
-- [ ] Whether the possible-counterfeit flag stays a review reason
-      (ADR-0005, *Flag table*). Season, year, brand and garment decoding
-      stay for display; the season precedence fix (*Bugs and decisions*)
-      decides the source on a catalogue hit
-- [ ] ADR-0004, the catalogue rules: catalogue misses (leaning: every miss
-      flags); the confusion-pair margin; bare/compound pairs (ADR-0001,
-      *Pending decisions*), fused pairs included; whether a confident hit
-      relaxes no season in the code (`season_not_in_code`, ADR-0005). Same
-      PR: `review_reasons`, CLAUDE.md's invariant and its restatements
-      (GLOSSARY.md's catalogue outcome, "deliberately doesn't"; README.md,
-      *Deliberate choices*), and the tests it inverts:
+- [ ] **counterfeit-flag**. Decision: whether the possible-counterfeit flag
+      stays a review reason (ADR-0005, *Flag table*). Season, year, brand
+      and garment decoding stay for display; **season-precedence** decides
+      the source on a catalogue hit
+- [ ] **adr-0004**. Decision: the catalogue rules: catalogue misses
+      (leaning: every miss flags); the confusion-pair margin; bare/compound
+      pairs (ADR-0001, *Pending decisions*), fused pairs included; whether a
+      confident hit relaxes no season in the code (`season_not_in_code`,
+      ADR-0005). Same PR: `review_reasons`, CLAUDE.md's invariant and its
+      restatements (GLOSSARY.md's catalogue outcome, "deliberately
+      doesn't"; README.md, *Deliberate choices*), and the tests it inverts:
       `test_catalogue_miss_does_not_flag`,
       `test_pin_catalogue_miss_does_not_flag` and the split's pin tests
       (ADR-0005's accepted costs), named when they're written. Drafted from
       run 0's baseline (ADR-0001, *Pending decisions*)
+- [ ] **doc-ref-test**: a test that the references in tracked docs resolve
+      (files, symbols, test names), and that every name in *Next* is an
+      open item; the reviewer's *Docs* check then drops that question
+- [ ] **ledger-files**: `hooks/check_private.py`: take `TODO.md` out of
+      `LEDGER_FILES`, so ledgers live only in `evals/BASELINES.md`
+      (stricter; a `hooks/` change, needs sign-off)
+- [ ] **claude-md-trim**: CLAUDE.md, docs branch: install row says
+      `core.hooksPath` is yours, once per clone (agents are denied it); one
+      line on private-data reads matching `.claude/settings.json`, with
+      "eval, real" marked paid and run only when asked (test-set rules: link
+      ADR-0002); merge the two `evals/README.md` rows of the one-home table
+      and fold *Where to look* into it; line numbers to names; PR mechanics
+      into `/open-pr`, keeping the approval stop, never merging, one topic
+      per branch and no plan changes in passing; README's derived counts:
+      drop them or name their source; move the eval-run working rules to
+      `evals/README.md`; point the code-shaped allowlist at
+      `PATTERN_EXEMPT_*` rather than restating it
+- [ ] **cli-errors**: `cli()` in `main.py` prints a traceback on an API
+      failure; `capture()` in `app/routes.py` already handles it
+- [ ] **harness-types**: `get_art_number_reading` guesses the image type
+      itself, not through `ACCEPTED`. A HEIC in the manifest would fail at
+      the API
+- [ ] **reviewer-repeat**: on the next branch with a full review, run
+      round 1 twice on the same SHA and compare the reports. Evidence on
+      whether round-2 findings are noise
+- [ ] **pre-push**: `check_private.py --each-commit` plus `hooks/pre-push`
+      running it, replacing `/open-pr` step 5's shell loop and catching
+      `git commit -n`. Its docstring says `--file` and `--text` apply no
+      exemptions. `hooks/README.md` becomes the one home for the check's
+      output messages, which `/open-pr` and the reviewer classify; fix the
+      stale "The reviewer's two patterns" comment in `check_private.py`. A
+      `hooks/` change, needs sign-off
+- [ ] **explore-trial**: use `/explore` on three real topics
+      (**season-precedence**, a vague idea, a design choice). Change the
+      skill only when a session goes wrong; if it feels scripted, loosen
+      the opening question first
+- [ ] **reviewer-report-format**: the reviewer's report has only the
+      sections its format defines (it once added "Files referenced", with
+      local paths)
+- [ ] **open-pr-scripts**: `/open-pr`'s placeholder check and
+      preconditions as a script; before a finding adds a sentence to a
+      skill, ask whether it can be a test
+- [ ] **ci-supply-chain**: LICENSE, Dependabot, zizmor, SHA-pinned actions,
+      pip-audit, secret scanning
+- [ ] **split-property-tests**: Hypothesis property tests for
+      `split_art_line`
+- [ ] **packaging**: `src/` layout and `uv_build`, removing the `sys.path`
+      hacks; the harness moves out of `tests/` into the package. Before
+      **zenml-eval-pipeline**
+- [ ] **slice-report**: base-exact by format family, side and image size
+      in the dev report, with a 95% interval beside each rate, resampling
+      by garment; run 0's front-side misses were found by hand. Dev only:
+      the test set stays totals-only (ADR-0002)
+- [ ] **ci-privacy-patterns**: run `check_private.py`'s pattern checks in
+      CI, if they can run without private values, so a clone without
+      `core.hooksPath` is still checked. A `hooks/` change, needs sign-off
 
 ### Bugs and decisions
-- [ ] Season precedence: on an exact catalogue hit the season comes from the
-      parser, so it can disagree with the product name, unflagged (~3% of
-      hits). A decision on which source wins; the rule then goes in CLAUDE.md
-- [ ] Brand can come out empty unflagged: no printed-brand fallback, so a
-      known season plus a catalogue miss gives `brand=None`. A `needs_review`
-      decision
-- [ ] CLI error handling: `cli()` in `main.py` prints a traceback on an API
-      failure; `capture()` in `app/routes.py` already handles it
-- [ ] 70 parser/catalogue season disagreements, untriaged
-      (`tests/report_art_number.py`): spot-check ten for parser bug vs
-      catalogue typo
-- [ ] Set the client's and the agent's output retries explicitly, log the
-      request count per call, record worst-case latency in CLAUDE.md
-- [ ] Season tables: `SI_SEASON` and `CP_MODERN_SEASON` are built by a
+- [ ] **season-precedence**. Decision: on an exact catalogue hit the season
+      comes from the parser, so it can disagree with the product name,
+      unflagged (~3% of hits). Which source wins; the rule then goes in
+      CLAUDE.md
+- [ ] **brand-empty**. Decision: brand can come out empty unflagged: no
+      printed-brand fallback, so a known season plus a catalogue miss gives
+      `brand=None`. A `needs_review` decision
+- [ ] **season-triage**: 70 parser/catalogue season disagreements,
+      untriaged (`tests/report_art_number.py`): spot-check ten for parser
+      bug vs catalogue typo
+- [ ] **season-tables**: `SI_SEASON` and `CP_MODERN_SEASON` are built by a
       comprehension over a range at import, the formula CLAUDE.md forbids.
       Write both as literal dicts; no change in behaviour
-- [ ] Privacy ADR: a Certilogo code is never shown as a code, never in an
-      identifying field and never logged; it is stored alongside the photo
 
 ### Out of phase 1
-- [ ] Data Matrix ADR (new number; 0002 is taken) and stage: decode, keep Data
-      Matrix only, parse `ART-Vnnnn-size-TOM…`. The payload's CLG tail is
-      dropped at parse and never stored, logged or raised; QR and Code 128
-      contents are never returned. The vision path must be complete when the
-      stage returns nothing
-- [ ] Capture guidance in the web UI: back tag with the square code in frame,
-      decode on upload, prompt for a retake if nothing decodes
-- [ ] ADR-0001 runs 2 (`text_orientation`, on its own rotated photos;
-      decides whether `sideways` blocks), 3 (`next_line`) and 4 (size,
-      brand, colour)
-- [ ] Catalogue index (ADR-0003)
-- [ ] Catalogue inspection: bare/compound duplicates, keys with a suffix
+- [ ] **data-matrix**: Data Matrix ADR (new number; 0002 is taken) and
+      stage: decode, keep Data Matrix only, parse `ART-Vnnnn-size-TOM…`. The
+      payload's CLG tail is dropped at parse and never stored, logged or
+      raised; QR and Code 128 contents are never returned. The vision path
+      must be complete when the stage returns nothing
+- [ ] **code-capture-guidance**: capture guidance in the web UI: back tag
+      with the square code in frame, decode on upload, prompt for a retake
+      if nothing decodes
+- [ ] **adr-0001-runs**: ADR-0001 runs 2 (`text_orientation`, on its own
+      rotated photos; decides whether `sideways` blocks), 3 (`next_line`)
+      and 4 (size, brand, colour)
+- [ ] **catalogue-index**: ADR-0003
+- [ ] **catalogue-inspection**: bare/compound duplicates, keys with a suffix
       typed on, odd-length rows. The Stone Island numeric era-length table
       only on ADR-0005's trigger
-- [ ] Parser unit tests beyond the split: format detection, the `len(s) >= 8`
-      guard, the `/181` strip, the `222` flag, the `'10'` carve-out. Season
-      assertions wait for the 70-row triage
-- [ ] `ArtNumberReading`'s docstring still says "framed on the ART number
-      tag"; it reaches the model, so change it on its own and measure it
-- [ ] Crop to the label region before the call (resizing is under *Runs*)
+- [ ] **parser-tests**: beyond the split: format detection, the
+      `len(s) >= 8` guard, the `/181` strip, the `222` flag, the `'10'`
+      carve-out. Season assertions wait for **season-triage**
+- [ ] **docstring-framing**: `ArtNumberReading`'s docstring still says
+      "framed on the ART number tag"; it reaches the model, so change it on
+      its own and measure it
+- [ ] **crop-to-label**: crop to the label region before the call (resizing
+      is an **iterations** candidate)
 
-### Housekeeping
-- [ ] Rename the harness's "flagged but correct" to "ambiguous but correct":
-      it counts `ambiguous_characters`, not `needs_review`, so
-      `evals/README.md` and BASELINES.md describe it wrongly
-- [ ] A test that the references in tracked docs resolve (files, symbols,
-      test names); the reviewer's *Docs* check then drops that question
-- [ ] `hooks/check_private.py`: take `TODO.md` out of `LEDGER_FILES`, so
-      ledgers live only in `evals/BASELINES.md` (stricter; a `hooks/`
-      change, needs sign-off)
-- [ ] CLAUDE.md, docs branch: install row says `core.hooksPath` is yours,
-      once per clone (agents are denied it); one line on private-data reads matching
-      `.claude/settings.json`, with "eval, real" marked paid and run only
-      when asked (test-set rules: link ADR-0002); merge the two
-      `evals/README.md` rows of the one-home table and fold *Where to look*
-      into it; line numbers to names; PR mechanics into `/open-pr`, keeping
-      the approval stop, never merging, one topic per branch and no plan
-      changes in passing
+## Inbox
+Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
+sort them into a section.
