@@ -75,8 +75,9 @@ or model is a run under *Runs*, one per run.
       noted). Before the next such fix
 - [ ] One definition of what the model is sent, which `/open-pr`'s *Eval*
       bullet and the reviewer's *Prompt contract* check both point to.
-      Today they differ: only the reviewer counts the user message; only
-      `/open-pr` has the `model_json_schema()` exception. Replace the
+      Today they differ: only the reviewer counts the user message and
+      the image handling in `labels/photo.py`; only `/open-pr` has the
+      `model_json_schema()` exception. Replace the
       reviewer's `git diff <cited-tag>` coverage check, read by hand
       today, with a comparison of the header fingerprints. With the
       ADR-0006 item above, before the first iteration
