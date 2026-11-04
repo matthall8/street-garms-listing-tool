@@ -1,7 +1,7 @@
 # ADR-0006: Decision rule for prompt changes
 
 - **Status:** Accepted. Phase 1 only; the rule for later runs is set before
-  the staff trial (TODO.md, *Later*).
+  the staff trial (TODO.md, *later-run-rule*).
 - **Date:** 2026-09-25. Moved from `TODO.md` 2026-10-19, word for word.
   Links to `TODO.md` sections updated 2026-10-22 after ADR-0002, and its
   phase 1 metric 2026-10-28 after ADR-0002's amendment. Updated 2026-10-30
@@ -13,14 +13,16 @@
 A change needs a rule for when its eval result counts as a win, fixed before
 any result exists so the result can't move it. ADR-0002 judges phase 1 runs
 on base-exact; the rule as first written counted `missed` per photo. The
-development set is small (about 70 photos), so the rule must work when few
+development set is small (ADR-0002), so the rule must work when few
 garment-sides change.
 
 ## Decision
 
 **Scope:** phase 1 development runs, for any change to what the model sees:
 the prompt, user message, schema, image handling, model or model settings.
-It replaces the rule as first written outright. Before the staff trial, it
+It replaces the rule as first written outright. A model pin is the
+exception: recorded, not judged (ADR-0002, *Rules for the test set*).
+Before the staff trial, it
 is revisited to set the rule for later runs, including the guardrails
 ADR-0001's per-run rule cites.
 
@@ -80,7 +82,7 @@ result (ADR-0002). It returns with ADR-0002's silent-error bar. `missed` and
   than the test it cites, and with per-read scores, noise on hard photos
   alone could reject a real gain.
 - **A "no worse" path for a cheaper or faster model:** revisited once dev
-  clears 80% (TODO.md, *Runs*). Until then, phase 1 needs better reads, and
+  clears 80% (TODO.md, *cheaper-model*). Until then, phase 1 needs better reads, and
   with this few garment-sides "not detectably worse" is weak evidence.
 - **Keeping the overconfident guardrail as a veto:** rejected for phase 1.
   It guards against unseen publishing, which phase 1 doesn't allow.
@@ -97,6 +99,6 @@ below refers to, is in `evals/BASELINES.md`, *Previous baselines (archived set)*
 The rule as first written also required confirming a pass on photos outside
 this set before merging, because a pass here is in-sample. That condition was
 **waived for this merge** by decision, on confidence that the change is better
-generally. It still applies in spirit: when new photos are added (TODO.md,
-*Photos*), run the previous and current baselines on them and check the
-gain holds.
+generally. It still applies in spirit: when photos join the development
+set (a failed test set, ADR-0002), run the previous and current baselines
+on them and check the gain holds.

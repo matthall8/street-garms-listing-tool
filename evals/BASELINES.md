@@ -57,7 +57,7 @@ designed against the 2026-10-08 reads; the rest (`p01`–`p33` survivors,
 
 Out-of-sample is 13.8 points higher on garment-sides, and 20.0 points
 higher on photos and reads. The margin is a separate decision (TODO.md,
-*Runs*, Iterations).
+*margin*).
 
 **Wrong positive garment-sides.** All 18 wrong reads are `not_visible` with
 no characters returned: no wrong line, misread character or split failure.
@@ -87,7 +87,7 @@ photo, against the 2026-10-29 replay:
 
 One flip: `p11` (`g06` front), 0 of 3 → 3 of 3, the same on all three
 reads. Nothing the model sees changed, so it is read-to-read noise or a
-model change behind the undated alias (TODO.md, *Code*, model identity);
+model change behind the undated alias (TODO.md, *model-identity*);
 the reports can't tell which. Within this run every photo read
 identically, so read-to-read noise is the less likely explanation, though
 the reports can't rule it out. No other photo's correct-read count changed.
@@ -184,7 +184,7 @@ reads. No failures.
 | legacy exact, positives | 56.0% (47 of 84) |
 
 - In-sample: the split was designed against these reads, so this is a
-  sanity check, not evidence (TODO.md, *Runs*).
+  sanity check, not evidence.
 - `p34`–`p55` have no saved reads, so they aren't scored.
 - No read is legacy-exact and base-wrong.
 - Legacy exact is 47 here against the baseline's 39 on the same reads,

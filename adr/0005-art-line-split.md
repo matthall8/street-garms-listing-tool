@@ -133,8 +133,8 @@ Changing a value is a product decision.
   lengths per era (frozen data, decided by a person) is built only if any
   replay or eval shows an SI 8↔9 disagreement: a read `art_base` one
   character longer or shorter than `expected_art_base`, both valid lengths.
-  Don't wait for a silent error: a 30-garment test set is unlikely to
-  produce one.
+  Don't wait for a silent error: a test set of ADR-0002's size is
+  unlikely to produce one.
 - **Spaces.** The saved reads are the code alone, so they say little about
   how faithfully the model copies spaces across a whole line. Revisit the
   separator rule with run 1's reads.

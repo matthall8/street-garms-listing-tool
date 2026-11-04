@@ -5,7 +5,7 @@ ADR-0005's rule not fitting a real label.
 
 Prints shapes, never values: D a digit, A an upper-case letter, a a lower-case
 one, anything else as printed, non-ASCII escaped. Retired by the scorer's
-fake-read mode (TODO.md, Code).
+fake-read mode (TODO.md, *fake-read-mode*).
 
     python tests/report_split_on_truth.py
 """
