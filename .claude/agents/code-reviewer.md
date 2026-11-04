@@ -26,7 +26,8 @@ reads (its `Read(...)` ask and deny rules), and never ask to.
 - `git log main..HEAD`: the commits, and what they intend
 - `git diff main...HEAD`: everything committed on this branch
 - `git diff HEAD`: uncommitted changes to tracked files
-- `git status --short`: untracked files (`??`), which neither diff shows
+- `git status --short --untracked-files=all`: untracked files (`??`),
+  each one listed even inside a new folder, which neither diff shows
 
 If all three views are empty, say "Nothing to review" and stop. If `main` is
 missing, say so and stop rather than choosing another base.
@@ -128,12 +129,13 @@ This project:
 - **Prompt contract.** Anything sent to the model is the prompt: the prompt
   constants, the user message built in `transcribe_art`, the reading
   schemas in `schemas.py` (docstrings, field names, field order,
-  descriptions), the model strings and `MODEL_SETTINGS`. A change to
+  descriptions), the model strings, `MODEL_SETTINGS`, and the image
+  handling in `labels/photo.py` (what `upright()` sends). A change to
   any of these needs an eval citation on the branch, in a commit message
   or in the baselines diff, giving the tag, the fingerprint and the
   decision-rule result. Missing citation: Must fix.
-  Check the eval covers this code: if
-  `git diff <cited-tag> -- labels/transcribe.py labels/schemas.py`
+  Check the eval covers this code: if `git diff <cited-tag> --
+  labels/transcribe.py labels/schemas.py labels/photo.py`
   (tag against the working tree, so uncommitted edits count) is not
   empty, read it. A changed line inside the prompt contract above means
   the eval doesn't cover it: Must fix. Otherwise it still does. Never
