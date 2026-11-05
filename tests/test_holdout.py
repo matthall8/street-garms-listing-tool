@@ -9,12 +9,33 @@ no test calls the model: `--model test` or a patched reader.
 import csv
 import hashlib
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import (
+    ContentFilterError,
+    ModelAPIError,
+    ModelHTTPError,
+    UnexpectedModelBehavior,
+)
+from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
+from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_evals.reporting import EvaluationReport, EvaluationReportAdapter
 
 import eval_transcription
-from eval_transcription import Check, gate_needed, gate_totals, holdout_checks, photo_of
+from eval_transcription import (
+    FAILURE_VOIDS,
+    Check,
+    ReadFailure,
+    classified_read,
+    failure_kind,
+    gate_needed,
+    gate_totals,
+    holdout_checks,
+    kind_of,
+    photo_of,
+)
 from labels import transcribe
 from labels.schemas import ArtNumberReading
 from tests import synthetic as s
@@ -23,6 +44,11 @@ RIGHT, WRONG = s.SPLIT_SI_9, s.SPLIT_SI_8   # reads of a held-out photo whose ba
 DEV_BASE = s.SPLIT_SI_ALPHA
 COLUMNS = ["id", "photo", "garment", "side", "expected_art_number", "expected_art_base", "note"]
 SUFFIX = Path(s.HOLDOUT_PHOTO).suffix
+# What a fake read does: a raw line read, None for a timeout (no answer), or
+# an exception to raise
+Read = str | BaseException | None
+SCHEMA = UnexpectedModelBehavior("Exceeded maximum output retries (1)")
+REFUSAL = ContentFilterError("Content filter triggered.")
 
 
 def side_row(i: int, **cells: str) -> dict:
@@ -122,10 +148,10 @@ def no_api(monkeypatch):
     monkeypatch.setattr(eval_transcription, "get_art_number_reading", fail)
 
 
-def fake_reads(monkeypatch, by_photo: dict[str, list[str | None]]) -> list[Path]:
-    """Each photo's reads in turn; None fails the read, with the path in its
-    message. Each read prints the photo too, so nothing a read prints may
-    escape. Returns the paths read, as they are passed."""
+def fake_reads(monkeypatch, by_photo: dict[str, list[Read]]) -> list[Path]:
+    """Each photo's reads in turn; None times out, with the path in its
+    message, and an exception is raised. Each read prints the photo too, so
+    nothing a read prints may escape. Returns the paths read, as passed."""
     queues = {name: iter(reads) for name, reads in by_photo.items()}
     seen = []
 
@@ -134,7 +160,9 @@ def fake_reads(monkeypatch, by_photo: dict[str, list[str | None]]) -> list[Path]
         print(f"reading {photo_path}")
         raw = next(queues[photo_path.name])
         if raw is None:
-            raise RuntimeError(f"read failed: {photo_path}")
+            raise ModelAPIError(model_name="test", message=f"timed out: {photo_path}")
+        if isinstance(raw, BaseException):
+            raise raw
         return ArtNumberReading(art_number_raw=raw, art_legible="clear")
 
     monkeypatch.setattr(eval_transcription, "get_art_number_reading", read)
@@ -514,7 +542,7 @@ class TestGateArithmetic:
         self, holdout, monkeypatch, capsys
     ):
         rows = holdout.write()
-        reads: dict[str, list[str | None]] = {r["photo"]: [RIGHT] * 3 for r in rows}
+        reads: dict[str, list[Read]] = {r["photo"]: [RIGHT] * 3 for r in rows}
         photo = [r["photo"] for r in rows]
         reads[photo[0]] = [WRONG, RIGHT, RIGHT]  # correct: 2 of 3
         reads[photo[1]] = [WRONG, WRONG, RIGHT]  # wrong
@@ -528,12 +556,12 @@ class TestGateArithmetic:
             "garment-sides correct: 13 of 15",
             "needed to pass: 12 (80% of 15, rounded up)",
             "reads correct: 39 of 45 (86.7%)",
-            "failed reads: 0",
+            "unusable answers: 0, counted as wrong",
         ]
         assert totals[5].startswith("wrote ") and "/results/" in totals[5]
         assert len(totals) == 6
         report, _ = holdout.saved()
-        assert gate_totals(report) == (15, 13, 12, 45, 39, 0)
+        assert gate_totals(report) == (15, 13, 12, 45, 39, 0, 0)
         assert (report.experiment_metadata or {})["void"] is False
 
 
@@ -542,7 +570,7 @@ class TestVoidRun:
 
     def run_with_one_failure(self, holdout, monkeypatch) -> int:
         rows = holdout.write()
-        reads: dict[str, list[str | None]] = {r["photo"]: [RIGHT] * 3 for r in rows}
+        reads: dict[str, list[Read]] = {r["photo"]: [RIGHT] * 3 for r in rows}
         reads[rows[0]["photo"]] = [RIGHT, RIGHT, None]   # still 2 of 3 correct
         fake_reads(monkeypatch, reads)
         return holdout.run("--model", "test")
@@ -554,7 +582,7 @@ class TestVoidRun:
         out = capsys.readouterr().out
         lines = out[out.index("held-out run:"):].splitlines()
         assert lines[:2] == ["held-out run: test at abc1234, --repeat 3, workers 1",
-                             "1 failed reads: run void, rerun"]
+                             "1 failed read: run void, rerun"]
         assert lines[2].startswith("wrote ") and len(lines) == 3
         for total in ("garment-sides correct", "needed to pass", "reads correct"):
             assert total not in out
@@ -569,7 +597,7 @@ class TestVoidRun:
         """Failed reads included; on a run that isn't void there are none."""
         self.run_with_one_failure(holdout, monkeypatch)
         report, _ = holdout.saved()
-        assert gate_totals(report) == (15, 15, 12, 45, 44, 1)
+        assert gate_totals(report) == (15, 15, 12, 45, 44, 1, 0)
 
     def test_a_void_report_is_still_refused_by_replay(self, holdout, monkeypatch, capsys):
         self.run_with_one_failure(holdout, monkeypatch)
@@ -577,3 +605,117 @@ class TestVoidRun:
         monkeypatch.setattr("sys.argv", ["eval", "--replay", str(path)])
         assert eval_transcription.main() == 1
         assert "is a --holdout report" in capsys.readouterr().out
+
+
+class TestFailureKinds:
+    """ADR-0002: a run is void only when the API gave no answer for a read.
+    An answer that fails the output schema after its retries, or a refusal,
+    is a wrong read."""
+
+    @pytest.mark.parametrize("error,kind", [
+        (FileNotFoundError("gone"), "missing photo"),
+        (ModelHTTPError(status_code=529, model_name="m"), "api error"),
+        (ModelAPIError(model_name="m", message="Request timed out."),
+         "connection error or timeout"),
+        (REFUSAL, "refusal"),
+        (SCHEMA, "unusable answer"),
+        (ValueError("unexpected"), "other"),
+    ])
+    def test_each_kind(self, error, kind):
+        assert failure_kind(error) == kind
+
+    def test_only_an_unanswered_read_voids(self):
+        assert {k for k, voids in FAILURE_VOIDS.items() if voids} == {
+            "missing photo", "api error", "connection error or timeout", "other"}
+
+    def test_a_failure_from_elsewhere_reads_as_other(self):
+        assert kind_of(SimpleNamespace(error_message="RuntimeError: boom")) == "other"
+        assert kind_of(SimpleNamespace(error_message="ReadFailure: made up: x")) == "other"
+
+    @pytest.mark.parametrize("error", [
+        None, ModelHTTPError(status_code=529, model_name="m"), FileNotFoundError("gone"),
+    ], ids=["timeout", "api error", "missing photo"])
+    def test_a_transport_failure_voids_the_run(self, holdout, monkeypatch, capsys, error):
+        rows = holdout.write()
+        reads: dict[str, list[Read]] = {r["photo"]: [RIGHT] * 3 for r in rows}
+        reads[rows[0]["photo"]] = [RIGHT, RIGHT, error]
+        fake_reads(monkeypatch, reads)
+        assert holdout.run("--model", "test") == 1
+        assert "1 failed read: run void, rerun" in capsys.readouterr().out
+        report, _ = holdout.saved()
+        [failure] = report.failures
+        kind = kind_of(failure)
+        assert FAILURE_VOIDS[kind]
+        assert failure.error_message.startswith(f"ReadFailure: {kind}: ")
+        meta = report.experiment_metadata or {}
+        assert (meta["void"], meta["read_failures"]) == (True, {kind: 1})
+
+    def test_two_failed_reads_say_reads(self, holdout, monkeypatch, capsys):
+        rows = holdout.write()
+        reads: dict[str, list[Read]] = {r["photo"]: [RIGHT] * 3 for r in rows}
+        reads[rows[0]["photo"]] = [RIGHT, None, None]
+        fake_reads(monkeypatch, reads)
+        assert holdout.run("--model", "test") == 1
+        assert "2 failed reads: run void, rerun" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("error,kind", [(SCHEMA, "unusable answer"), (REFUSAL, "refusal")])
+    def test_an_unusable_answer_is_wrong_in_both_totals(
+        self, holdout, monkeypatch, capsys, error, kind
+    ):
+        rows = holdout.write()
+        reads: dict[str, list[Read]] = {r["photo"]: [RIGHT] * 3 for r in rows}
+        reads[rows[0]["photo"]] = [RIGHT, RIGHT, error]   # still correct: 2 of 3
+        reads[rows[1]["photo"]] = [RIGHT, error, error]   # wrong
+        fake_reads(monkeypatch, reads)
+        assert holdout.run("--model", "test") == 0
+        out = capsys.readouterr().out
+        assert "garment-sides correct: 14 of 15" in out
+        assert "reads correct: 42 of 45 (93.3%)" in out
+        assert "unusable answers: 3, counted as wrong" in out
+        assert "void" not in out
+        report, _ = holdout.saved()
+        assert gate_totals(report) == (15, 14, 12, 45, 42, 0, 3)
+        meta = report.experiment_metadata or {}
+        assert (meta["void"], meta["read_failures"]) == (False, {kind: 3})
+
+    def test_a_mix_with_one_unanswered_read_is_void(self, holdout, monkeypatch, capsys):
+        rows = holdout.write()
+        reads: dict[str, list[Read]] = {r["photo"]: [RIGHT] * 3 for r in rows}
+        reads[rows[0]["photo"]] = [SCHEMA, REFUSAL, None]
+        fake_reads(monkeypatch, reads)
+        assert holdout.run("--model", "test") == 1
+        assert "1 failed read: run void, rerun" in capsys.readouterr().out
+        meta = holdout.saved()[0].experiment_metadata or {}
+        assert meta["read_failures"] == {
+            "connection error or timeout": 1, "refusal": 1, "unusable answer": 1}
+
+
+def schema_failure(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    """Output the schema rejects, on every attempt."""
+    return ModelResponse(parts=[ToolCallPart(tool_name=info.output_tools[0].name,
+                                             args={"art_legible": "bogus"})])
+
+
+def refusal(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    """An empty answer stopped by the model, as Anthropic's `refusal` maps."""
+    return ModelResponse(parts=[], finish_reason="content_filter",
+                         provider_details={"refusal": "declined"})
+
+
+class TestFailureKindsThroughPydanticAI:
+    """The kinds pydantic-ai really raises, through read_art and an agent
+    built as get_art_agent builds it, with a function in place of the API."""
+
+    @pytest.mark.parametrize("respond,kind", [
+        (schema_failure, "unusable answer"), (refusal, "refusal")])
+    def test_the_answer_kinds(self, tmp_path, monkeypatch, respond, kind):
+        agent = Agent(FunctionModel(respond), system_prompt=transcribe.ART_PROMPT,
+                      model_settings=transcribe.MODEL_SETTINGS, output_type=ArtNumberReading,
+                      retries={"output": transcribe.OUTPUT_RETRIES})
+        monkeypatch.setattr(transcribe, "get_art_agent", lambda model="": agent)
+        photo = tmp_path / s.HOLDOUT_PHOTO
+        photo.write_bytes(b"photo")
+        with pytest.raises(ReadFailure) as raised:
+            classified_read(photo, "test")
+        assert str(raised.value).startswith(f"{kind}: ")
+        assert not FAILURE_VOIDS[kind]

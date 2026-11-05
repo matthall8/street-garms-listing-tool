@@ -42,6 +42,12 @@ from pathlib import Path
 from typing import NamedTuple
 
 from pydantic import ValidationError
+from pydantic_ai.exceptions import (
+    ContentFilterError,
+    ModelAPIError,
+    ModelHTTPError,
+    UnexpectedModelBehavior,
+)
 from pydantic_evals import Case, Dataset, increment_eval_metric, set_eval_attribute
 from pydantic_evals.evaluators import (
     Evaluator,
@@ -548,27 +554,83 @@ def gate_needed(sides: int) -> int:
     return (GATE_PERCENT * sides + 99) // 100
 
 
+# Each kind of read that raises, and whether it voids a --holdout run.
+# ADR-0002: void only when the API gave no answer. An answer that fails the
+# output schema after its retries, or a refusal, is a wrong read. A kind not
+# recognised voids, so no total is seen from a run nobody can account for.
+FAILURE_VOIDS = {
+    "missing photo": True,
+    "api error": True,                      # the API answered with an error status
+    "connection error or timeout": True,
+    "other": True,
+    "refusal": False,
+    "unusable answer": False,               # the output schema, after its retries
+}
+
+
+def failure_kind(e: BaseException) -> str:
+    """A failed read's kind, from pydantic-ai's exceptions: they wrap the
+    Anthropic SDK's, which only labels/transcribe.py imports."""
+    if isinstance(e, FileNotFoundError):
+        return "missing photo"
+    if isinstance(e, ModelHTTPError):
+        return "api error"
+    if isinstance(e, ModelAPIError):        # the SDK's connection errors and timeouts
+        return "connection error or timeout"
+    if isinstance(e, ContentFilterError):   # before its parent class below
+        return "refusal"
+    if isinstance(e, UnexpectedModelBehavior):
+        return "unusable answer"
+    return "other"
+
+
+class ReadFailure(Exception):
+    """A held-out read that raised, re-raised with its kind first, so each
+    failure in the saved report records it: pydantic-evals saves a failure
+    as `ReadFailure: <kind>: <cause>`."""
+    def __init__(self, kind: str, cause: BaseException):
+        super().__init__(f"{kind}: {type(cause).__name__}: {cause}")
+
+
+def kind_of(failure) -> str:
+    """The kind a saved failure records; "other" if it records none."""
+    prefix = f"{ReadFailure.__name__}: "
+    message = failure.error_message or ""
+    kind = message.removeprefix(prefix).split(": ", 1)[0]
+    return kind if message.startswith(prefix) and kind in FAILURE_VOIDS else "other"
+
+
+def classified_read(photo_path: Path, model: str) -> ArtNumberReading:
+    try:
+        return get_art_number_reading(photo_path, model)
+    except Exception as e:
+        raise ReadFailure(failure_kind(e), e) from e
+
+
 class GateTotals(NamedTuple):
     sides: int          # positive garment-sides: one photo each, by the checks
     correct: int        # of those, correct by the 2-of-3 rule
     needed: int
-    reads: int          # every read, failed ones included
+    reads: int          # every read, failed and unusable ones included
     reads_correct: int
-    failed: int         # any makes the run void
+    failed: int         # reads the API gave no answer for: any makes the run void
+    unusable: int       # unusable answers and refusals: wrong reads
 
 
 def gate_totals(report: EvaluationReport) -> GateTotals:
-    """The gate's numbers. `reads` is every read: on a run that isn't void
-    no read failed, so it equals the reads scored. A misread counts as
-    wrong."""
+    """The gate's numbers, from a saved report alone. `reads` is every read:
+    a misread, an unusable answer and a refusal each count as a wrong one.
+    On a run that isn't void, no read failed."""
     sides = [p for p in bases_by_photo(report) if p.kind == "positive"]
+    voids = [FAILURE_VOIDS[kind_of(f)] for f in report.failures]
     return GateTotals(
         sides=len(sides),
         correct=sum(1 for p in sides if p.correct),
         needed=gate_needed(len(sides)),
         reads=sum(p.runs for p in sides),
         reads_correct=sum(p.right for p in sides),
-        failed=len(report.failures),
+        failed=sum(voids),
+        unusable=len(voids) - sum(voids),
     )
 
 
@@ -867,27 +929,29 @@ def run_holdout(args: argparse.Namespace) -> int:
     # pydantic-evals' progress and anything a read prints could name a photo.
     with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
         report = dataset_of(cases).evaluate_sync(
-            partial(get_art_number_reading, model=args.model),
+            partial(classified_read, model=args.model),
             max_concurrency=args.workers, repeat=args.repeat, name=name,
             metadata=metadata, progress=False)
     g = gate_totals(report)
-    # ADR-0002: a run with any failed read is void, not an attempt. Its
-    # totals stay unprinted, so a rerun can't depend on them.
+    # ADR-0002: a run in which the API gave no answer for a read is void,
+    # not an attempt. Its totals stay unprinted, so a rerun can't depend on them.
     void = g.failed > 0
-    report = replace(report, experiment_metadata={**metadata, **call_metadata(report),
-                                                  "void": void})
+    kinds = sorted(kind_of(f) for f in report.failures)
+    report = replace(report, experiment_metadata={
+        **metadata, **call_metadata(report), "void": void,
+        "read_failures": {k: kinds.count(k) for k in dict.fromkeys(kinds)}})
     path = save(report, name)
 
     print(f"\nheld-out run: {args.model} at {metadata['commit']}, "
           f"--repeat {args.repeat}, workers {args.workers}")
     if void:
-        print(f"{g.failed} failed reads: run void, rerun")
+        print(f"{g.failed} failed read{'' if g.failed == 1 else 's'}: run void, rerun")
     else:
         share = f" ({100 * g.reads_correct / g.reads:.1f}%)" if g.reads else ""
         print(f"garment-sides correct: {g.correct} of {g.sides}")
         print(f"needed to pass: {g.needed} ({GATE_PERCENT}% of {g.sides}, rounded up)")
         print(f"reads correct: {g.reads_correct} of {g.reads}{share}")
-        print(f"failed reads: {g.failed}")
+        print(f"unusable answers: {g.unusable}, counted as wrong")
     print(f"wrote {path.relative_to(EVALS.parent)}")
     return 1 if void else 0
 
