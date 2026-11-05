@@ -211,4 +211,4 @@ See *Phase 1* in TODO.md for an up-to-date list.
   development set is frozen as it is until a test set fails. Agreed with
   the wider team.
 - **2026-11-05:** no model pin: `claude-sonnet-5` is already a pinned
-  snapshot. Run 0 stays the baseline until the grown set's.
+  snapshot, so run 0 stays the latest baseline.
