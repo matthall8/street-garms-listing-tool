@@ -78,9 +78,8 @@ After Friday:
   blocks every commit until its ledger row is in: add both together
 - **gate-attempt**: once, on the test set, from a tagged commit, totals
   only (ADR-0002). After **holdout-flag**, **model-identity** and
-  **freeze-test**. The report says sides of one
-  garment aren't independent: a pass means good enough to try, not a
-  proven 80%
+  **freeze-test**. The report says sides of one garment aren't
+  independent: a pass means good enough to try, not a proven 80%
 
 ### Iterations
 Only after a failed gate: the test set joins dev (ADR-0002).

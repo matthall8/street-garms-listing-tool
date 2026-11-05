@@ -377,7 +377,7 @@ Every report records what produced it, shown in its header:
 | `schema` | fingerprint of the output schema the model sees (`ArtNumberReading.model_json_schema()`), field descriptions and docstrings included |
 | `versions` | Python and the installed `pydantic-ai`, `anthropic`, `pydantic`, `pydantic-evals` and `pillow`; `not installed` for a missing one |
 | `photos` | fingerprint over `photo_hashes`: two runs sent the same photo bytes if it matches |
-| `photo_hashes` | sha256 of the bytes each photo was sent as, after `upright()`, by manifest `id`; `None` for a missing photo. Older reports hashed the file: the two agree for an untagged photo, which goes out as its file. Only the cases run, so `--limit` narrows it. In the saved report, not the printed header |
+| `photo_hashes` | sha256 of the bytes each photo was sent as, after `upright()`, by manifest `id`; `None` for a missing photo. Older reports hashed the file: the two agree for an untagged photo, which goes out as its file. A tagged photo's hash also depends on the Pillow version (`versions`), because `upright()` re-encodes it. Only the cases run, so `--limit` narrows it. In the saved report, not the printed header |
 | `manifest` | fingerprint of `manifest.csv`; changes if any byte does — a photo or expected value, but also a note or a column the harness doesn't score |
 | `limit`, `repeat`, `note` | as passed on the command line |
 | `replay_of` | replays only: the saved report whose reads were rescored |
