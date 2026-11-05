@@ -37,6 +37,7 @@ from eval_transcription import (
     load_manifest,
     normalise,
 )
+from labels import transcribe
 from labels.photo import upright
 from labels.schemas import AmbiguousCharacter, ArtLegibility, ArtNumberReading
 from tests import synthetic as s
@@ -775,6 +776,26 @@ class TestPhotoRecord:
         assert hashes["p1"] == hashlib.sha256(sent).hexdigest()
         assert hashes["p1"] != hashlib.sha256(tagged).hexdigest()
         assert hashes["p2"] == hashlib.sha256(b"two").hexdigest()
+
+    @pytest.mark.parametrize("data", [tagged_jpeg(), b"one"], ids=["tagged", "untagged"])
+    def test_the_hash_is_of_the_bytes_the_agent_receives(self, tmp_path, monkeypatch, data):
+        """Checked against what the agent gets, not a second upright() call:
+        a step added after upright() in transcribe_art must show here too."""
+        path = tmp_path / s.PHOTO
+        path.write_bytes(data)
+        received = []
+
+        def run_sync(messages):
+            received.append(messages[1].data)
+            return SimpleNamespace(
+                output=ArtNumberReading(art_number_raw=None, art_legible="not_visible"))
+
+        monkeypatch.setattr(transcribe, "get_art_agent",
+                            lambda model="": SimpleNamespace(run_sync=run_sync))
+        eval_transcription.get_art_number_reading(path, model="test")
+        record = eval_transcription.photo_metadata(
+            [Case(name=s.PHOTO, inputs=str(path), metadata={"id": "p1"})])
+        assert record["photo_hashes"] == {"p1": hashlib.sha256(received[0]).hexdigest()}
 
     @pytest.mark.parametrize("name", [s.PHOTO, s.NEGATIVE_PHOTO, s.WEBP_PHOTO, s.PHOTO_STEM])
     def test_the_read_and_the_record_use_the_same_media_type(
