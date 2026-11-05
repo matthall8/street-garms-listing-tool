@@ -103,12 +103,10 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   client's retries (`CLIENT_RETRIES`) and the agent's output retries
   (`OUTPUT_RETRIES`) are set explicitly, in `labels/transcribe.py`; when
   changing how a model call is made (agent construction, model settings, the
-  client), keep them explicit, never library defaults. Worst-case call, at 2
-  and 1: 2 model requests × 3 HTTP attempts × 60s = 360s, plus the SDK's
-  waits between attempts (0.5s then 1s, or up to 60s each when the API sends
-  `retry-after`): about 600s. Approximate: the 60s is httpx's limit per
-  phase of an attempt (connect, write, read), and the read, waiting for the
-  reply, is the long one. `tests/test_boundaries.py::TestSharedTimeout`
+  client), keep them explicit, never library defaults. Worst case about
+  600s: 2 model requests × 3 HTTP attempts × 60s, plus the SDK's waits
+  between attempts (up to 60s each on retry-after); approximate, since the
+  60s is httpx's limit per phase. `tests/test_boundaries.py::TestSharedTimeout`
   checks the 60s value and that every `Agent(...)` passes `MODEL_SETTINGS`;
   `TestExplicitRetries` checks both retries are set.
 - Agents are built lazily and `@cache`d. Importing the module must not require
