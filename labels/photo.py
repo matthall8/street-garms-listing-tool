@@ -2,8 +2,8 @@
 
 Browsers and Finder rotate a photo by its tag; the API doesn't. Upright is
 judged as the model receives it (ADR-0002), so a tagged photo is rotated here.
-An untagged one goes out byte-for-byte: re-saving it would re-encode it and
-change what the model sees without showing in the harness's photo_hashes.
+An untagged one goes out byte-for-byte: re-saving it would re-encode it, a
+change to what the model sees with nothing in the photo to call for it.
 """
 
 from io import BytesIO
