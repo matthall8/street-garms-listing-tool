@@ -410,3 +410,6 @@ sort them into a section.
 - ADR-0002's development-set rules open "There is no photo session and no
   grown-set baseline", then describe a grown-set baseline after a failed
   gate. Drop "and no grown-set baseline", or say "no photo-session baseline"
+- The eval harness's `photo_metadata` repeats `transcribe_art`'s photo
+  preparation (`upright()`) rather than sharing it. A test catches drift,
+  but one function in `labels/` used by both would remove it
