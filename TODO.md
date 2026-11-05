@@ -172,9 +172,10 @@ team (ADR-0002, *Consequences*).
   (what goes to the Sheet)
 - **observability**: one allowlisted record per read (**privacy-adr**):
   request ID, version (commit, prompt fingerprint, model), latency,
-  tokens, cost, status, `needs_review` reasons, catalogue outcome, staff
-  confirmation or edit, and input size, dimensions and whether it was
-  rotated. Never a code, product name or photo filename. Alerts on
+  request count and token usage per call (the CLI and the web form;
+  evals record both already), cost, status, `needs_review` reasons,
+  catalogue outcome, staff confirmation or edit, and input size,
+  dimensions and whether it was rotated. Never a code, product name or photo filename. Alerts on
   daily spend, error rate, the `not_visible` rate and p95 latency
 - **result-provenance**: each recorded result carries the model ID and
   prompt fingerprint that produced it, so a corrected result traces to
