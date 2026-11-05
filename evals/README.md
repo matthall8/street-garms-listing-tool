@@ -225,8 +225,9 @@ how a parser, split or catalogue change is measured at no cost (ADR-0002).
   `--repeat` runs.
 - Saved as `<stamp>-<model>-replay.json`. Its header has what the reads
   came from, copied from the source: `model`, `prompt`, `user_message`,
-  `schema`, `photos`, `photo_hashes`, `versions` and `repeat` (`None` where
-  the source predates a field). It has this run's `commit`, `dirty` and
+  `schema`, `photos`, `photo_hashes`, `versions`, `model_settings`,
+  `reported_model`, `usage` and `repeat` (`None` where the source predates
+  a field). A replay makes no call, so its cases carry no usage. It has this run's `commit`, `dirty` and
   `manifest`, and `replay_of`. Commit first: on a dirty tree it warns, since
   the recorded commit isn't the code that scored.
 
@@ -376,6 +377,9 @@ Every report records what produced it, shown in its header:
 | `user_message` | fingerprint of the text sent with each photo (`ART_USER_MESSAGE`) |
 | `schema` | fingerprint of the output schema the model sees (`ArtNumberReading.model_json_schema()`), field descriptions and docstrings included |
 | `versions` | Python and the installed `pydantic-ai`, `anthropic`, `pydantic`, `pydantic-evals` and `pillow`; `not installed` for a missing one |
+| `model_settings` | what each request sets and the retries around it, from `SETTINGS_RECORD` in `labels/transcribe.py`: `max_tokens`, `thinking` and `effort` (`not sent (model default)` when left to the model), the client-side `timeout` per HTTP attempt, `client_retries` (the Anthropic SDK's HTTP retries) and `output_retries` (pydantic-ai's, when the output fails validation) |
+| `reported_model` | the model name the API returned in its responses, comma-separated if the reads differ; `None` if no read succeeded. `model` is the one requested |
+| `usage` | totals over the reads that succeeded: `requests`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`. Each read's case carries its own as metrics, and the model name as its `reported_model` attribute; a metric that is 0 is left off the case. `requests` counts model requests, so an output retry is one more; the SDK's HTTP retries happen inside a request and aren't counted anywhere. A failed read records nothing, though it may have been billed |
 | `photos` | fingerprint over `photo_hashes`: two runs sent the same photo bytes if it matches |
 | `photo_hashes` | sha256 of the bytes each photo was sent as, after `upright()`, by manifest `id`; `None` for a missing photo. Older reports hashed the file: the two agree for an untagged photo, which goes out as its file. A tagged photo's hash also depends on the Pillow version (`versions`), because `upright()` re-encodes it. Only the cases run, so `--limit` narrows it. In the saved report, not the printed header |
 | `manifest` | fingerprint of `manifest.csv`; changes if any byte does — a photo or expected value, but also a note or a column the harness doesn't score |
@@ -406,11 +410,13 @@ Things that make a comparison meaningless:
 
 - **Different `--repeat`.** Repeats rename cases (`photo [1/3]`) and the diff
   matches cases by name, so every case shows as added. The script warns you.
-- **A different photo, `schema`, `user_message` or `versions`.** None of
-  them is the change under test, and a library upgrade can change what's
-  sent without moving `schema`. `--baseline` warns on each before any read,
-  names the photo `id`s that changed or are in one run only, and says when
-  the baseline predates the field. `prompt` and `model` don't warn: a
+- **A different photo, `schema`, `user_message`, `versions` or
+  `model_settings`.** None of them is the change under test, and a library
+  upgrade can change what's sent without moving `schema`. `--baseline` warns
+  on each before any read, names the photo `id`s that changed or are in one
+  run only and each setting that changed, and says when the baseline
+  predates the field. A run that changes a model setting on purpose still
+  gets its warning. `prompt` and `model` don't warn: a
   comparison usually changes one on purpose.
 - **A different `manifest` fingerprint, for a scored reason.** The runs
   scored different photos or different expected values. A note or an unscored

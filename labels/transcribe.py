@@ -5,17 +5,46 @@ and strict anti-guessing rules. The care-label details read was removed; it is
 kept at the `parked/details-read` tag.
 """
 
+from dataclasses import dataclass
 from functools import cache
 
 from pydantic_ai import Agent, BinaryContent, ModelSettings
+from pydantic_ai.models import Model
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.usage import RunUsage
 
 from labels.photo import upright
 from labels.schemas import ArtNumberReading, LabelReading
 
 ART_MODEL = "anthropic:claude-sonnet-5"
 
-# Model settings to reduce timeout time to 1 minute, rather than the client's default.
-MODEL_SETTINGS = ModelSettings(timeout=60)
+# Every model setting explicit, at the value sent before it was, so setting
+# them changes nothing in the request (tests/test_transcribe.py,
+# TestRequestBody). max_tokens is pydantic-ai's default. The timeout is
+# client-side, per HTTP attempt: 60s, not the client's 10 minutes. Thinking and
+# effort aren't sent, so the model's defaults apply (SETTINGS_RECORD).
+MODEL_SETTINGS = ModelSettings(timeout=60, max_tokens=4096)
+
+# Client-side too. HTTP retries are the Anthropic SDK's, on a connection
+# error, 408, 409, 429 or 5xx, each attempt with its own timeout. Output
+# retries are pydantic-ai's: the model is asked again when its output fails
+# validation, another paid request. Both at the libraries' defaults.
+CLIENT_RETRIES = 2
+OUTPUT_RETRIES = 1
+
+NOT_SENT = "not sent (model default)"
+
+# The run header's `model_settings`: what the request sets, and the retries
+# around it.
+SETTINGS_RECORD = {
+    "max_tokens": MODEL_SETTINGS.get("max_tokens"),
+    "thinking": NOT_SENT,
+    "effort": NOT_SENT,
+    "timeout": MODEL_SETTINGS.get("timeout"),
+    "client_retries": CLIENT_RETRIES,
+    "output_retries": OUTPUT_RETRIES,
+}
 
 ART_PROMPT = """\
 You are a visual transcription system for Stone Island and C.P. Company
@@ -89,31 +118,67 @@ RULES
 # Sent with the photo on every call. A constant so the eval harness can fingerprint it.
 ART_USER_MESSAGE = "Transcribe the ART number visible in this image."
 
+def build_model(model: str) -> Model | str:
+    """An `anthropic:` model whose client retries CLIENT_RETRIES times; any
+    other model (`test`) by name, as before.
+
+    The provider keeps its own HTTP client, which it closes and rebuilds
+    around each run, as it does for a model given by name. A client passed in
+    would instead be shared across the event loops of the web app's and the
+    harness's threads, so the retries are set on the provider's SDK client.
+    """
+    provider, _, name = model.partition(":")
+    if provider != "anthropic":
+        return model
+    anthropic = AnthropicProvider()
+    anthropic.client.max_retries = CLIENT_RETRIES
+    return AnthropicModel(name, provider=anthropic)
+
+
 @cache
 def get_art_agent(model: str = ART_MODEL) -> Agent[None, ArtNumberReading]:
     """Build on first use, so importing this module needs no API key.
 
     Cached per model so the eval harness can compare models in one run.
     """
-    return Agent(model,
+    return Agent(build_model(model),
                  system_prompt=ART_PROMPT,
                  model_settings=MODEL_SETTINGS,
-                 output_type=ArtNumberReading)
+                 output_type=ArtNumberReading,
+                 retries={"output": OUTPUT_RETRIES})
 
 
-def transcribe_art(
-    data: bytes, media_type: str, model: str = ART_MODEL
-) -> ArtNumberReading:
+@dataclass(frozen=True)
+class ArtRead:
+    """One call's reading, with what the run result says about the call.
+
+    `usage.requests` counts model requests, output retries included. The
+    SDK's HTTP retries happen inside one request and aren't counted.
+    """
+    reading: ArtNumberReading
+    model_name: str | None  # as the API reports it
+    usage: RunUsage
+
+
+def read_art(data: bytes, media_type: str, model: str = ART_MODEL) -> ArtRead:
     """Read the ART number from a photo of the ART number tag or a whole label.
 
     Every path to the model (CLI, web form, eval harness) comes through here,
     so this is where the photo is turned upright.
     """
     data, media_type = upright(data, media_type)
-    return get_art_agent(model).run_sync([
+    result = get_art_agent(model).run_sync([
         ART_USER_MESSAGE,
         BinaryContent(data=data, media_type=media_type),
-    ]).output
+    ])
+    return ArtRead(result.output, result.response.model_name, result.usage)
+
+
+def transcribe_art(
+    data: bytes, media_type: str, model: str = ART_MODEL
+) -> ArtNumberReading:
+    """The reading alone, for callers that don't record the call."""
+    return read_art(data, media_type, model).reading
 
 
 def transcribe(art: tuple[bytes, str]) -> LabelReading:

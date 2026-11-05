@@ -20,9 +20,10 @@ from typing import cast
 import pytest
 from PIL import ExifTags, Image
 from pydantic import Field, create_model
+from pydantic_ai.usage import RunUsage
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import EvaluatorContext
-from pydantic_evals.reporting import EvaluationReportAdapter
+from pydantic_evals.reporting import EvaluationReport, EvaluationReportAdapter
 from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 import eval_transcription
@@ -767,7 +768,7 @@ class TestPhotoRecord:
         assert after["photos"] != before["photos"]
 
     def test_a_tagged_photo_is_hashed_as_sent(self, paths, monkeypatch):
-        """The hash is of upright()'s output, the bytes transcribe_art sends,
+        """The hash is of upright()'s output, the bytes read_art sends,
         not of the file."""
         tagged = tagged_jpeg()
         self.run(paths, monkeypatch, self.ROWS, {"a": tagged, "b": b"two"}, "--no-save")
@@ -780,7 +781,7 @@ class TestPhotoRecord:
     @pytest.mark.parametrize("data", [tagged_jpeg(), b"one"], ids=["tagged", "untagged"])
     def test_the_hash_is_of_the_bytes_the_agent_receives(self, tmp_path, monkeypatch, data):
         """Checked against what the agent gets, not a second upright() call:
-        a step added after upright() in transcribe_art must show here too."""
+        a step added after upright() in read_art must show here too."""
         path = tmp_path / s.PHOTO
         path.write_bytes(data)
         received = []
@@ -788,7 +789,8 @@ class TestPhotoRecord:
         def run_sync(messages):
             received.append(messages[1].data)
             return SimpleNamespace(
-                output=ArtNumberReading(art_number_raw=None, art_legible="not_visible"))
+                output=ArtNumberReading(art_number_raw=None, art_legible="not_visible"),
+                response=SimpleNamespace(model_name="test"), usage=RunUsage(requests=1))
 
         monkeypatch.setattr(transcribe, "get_art_agent",
                             lambda model="": SimpleNamespace(run_sync=run_sync))
@@ -808,12 +810,14 @@ class TestPhotoRecord:
 
         def read(data, media_type, model):
             seen["read"] = media_type
+            return transcribe.ArtRead(ArtNumberReading(art_legible="not_visible"), "test",
+                                      RunUsage(requests=1))
 
         def record(data, media_type):
             seen["record"] = media_type
             return data, media_type
 
-        monkeypatch.setattr(eval_transcription, "transcribe_art", read)
+        monkeypatch.setattr(eval_transcription, "read_art", read)
         monkeypatch.setattr(eval_transcription, "upright", record)
         eval_transcription.get_art_number_reading(path, model="test")
         eval_transcription.photo_metadata(
@@ -866,8 +870,10 @@ class TestBaselineWarnings:
     """--baseline: the output schema, user message and photos must match, or
     the diff compares more than the one change being tested."""
 
+    SETTINGS = {"max_tokens": 4096, "thinking": "not sent", "timeout": 60,
+                "client_retries": 2, "output_retries": 1}
     RUN = {"schema": "s1", "user_message": "u1", "versions": "v1",
-           "photo_hashes": {"p1": "h1", "p2": "h2"}}
+           "model_settings": SETTINGS, "photo_hashes": {"p1": "h1", "p2": "h2"}}
 
     def warnings(self, **baseline):
         return eval_transcription.baseline_warnings(baseline, self.RUN)
@@ -888,6 +894,19 @@ class TestBaselineWarnings:
         [warning] = self.warnings(**{**self.RUN, "versions": "v0"})
         assert "versions line differs" in warning and "v0 -> v1" in warning
 
+    def test_different_model_settings_warn_naming_each_change(self):
+        """Not `model`: a comparison usually changes it on purpose. A setting
+        is what goes with it unseen."""
+        then = {**self.SETTINGS, "max_tokens": 1024, "client_retries": 0}
+        [warning] = self.warnings(**{**self.RUN, "model_settings": then})
+        assert warning == ("warning: the model settings differ from the baseline's "
+                           "(client_retries: 0 -> 2, max_tokens: 1024 -> 4096)")
+
+    def test_a_setting_in_one_record_only_warns(self):
+        then = {k: v for k, v in self.SETTINGS.items() if k != "thinking"}
+        [warning] = self.warnings(**{**self.RUN, "model_settings": then})
+        assert "thinking: None -> not sent" in warning
+
     def test_photo_differences_are_named_by_id(self):
         warnings = self.warnings(**{**self.RUN, "photo_hashes": {"p1": "h0", "p3": "h3"}})
         assert warnings == ["warning: photos changed: p1",
@@ -905,6 +924,7 @@ class TestBaselineWarnings:
             "warning: the output schema is not recorded in the baseline",
             "warning: the user message is not recorded in the baseline",
             "warning: the versions line is not recorded in the baseline",
+            "warning: the model settings are not recorded in the baseline",
             "warning: the photo record is not recorded in the baseline"]
 
     def test_main_prints_them_before_any_read(self, paths, monkeypatch, capsys):
@@ -925,7 +945,66 @@ class TestBaselineWarnings:
         assert "warning: photos changed: p2" in out
         assert out.index("warning: photos changed") < out.index("READ")
         assert "output schema" not in out and "user message" not in out
-        assert "versions line" not in out
+        assert "versions line" not in out and "model settings" not in out
+
+
+class TestCallRecord:
+    """A live run's calls: usage per read on its case, totals and the
+    reported model name in the header, and the settings sent."""
+
+    def run(self, paths, monkeypatch, *flags):
+        record = TestPhotoRecord()
+        assert record.run(paths, monkeypatch, record.ROWS, {"a": b"one"}, *flags) == 0
+        return record.saved(paths)
+
+    def test_each_read_records_its_usage(self, paths, monkeypatch):
+        """At the default 4 workers too: the task runs in a worker thread."""
+        report = self.run(paths, monkeypatch, "--repeat", "2")
+        assert [r.metrics["requests"] for r in report.cases] == [1, 1]
+        assert all(r.metrics["input_tokens"] > 0 for r in report.cases)
+        assert [r.attributes["reported_model"] for r in report.cases] == ["test", "test"]
+
+    def test_the_header_totals_the_reads(self, paths, monkeypatch):
+        report = self.run(paths, monkeypatch, "--repeat", "3")
+        usage = (report.experiment_metadata or {})["usage"]
+        assert list(usage) == list(eval_transcription.USAGE_FIELDS)
+        for field in usage:
+            assert usage[field] == sum(r.metrics.get(field, 0) for r in report.cases)
+        assert usage["requests"] == 3
+
+    def test_a_failed_read_records_no_call(self, paths, monkeypatch):
+        """Photo b is missing, so its read fails before any call."""
+        report = self.run(paths, monkeypatch)
+        assert [f.name for f in report.failures] == ["b"]
+        assert (report.experiment_metadata or {})["usage"]["requests"] == 1
+
+    def test_the_header_names_the_model_the_api_reported(self, paths, monkeypatch):
+        meta = self.run(paths, monkeypatch).experiment_metadata or {}
+        assert (meta["model"], meta["reported_model"]) == ("test", "test")
+
+    def test_two_reported_names_are_both_listed(self):
+        cases = [SimpleNamespace(attributes={"reported_model": m}, metrics={})
+                 for m in ("m-2", "m-1", "m-2")]
+        report = cast(EvaluationReport, SimpleNamespace(cases=cases))
+        assert eval_transcription.call_metadata(report)["reported_model"] == "m-1, m-2"
+
+    def test_no_successful_read_reports_no_name(self):
+        report = cast(EvaluationReport, SimpleNamespace(cases=[]))
+        assert eval_transcription.call_metadata(report) == {
+            "reported_model": None,
+            "usage": dict.fromkeys(eval_transcription.USAGE_FIELDS, 0)}
+
+    def test_the_header_records_the_settings_sent(self, paths, monkeypatch):
+        meta = self.run(paths, monkeypatch).experiment_metadata or {}
+        assert meta["model_settings"] == transcribe.SETTINGS_RECORD
+        assert {"client_retries", "output_retries", "thinking", "effort", "max_tokens",
+                "timeout"} <= set(meta["model_settings"])
+
+    def test_the_printed_header_shows_them(self, paths, monkeypatch, capsys):
+        self.run(paths, monkeypatch)
+        out = capsys.readouterr().out
+        for field in ("model_settings", "reported_model", "usage", "requests"):
+            assert field in out
 
 
 class TestReplay:
@@ -1043,6 +1122,19 @@ class TestReplay:
         meta = report.experiment_metadata or {}
         assert (meta["user_message"], meta["schema"], meta["photos"],
                 meta["photo_hashes"], meta["versions"]) == (None, None, None, None, None)
+        assert (meta["model_settings"], meta["reported_model"], meta["usage"]) == (
+            None, None, None)
+
+    def test_it_copies_the_sources_calls(self, harness, monkeypatch):
+        """The settings, model name and usage of the calls that made the reads.
+        A replay makes no call, so it records none of its own."""
+        usage = {"requests": 3, "input_tokens": 30}
+        source = self.source(harness, {"a": [RIGHT]}, model_settings={"max_tokens": 1},
+                             reported_model="m-1", usage=usage)
+        report, _ = self.replay(harness, monkeypatch, source, f"p1,a,g1,back,,{RIGHT},\n")
+        meta = report.experiment_metadata or {}
+        assert (meta["model_settings"], meta["reported_model"], meta["usage"]) == (
+            {"max_tokens": 1}, "m-1", usage)
 
     def test_a_failed_source_read_fails_again(self, harness, monkeypatch):
         """The photo keeps its --repeat runs, so the lost read still counts against it."""

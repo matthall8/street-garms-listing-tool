@@ -20,7 +20,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
 
 ## Next
 - **holdout-flag**
-- **model-identity** (with **retries**)
 
 ## Phase 1
 
@@ -45,17 +44,6 @@ By Friday 2026-11-06:
   needed to pass, and the share of reads correct (ADR-0002).
   `evals/README.md`, *Held-out set*, says the harness doesn't read the
   set yet
-- **model-identity**: record the model name the API reports and the
-  token usage from the run result (outside `Extraction`) in the run
-  header. Also the model settings sent (thinking, effort, max tokens,
-  timeout) in a `model_settings` header field, with `--baseline` warning
-  on a difference; set explicitly at today's defaults, changing nothing
-  sent. `ART_MODEL` stays: `claude-sonnet-5` is already a pinned
-  snapshot (ADR-0002)
-- **retries**: set the client's and the agent's output retries
-  explicitly (CLAUDE.md, *Engineering constraints*); each retry is
-  another paid call. Log the request count per call; record worst-case
-  latency in CLAUDE.md. Same branch as **model-identity**
 - **results-backup**: back up `evals/results/` after each paid run,
   until **dvc-eval-set** covers it; the reports are the only record of
   paid reads, and `--replay` needs them
@@ -72,9 +60,9 @@ After Friday:
   any run. Once `evals/holdout/manifest.csv` exists, the privacy hook
   blocks every commit until its ledger row is in: add both together
 - **gate-attempt**: once, on the test set, from a tagged commit, totals
-  only (ADR-0002). After **holdout-flag**, **model-identity** and
-  **freeze-test**. The report says sides of one garment aren't
-  independent: a pass means good enough to try, not a proven 80%
+  only (ADR-0002). After **holdout-flag** and **freeze-test**. The
+  report says sides of one garment aren't independent: a pass means
+  good enough to try, not a proven 80%
 
 ### Iterations
 Only after a failed gate: the test set joins dev (ADR-0002).
@@ -168,8 +156,8 @@ team (ADR-0002, *Consequences*).
   entry
 - **docker-image**: a Docker image of the Python side, local only:
   catalogue mounted at run time and never baked in, gunicorn timeout
-  above the worst-case call (**retries**). Needs no deploy and no
-  **privacy-adr**, so it can come first
+  above the worst-case call (CLAUDE.md, *Engineering constraints*).
+  Needs no deploy and no **privacy-adr**, so it can come first
 - **api-split-adr**: the staff app is a TypeScript frontend calling a
   Python API (decided). ADR before the split, which changes CLAUDE.md's
   *Flow* (`app/` is a Flask app today)
@@ -401,6 +389,6 @@ a quiet moment.
 ## Inbox
 Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
 sort them into a section.
-- The eval harness's `photo_metadata` repeats `transcribe_art`'s photo
+- The eval harness's `photo_metadata` repeats `read_art`'s photo
   preparation (`upright()`) rather than sharing it. A test catches drift,
   but one function in `labels/` used by both would remove it

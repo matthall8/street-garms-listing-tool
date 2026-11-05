@@ -2,7 +2,7 @@
 
 Images are built here with Pillow, so no real photo is needed. The path tests
 stub get_art_agent rather than anything upstream, so the bytes they see are
-the bytes transcribe_art would send.
+the bytes read_art would send.
 """
 
 from io import BytesIO
@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 from PIL import ExifTags, Image
+from pydantic_ai.usage import RunUsage
 
 import eval_transcription
 from app import create_app
@@ -102,7 +103,10 @@ def sent(monkeypatch):
     def run_sync(messages):
         content = messages[1]
         calls.append((content.data, content.media_type))
-        return SimpleNamespace(output=ArtNumberReading(art_number_raw=None, art_legible="not_visible"))
+        # The run result's fields read_art reads.
+        return SimpleNamespace(
+            output=ArtNumberReading(art_number_raw=None, art_legible="not_visible"),
+            response=SimpleNamespace(model_name="test"), usage=RunUsage(requests=1))
 
     monkeypatch.setattr(transcribe, "get_art_agent", lambda model="": SimpleNamespace(run_sync=run_sync))
     return calls
