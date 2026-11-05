@@ -19,7 +19,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
-- **holdout-flag**
 
 ## Phase 1
 
@@ -37,13 +36,6 @@ By Friday 2026-11-06:
   a manifest and not run until **freeze-test**
 - **test-photographer**. Decision: who takes the test photos: some by
   staff, or note the single capture regime as a limitation
-- **label-source-rule**: `evals/README.md`: the catalogue may prompt a
-  re-check, never supply a label value
-- **holdout-flag**: `--holdout` runs the test manifest, saves every
-  read, and prints totals only: garment-sides correct, the count
-  needed to pass, and the share of reads correct (ADR-0002).
-  `evals/README.md`, *Held-out set*, says the harness doesn't read the
-  set yet
 - **results-backup**: back up `evals/results/` after each paid run,
   until **dvc-eval-set** covers it; the reports are the only record of
   paid reads, and `--replay` needs them
@@ -53,14 +45,14 @@ After Friday:
   `expected_art_line`, `expected_art_base`). Re-check by eye every
   `expected_art_base` that isn't a catalogue key. Convert any HEIC
   export to JPEG before it enters `evals/holdout/photos/`
-- **test-set-check**: apply ADR-0002's test-set rules: product overlap
-  with dev and `ART_PROMPT`'s examples checked pass/fail, no values
-  printed; one shot per garment-side; rotate by hand
+- **test-set-check**: what stays manual of ADR-0002's test-set rules:
+  the selection rule, one shot per garment-side, rotating by hand; then
+  `--holdout --check` until it passes (`evals/README.md`, *Held-out set*)
 - **freeze-test**: record in BASELINES.md what ADR-0002 lists, before
   any run. Once `evals/holdout/manifest.csv` exists, the privacy hook
   blocks every commit until its ledger row is in: add both together
 - **gate-attempt**: once, on the test set, from a tagged commit, totals
-  only (ADR-0002). After **holdout-flag** and **freeze-test**. The
+  only (ADR-0002). After **freeze-test**. The
   report says sides of one garment aren't independent: a pass means
   good enough to try, not a proven 80%
 
@@ -393,3 +385,7 @@ sort them into a section.
 - The eval harness's `photo_metadata` repeats `read_art`'s photo
   preparation (`upright()`) rather than sharing it. A test catches drift,
   but one function in `labels/` used by both would remove it
+- At gate-attempt, compare the gate report's prompt, user_message and
+  schema fingerprints with run 0's by hand: `--holdout` doesn't check
+  them, as run 0 records no model_settings and has a different versions
+  line, so an automatic check would always fail

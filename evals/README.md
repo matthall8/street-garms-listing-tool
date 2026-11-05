@@ -74,7 +74,8 @@ line in it is `NONE`, whatever the other photos of its garment-side show, so
 a `front` Certilogo crop is `NONE` beside a positive EAC photo of the same
 face. Never guess a character: if no photo shows it clearly,
 write `UNKNOWN` and say why in `note`. Never fill a cell by running the
-parser; a parser bug would then score as correct.
+parser; a parser bug would then score as correct. The catalogue may prompt a
+re-check by eye, but never supplies a label value.
 
 `expected_art_line` is the whole printed line containing the ART number:
 
@@ -182,8 +183,61 @@ its filenames and expected codes as private, as it does the dev set's.
   matching ledger row together. Once that table has a row, the hook also
   blocks every commit in a clone where the held-out manifest is missing.
 
-The harness doesn't read it yet: a `--holdout` flag that prints totals only
-is planned (TODO.md, *holdout-flag*).
+### Running the held-out set
+
+`--holdout --check` runs the test-set checks alone, with no read, so it can
+run while labelling: no tag, ledger row or clean tree needed. Each check
+prints its name, `pass` or `fail`, and at most a count; it exits 1 if any
+fails. They apply [ADR-0002](../adr/0002-phase-1-acceptance.md)'s *Rules for
+the test set*:
+
+| check | fails on |
+|---|---|
+| `rows` | a row the loader would skip, a blank or `UNKNOWN` `expected_art_base`, or `NONE` in any expected column |
+| `ids` | a blank `id`, or one on more than one row |
+| `one photo per garment-side` | a repeated `garment` and `side`, or a row missing either |
+| `no garment overlap` | a `garment` in the dev manifest |
+| `no product overlap` | an `expected_art_base` equal to a dev one, after `normalise` |
+| `no prompt examples` | an `expected_art_base` found in `ART_PROMPT`, both normalised: a substring test, so conservative |
+| `size` | fewer garment-sides than ADR-0002's minimum; prints the count |
+| `photo files` | a row whose `photo` isn't in `holdout/photos/`, or is another row's too; looked for, never read |
+| `no id overlap` | an `id` in the dev manifest |
+
+A missing dev manifest fails the three checks that need it: garment,
+product and id overlap.
+
+`--holdout` is the gate's run. It sends only the held-out photos: the dev
+manifest is read as labels, for the overlap checks, and no dev photo is
+loaded.
+
+- **Settings:** `--repeat 3`, workers 1 ([Eval run
+  procedure](#eval-run-procedure)). `--limit`, `--no-save`, `--replay`,
+  `--baseline`, any other `--repeat` or `--workers`, and any `--model` but
+  `test` are refused; `--note` is allowed.
+- **Refuses to start, before any read,** unless the tree is clean
+  (untracked files included), HEAD carries a tag, the manifest's md5 is the
+  last row of the holdout md5 ledger above, and every check passes.
+  `--model test` skips the tag and the ledger, so the path runs offline.
+- **Saves** every read to `results/<stamp>-<model>-holdout.json`. Its header
+  has `set: holdout`, `void` and `read_failures`, and its `manifest` is the
+  held-out one's.
+  `--replay` and `--baseline` refuse that report: either would print it per
+  photo.
+- **Prints** the checks and totals only, nothing per photo: garment-sides
+  correct, as `n of N`; the count needed to pass; the share of reads
+  correct, over every read; the number of unusable answers or refusals;
+  and the report path. It doesn't print pass or fail: comparing the two
+  counts is the gate result.
+- **Each read that raises is classified** by its pydantic-ai exception,
+  and its saved failure starts `ReadFailure: <kind>:`. The API gave no
+  answer: `missing photo`, `api error`, `connection error or timeout`, or
+  `other` for anything unrecognised. The API answered, unusably:
+  `unusable answer` (it failed the output schema after its retries) or
+  `refusal`. Those two count as wrong reads, as a misread does.
+- **A read with no answer voids the run**
+  ([ADR-0002](../adr/0002-phase-1-acceptance.md)): it prints `1 failed read`
+  or `N failed reads`, then `: run void, rerun`, and the report path instead
+  of the totals, saves the report with `void: true`, and exits 1.
 
 ## Running
 
@@ -203,6 +257,8 @@ is planned (TODO.md, *holdout-flag*).
 | `--baseline FILE` | compare this run against a saved report |
 | `--no-save` | don't write the report to `results/` |
 | `--replay FILE` | rescore a saved report's reads, with no API call — see below |
+| `--holdout` | the gate's run on the held-out set, totals only — see [Running the held-out set](#running-the-held-out-set) |
+| `--check` | with `--holdout`: the test-set checks alone, with no read |
 
 A read that fails — a missing photo, an API error, a call that stalls past the
 60 s timeout — goes in the **Case Failures** table and is left out of every
@@ -385,6 +441,9 @@ Every report records what produced it, shown in its header:
 | `manifest` | fingerprint of `manifest.csv`; changes if any byte does — a photo or expected value, but also a note or a column the harness doesn't score |
 | `limit`, `repeat`, `note` | as passed on the command line |
 | `replay_of` | replays only: the saved report whose reads were rescored |
+| `set` | `--holdout` runs only: `holdout` |
+| `void` | `--holdout` runs only: `true` if the API gave no answer for a read, so the run doesn't count |
+| `read_failures` | `--holdout` runs only: the reads that raised, counted by kind (see [Running the held-out set](#running-the-held-out-set)) |
 
 To test a change:
 

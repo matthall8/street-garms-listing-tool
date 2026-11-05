@@ -113,6 +113,11 @@ Rules for the test set:
 - Run once, from a tagged commit, and recorded in `evals/BASELINES.md`. On
   a fail, the test set joins the development set and the result goes back
   to the wider team; the next gate attempt needs a new test set.
+- A gate run in which any read fails (an API error, a timeout, a missing
+  photo) is void: it isn't an attempt, and it is run again. This is decided
+  before any total is seen, so whether to rerun never depends on the
+  result. A misread, a refusal or an answer that fails the output schema
+  after its retries isn't a failed read: it counts as wrong.
 - Totals only, never results per photo. If per-photo results are ever opened,
   those garments move to development.
 
@@ -212,3 +217,5 @@ See *Phase 1* in TODO.md for an up-to-date list.
   the wider team.
 - **2026-11-05:** no model pin: `claude-sonnet-5` is already a pinned
   snapshot, so run 0 stays the latest baseline.
+- **2026-11-05:** a gate run in which the API gives no answer for a read is
+  void, not an attempt; decided before any total is seen.

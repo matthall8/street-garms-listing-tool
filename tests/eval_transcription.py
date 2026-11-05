@@ -19,16 +19,20 @@ Certilogo codes. See evals/README.md for setup and how to read the report.
         --baseline evals/results/<baseline>.json
     python tests/eval_transcription.py --model anthropic:claude-opus-5 --no-save
     python tests/eval_transcription.py --replay evals/results/<report>.json   # no API calls
+    python tests/eval_transcription.py --holdout --check     # the test-set checks, no API calls
+    python tests/eval_transcription.py --holdout --note "gate attempt"   # totals only
 """
 
 import argparse
 import csv
 import hashlib
+import io
 import json
 import platform
 import subprocess
 import sys
 from collections import defaultdict
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from functools import partial
@@ -38,6 +42,12 @@ from pathlib import Path
 from typing import NamedTuple
 
 from pydantic import ValidationError
+from pydantic_ai.exceptions import (
+    ContentFilterError,
+    ModelAPIError,
+    ModelHTTPError,
+    UnexpectedModelBehavior,
+)
 from pydantic_evals import Case, Dataset, increment_eval_metric, set_eval_attribute
 from pydantic_evals.evaluators import (
     Evaluator,
@@ -50,6 +60,7 @@ from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from hooks.check_private import HOLDOUT_LEDGER_HEADER, last_ledger_md5
 from labels.photo import upright
 from labels.pipeline import from_reading
 from labels.schemas import ArtNumberReading
@@ -68,6 +79,13 @@ NO_ART_NUMBER = "NONE"
 UNKNOWN = "UNKNOWN"  # a marker for the run 0 columns, never a legacy value
 PHOTOS = EVALS / "photos"
 RESULTS = EVALS / "results"
+BASELINES = EVALS / "BASELINES.md"
+# The held-out set (ADR-0002): run only by --holdout, which prints totals only.
+HOLDOUT_MANIFEST = EVALS / "holdout" / "manifest.csv"
+HOLDOUT_PHOTOS = EVALS / "holdout" / "photos"
+HOLDOUT_REPEAT, HOLDOUT_WORKERS = 3, 1   # the eval run procedure's settings
+MIN_SIDES = 15      # the gate never runs on fewer garment-sides (ADR-0002)
+GATE_PERCENT = 80   # of garment-sides correct, rounded up (ADR-0002)
 # Between the code and the model, or scoring what comes back.
 PACKAGES = ("pydantic-ai", "anthropic", "pydantic", "pydantic-evals", "pillow")
 # From each read's run result: model requests (output retries included, the
@@ -294,11 +312,34 @@ class PhotoBase(NamedTuple):
     reads: int          # scored reads
     right: int          # of those, base-exact
     correct: bool | None  # None when the photo has no usable base
+    runs: int           # every run, failed ones included: --repeat
 
 
 def needed(runs: int) -> int:
     """Correct reads a photo needs: a majority of its runs, so 2 of 3."""
     return runs // 2 + 1
+
+
+def bases_by_photo(report: EvaluationReport) -> list[PhotoBase]:
+    """Base-exact per photo, sorted by photo. A photo is correct when a
+    majority of its --repeat runs read the right base; a failed read is one
+    of those runs, so it counts as wrong."""
+    runs = defaultdict(list)
+    for r in [*report.cases, *report.failures]:
+        runs[photo_of(r)].append(r)
+
+    photos = []
+    for photo in sorted(runs):
+        metadata = runs[photo][0].metadata or {}
+        kind = base_kind_of(metadata)
+        scored = [r for r in report.cases
+                  if photo_of(r) == photo and "base_exact" in r.assertions]
+        right = sum(1 for r in scored if r.assertions["base_exact"].value)
+        correct = (right >= needed(len(runs[photo]))
+                   if kind in ("positive", "negative") else None)
+        photos.append(PhotoBase(photo, metadata.get("garment", ""), metadata.get("side", ""),
+                                kind, len(scored), right, correct, len(runs[photo])))
+    return photos
 
 
 @dataclass
@@ -311,30 +352,16 @@ class BaseExactCounts(ReportEvaluator):
     such as second shots, so no rule joins its photos into one verdict.
     """
     def evaluate(self, ctx: ReportEvaluatorContext) -> list[TableResult]:
-        # Every run of a photo, failed ones included: their number is --repeat.
-        runs = defaultdict(list)
-        for r in [*ctx.report.cases, *ctx.report.failures]:
-            runs[photo_of(r)].append(r)
-        if not runs:
+        photos = bases_by_photo(ctx.report)
+        if not photos:
             return []
 
-        photos, sides = [], defaultdict(lambda: [0, 0, 0])
-        for photo in sorted(runs):
-            metadata = runs[photo][0].metadata or {}
-            kind = base_kind_of(metadata)
-            scored = [r for r in ctx.report.cases
-                      if photo_of(r) == photo and "base_exact" in r.assertions]
-            right = sum(1 for r in scored if r.assertions["base_exact"].value)
-            correct = (right >= needed(len(runs[photo]))
-                       if kind in ("positive", "negative") else None)
-            p = PhotoBase(photo, metadata.get("garment", ""), metadata.get("side", ""),
-                          kind, len(scored), right, correct)
-            photos.append(p)
-
+        sides = defaultdict(lambda: [0, 0, 0])
+        for p in photos:
             side = sides[(p.garment, p.side)]
             side[0] += 1
-            side[1] += bool(correct)
-            side[2] += correct is None
+            side[1] += bool(p.correct)
+            side[2] += p.correct is None
 
         def of(kind):
             return [p for p in photos if p.kind == kind]
@@ -343,7 +370,7 @@ class BaseExactCounts(ReportEvaluator):
             return [title, n, total, round(100 * n / total, 1) if total else None]
 
         positives, negatives = of("positive"), of("negative")
-        repeat = max(len(r) for r in runs.values())
+        repeat = max(p.runs for p in photos)
         return [
             TableResult(
                 title=f"base-exact (correct: at least {needed(repeat)} of {repeat} reads)",
@@ -374,42 +401,240 @@ class BaseExactCounts(ReportEvaluator):
         ]
 
 
-def load_manifest() -> list[Case]:
+def cell(r: dict, column: str) -> str:
+    """A manifest cell, stripped; "" for a column the row lacks."""
+    return (r.get(column) or "").strip()
+
+
+def read_rows(manifest: Path) -> list[dict]:
+    with open(manifest, encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+
+def legacy_value(r: dict) -> str:
+    """expected_art_number. UNKNOWN is never a legacy value: scored, it would
+    be a code no read can match, so it reads as blank."""
+    expected = cell(r, "expected_art_number")
+    return "" if normalise(expected) == UNKNOWN else expected
+
+
+def loader_skips(r: dict) -> bool:
+    """A row load_manifest drops: no photo, or nothing to score."""
+    return not cell(r, "photo") or (
+        not legacy_value(r) and normalise(cell(r, "expected_art_base")) in ("", UNKNOWN))
+
+
+def load_manifest(manifest: Path | None = None, photos: Path | None = None,
+                  say=print) -> list[Case]:
+    """The cases in a manifest, photos named from `photos`. The dev set by
+    default, looked up at call time so tests can patch them. `say` gets the
+    warnings, which name photos: --holdout passes one that drops them, as its
+    checks fail every row this would skip."""
     cases = []
-    with open(MANIFEST, encoding="utf-8-sig") as f:
-        for r in csv.DictReader(f):
-            photo = r.get("photo", "").strip()
-            expected = r.get("expected_art_number", "").strip()
-            art_base = r.get("expected_art_base", "").strip()
-            if not photo:
-                continue
-            # UNKNOWN is never a legacy value: scored, it would be a code no
-            # read can match. Treat it as blank, and say so below.
-            legacy_unknown = normalise(expected) == UNKNOWN
-            if legacy_unknown:
-                expected = ""
-            if not expected and normalise(art_base) in ("", UNKNOWN):
-                print(f"skipping {photo}: no expected_art_number or expected_art_base "
-                      f"(use {NO_ART_NUMBER} if the photo has no ART number)")
-                continue
-            if legacy_unknown:
-                print(f"{photo}: {UNKNOWN} in expected_art_number is not scored "
-                      "(leave it blank instead)")
-            # The base is kept as written, UNKNOWN and blank included: the
-            # base-exact scorer counts those, so the loader doesn't.
-            cases.append(Case(
-                name=photo,
-                inputs=PHOTOS / photo,
-                expected_output=expected or None,
-                metadata={
-                    "id": r.get("id", "").strip(),
-                    "note": r.get("note", "").strip(),
-                    "garment": r.get("garment", "").strip(),
-                    "side": r.get("side", "").strip(),
-                    "expected_art_base": art_base,
-                },
-            ))
+    for r in read_rows(manifest or MANIFEST):
+        photo, art_base = cell(r, "photo"), cell(r, "expected_art_base")
+        if not photo:
+            continue
+        if loader_skips(r):
+            say(f"skipping {photo}: no expected_art_number or expected_art_base "
+                f"(use {NO_ART_NUMBER} if the photo has no ART number)")
+            continue
+        expected = legacy_value(r)
+        if normalise(cell(r, "expected_art_number")) == UNKNOWN:
+            say(f"{photo}: {UNKNOWN} in expected_art_number is not scored "
+                "(leave it blank instead)")
+        # The base is kept as written, UNKNOWN and blank included: the
+        # base-exact scorer counts those, so the loader doesn't.
+        cases.append(Case(
+            name=photo,
+            inputs=(photos or PHOTOS) / photo,
+            expected_output=expected or None,
+            metadata={
+                "id": cell(r, "id"),
+                "note": cell(r, "note"),
+                "garment": cell(r, "garment"),
+                "side": cell(r, "side"),
+                "expected_art_base": art_base,
+            },
+        ))
     return cases
+
+
+NO_CODE = ("", NO_ART_NUMBER, UNKNOWN)
+EXPECTED_COLUMNS = ("expected_art_number", "expected_art_line", "expected_art_base")
+
+
+class Check(NamedTuple):
+    """One test-set check. `detail` is built from counts and fixed words
+    only: it is printed, and the set's values never are."""
+    name: str
+    ok: bool
+    detail: str = ""
+
+
+def holdout_checks(rows: list[dict], dev_rows: list[dict] | None,
+                   photos: Path) -> list[Check]:
+    """The held-out set's checks (ADR-0002, *Rules for the test set*), each
+    failing with the number of rows that break it. `dev_rows` is the dev
+    manifest, read as labels only; None if it is missing, which fails the
+    three checks that need it rather than skipping them. `photos` is where
+    the rows' photos must be; they are looked for, never read."""
+    def failing(n: int) -> str:
+        return f"{n} row{'' if n == 1 else 's'}" if n else ""
+
+    def base(r: dict) -> str:
+        return normalise(cell(r, "expected_art_base"))
+
+    # 1. Every row scored: none the loader would skip, every base a value,
+    # and no row with no ART number, which the test set never holds.
+    bad_rows = sum(1 for r in rows if loader_skips(r) or base(r) in NO_CODE
+                   or any(normalise(cell(r, c)) == NO_ART_NUMBER for c in EXPECTED_COLUMNS))
+
+    ids = [cell(r, "id") for r in rows]
+    bad_ids = sum(1 for i in ids if not i or ids.count(i) > 1)
+
+    # 3. A row with no garment or side can't be told apart, so it fails too.
+    sides = [(cell(r, "garment"), cell(r, "side")) for r in rows]
+    repeated_sides = sum(1 for g, sd in sides
+                         if not g or not sd or sides.count((g, sd)) > 1)
+
+    checks = [
+        Check("rows", not bad_rows, failing(bad_rows)),
+        Check("ids", not bad_ids, failing(bad_ids)),
+        Check("one photo per garment-side", not repeated_sides, failing(repeated_sides)),
+    ]
+
+    if dev_rows is None:
+        checks += [Check("no garment overlap", False, "no dev manifest"),
+                   Check("no product overlap", False, "no dev manifest")]
+    else:
+        dev_garments = {cell(r, "garment") for r in dev_rows} - {""}
+        dev_bases = {base(r) for r in dev_rows} - set(NO_CODE)
+        shared_garments = sum(1 for r in rows if cell(r, "garment") in dev_garments)
+        shared_bases = sum(1 for r in rows if base(r) in dev_bases)
+        checks += [
+            Check("no garment overlap", not shared_garments, failing(shared_garments)),
+            Check("no product overlap", not shared_bases, failing(shared_bases)),
+        ]
+
+    # 6. A substring of the whole prompt, normalised: conservative, as a base
+    # could match across two words of prose.
+    prompt = normalise(ART_PROMPT)
+    in_prompt = sum(1 for r in rows if base(r) not in NO_CODE and base(r) in prompt)
+    checks.append(Check("no prompt examples", not in_prompt, failing(in_prompt)))
+
+    n_sides = len(set(sides))
+    checks.append(Check("size", n_sides >= MIN_SIDES, f"{n_sides} garment-sides"))
+
+    # 8. A missing photo would fail its reads, and void the run. A photo two
+    # rows share would stop it before any read: a case name must be unique.
+    names = [cell(r, "photo") for r in rows]
+    bad_photos = sum(1 for p in names
+                     if not p or not (photos / p).is_file() or names.count(p) > 1)
+    checks.append(Check("photo files", not bad_photos, failing(bad_photos)))
+
+    if dev_rows is None:
+        checks.append(Check("no id overlap", False, "no dev manifest"))
+    else:
+        dev_ids = {cell(r, "id") for r in dev_rows} - {""}
+        shared_ids = sum(1 for i in ids if i in dev_ids)
+        checks.append(Check("no id overlap", not shared_ids, failing(shared_ids)))
+    return checks
+
+
+def print_checks(checks: list[Check]) -> bool:
+    """Name, pass or fail, and at most a count. True if every check passed."""
+    print("test-set checks (ADR-0002):")
+    for c in checks:
+        print(f"  {c.name}: {'pass' if c.ok else 'fail'}"
+              + (f" ({c.detail})" if c.detail else ""))
+    return all(c.ok for c in checks)
+
+
+def gate_needed(sides: int) -> int:
+    """Garment-sides correct needed to pass: GATE_PERCENT of them, rounded up."""
+    return (GATE_PERCENT * sides + 99) // 100
+
+
+# Each kind of read that raises, and whether it voids a --holdout run.
+# ADR-0002: void only when the API gave no answer. An answer that fails the
+# output schema after its retries, or a refusal, is a wrong read. A kind not
+# recognised voids, so no total is seen from a run nobody can account for.
+FAILURE_VOIDS = {
+    "missing photo": True,
+    "api error": True,                      # the API answered with an error status
+    "connection error or timeout": True,
+    "other": True,
+    "refusal": False,
+    "unusable answer": False,               # the output schema, after its retries
+}
+
+
+def failure_kind(e: BaseException) -> str:
+    """A failed read's kind, from pydantic-ai's exceptions: they wrap the
+    Anthropic SDK's, which only labels/transcribe.py imports."""
+    if isinstance(e, FileNotFoundError):
+        return "missing photo"
+    if isinstance(e, ModelHTTPError):
+        return "api error"
+    if isinstance(e, ModelAPIError):        # the SDK's connection errors and timeouts
+        return "connection error or timeout"
+    if isinstance(e, ContentFilterError):   # before its parent class below
+        return "refusal"
+    if isinstance(e, UnexpectedModelBehavior):
+        return "unusable answer"
+    return "other"
+
+
+class ReadFailure(Exception):
+    """A held-out read that raised, re-raised with its kind first, so each
+    failure in the saved report records it: pydantic-evals saves a failure
+    as `ReadFailure: <kind>: <cause>`."""
+    def __init__(self, kind: str, cause: BaseException):
+        super().__init__(f"{kind}: {type(cause).__name__}: {cause}")
+
+
+def kind_of(failure) -> str:
+    """The kind a saved failure records; "other" if it records none."""
+    prefix = f"{ReadFailure.__name__}: "
+    message = failure.error_message or ""
+    kind = message.removeprefix(prefix).split(": ", 1)[0]
+    return kind if message.startswith(prefix) and kind in FAILURE_VOIDS else "other"
+
+
+def classified_read(photo_path: Path, model: str) -> ArtNumberReading:
+    try:
+        return get_art_number_reading(photo_path, model)
+    except Exception as e:
+        raise ReadFailure(failure_kind(e), e) from e
+
+
+class GateTotals(NamedTuple):
+    sides: int          # positive garment-sides: one photo each, by the checks
+    correct: int        # of those, correct by the 2-of-3 rule
+    needed: int
+    reads: int          # every read, failed and unusable ones included
+    reads_correct: int
+    failed: int         # reads the API gave no answer for: any makes the run void
+    unusable: int       # unusable answers and refusals: wrong reads
+
+
+def gate_totals(report: EvaluationReport) -> GateTotals:
+    """The gate's numbers, from a saved report alone. `reads` is every read:
+    a misread, an unusable answer and a refusal each count as a wrong one.
+    On a run that isn't void, no read failed."""
+    sides = [p for p in bases_by_photo(report) if p.kind == "positive"]
+    voids = [FAILURE_VOIDS[kind_of(f)] for f in report.failures]
+    return GateTotals(
+        sides=len(sides),
+        correct=sum(1 for p in sides if p.correct),
+        needed=gate_needed(len(sides)),
+        reads=sum(p.runs for p in sides),
+        reads_correct=sum(p.right for p in sides),
+        failed=sum(voids),
+        unusable=len(voids) - sum(voids),
+    )
+
 
 def media_type(photo_path: Path) -> str:
     """The media type a photo is sent with, guessed from its name. The read
@@ -468,8 +693,9 @@ def versions() -> str:
                       *(f"{p} {installed(p)}" for p in PACKAGES)])
 
 
-def run_metadata(args: argparse.Namespace) -> dict:
-    """What produced this run, so a saved report can be traced back to it."""
+def run_metadata(args: argparse.Namespace, manifest: Path | None = None) -> dict:
+    """What produced this run, so a saved report can be traced back to it.
+    `manifest` is the one fingerprinted: the dev set's by default."""
     return {
         "model": args.model,
         "commit": git("rev-parse", "--short", "HEAD"),
@@ -481,7 +707,7 @@ def run_metadata(args: argparse.Namespace) -> dict:
             json.dumps(ArtNumberReading.model_json_schema(), sort_keys=True).encode()),
         "versions": versions(),
         "model_settings": dict(SETTINGS_RECORD),
-        "manifest": fingerprint(MANIFEST.read_bytes()),
+        "manifest": fingerprint((manifest or MANIFEST).read_bytes()),
         "limit": args.limit,
         "repeat": args.repeat,
         "note": args.note,
@@ -626,12 +852,110 @@ def load_baseline(path: Path) -> EvaluationReport | None:
         print(f"no baseline at {path}")
         return None
     try:
-        return EvaluationReportAdapter.validate_json(path.read_bytes())
+        report = EvaluationReportAdapter.validate_json(path.read_bytes())
     except ValidationError:
         print(f"{path} is not a saved eval report. Results from before the "
               "pydantic-evals port use an older format and can't be baselines "
               "or replayed.")
         return None
+    if (report.experiment_metadata or {}).get("set") == "holdout":
+        # Either would print its results per photo (ADR-0002: opened, they
+        # move those garments to development).
+        print(f"{path} is a --holdout report: it can't be a baseline or replayed")
+        return None
+    return report
+
+
+def dataset_of(cases: list[Case]) -> Dataset:
+    return Dataset(name="art-number-transcription",
+                   cases=cases, evaluators=[CorrectArtNumber(), CorrectArtBase()],
+                   report_evaluators=[ConfidenceRates(), PerPhotoCounts(),
+                                      BaseExactCounts()])
+
+
+def holdout_refusals(args: argparse.Namespace) -> list[str]:
+    """Why this --holdout run can't start, before any read. The `test` model
+    skips the tag and the ledger, so the path runs offline."""
+    refusals = []
+    if git("status", "--porcelain"):
+        refusals.append("the tree has uncommitted or untracked changes: commit first")
+    if args.model != "test":
+        if not git("tag", "--points-at", "HEAD"):
+            refusals.append("HEAD has no tag: the gate runs from a tagged commit")
+        ledger = BASELINES.read_text(encoding="utf-8") if BASELINES.is_file() else ""
+        recorded = last_ledger_md5(ledger, HOLDOUT_LEDGER_HEADER)
+        if recorded != hashlib.md5(HOLDOUT_MANIFEST.read_bytes()).hexdigest():
+            refusals.append(f"the held-out manifest's md5 is not the last row of its "
+                            f"ledger in {BASELINES.name}: the set isn't the frozen one")
+    return refusals
+
+
+def holdout_main(args: argparse.Namespace) -> int:
+    """--holdout: the gate's run, or with --check the test-set checks alone.
+    Nothing per photo is printed. An error prints its type only, as its
+    message could name a photo or a value."""
+    try:
+        return run_holdout(args)
+    except Exception as e:
+        print(f"--holdout stopped: {type(e).__name__}")
+        return 1
+
+
+def run_holdout(args: argparse.Namespace) -> int:
+    if not HOLDOUT_MANIFEST.is_file():
+        print(f"no held-out manifest at {HOLDOUT_MANIFEST.relative_to(EVALS.parent)}")
+        return 1
+    # The dev manifest is read as labels only, for the overlap checks: no
+    # dev row is a case, and no dev photo is loaded.
+    checks = holdout_checks(read_rows(HOLDOUT_MANIFEST),
+                            read_rows(MANIFEST) if MANIFEST.is_file() else None,
+                            HOLDOUT_PHOTOS)
+    if args.check:
+        return 0 if print_checks(checks) else 1
+
+    args.model = args.model or ART_MODEL
+    args.repeat, args.workers = HOLDOUT_REPEAT, HOLDOUT_WORKERS
+    refusals = holdout_refusals(args)
+    if not print_checks(checks):
+        refusals.append("a test-set check failed")
+    if refusals:
+        print("\n".join(f"refused: {r}" for r in refusals))
+        return 1
+
+    cases = load_manifest(HOLDOUT_MANIFEST, HOLDOUT_PHOTOS, say=lambda _: None)
+    from dotenv import load_dotenv
+    load_dotenv()
+    metadata = {**run_metadata(args, HOLDOUT_MANIFEST), "set": "holdout",
+                **photo_metadata(cases)}
+    name = f"{args.model}-holdout"
+    # pydantic-evals' progress and anything a read prints could name a photo.
+    with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+        report = dataset_of(cases).evaluate_sync(
+            partial(classified_read, model=args.model),
+            max_concurrency=args.workers, repeat=args.repeat, name=name,
+            metadata=metadata, progress=False)
+    g = gate_totals(report)
+    # ADR-0002: a run in which the API gave no answer for a read is void,
+    # not an attempt. Its totals stay unprinted, so a rerun can't depend on them.
+    void = g.failed > 0
+    kinds = sorted(kind_of(f) for f in report.failures)
+    report = replace(report, experiment_metadata={
+        **metadata, **call_metadata(report), "void": void,
+        "read_failures": {k: kinds.count(k) for k in dict.fromkeys(kinds)}})
+    path = save(report, name)
+
+    print(f"\nheld-out run: {args.model} at {metadata['commit']}, "
+          f"--repeat {args.repeat}, workers {args.workers}")
+    if void:
+        print(f"{g.failed} failed read{'' if g.failed == 1 else 's'}: run void, rerun")
+    else:
+        share = f" ({100 * g.reads_correct / g.reads:.1f}%)" if g.reads else ""
+        print(f"garment-sides correct: {g.correct} of {g.sides}")
+        print(f"needed to pass: {g.needed} ({GATE_PERCENT}% of {g.sides}, rounded up)")
+        print(f"reads correct: {g.reads_correct} of {g.reads}{share}")
+        print(f"unusable answers or refusals: {g.unusable}, counted as wrong")
+    print(f"wrote {path.relative_to(EVALS.parent)}")
+    return 1 if void else 0
 
 
 def main() -> int:
@@ -640,7 +964,7 @@ def main() -> int:
     )
     # --model and --repeat default to None so --replay can tell they were passed.
     ap.add_argument("--model", help=f"default: {ART_MODEL}")
-    ap.add_argument("--workers", type=int, default=4,
+    ap.add_argument("--workers", type=int,
                     help="reads at once (default: 4); ignored by --replay, which is serial")
     ap.add_argument("--limit", type=int, help="only run the first N cases")
     ap.add_argument("--repeat", type=int,
@@ -653,7 +977,35 @@ def main() -> int:
                     help="a saved report in evals/results/ to compare this run against")
     ap.add_argument("--replay", type=Path,
                     help="rescore a saved report's reads with this code, no API call")
+    ap.add_argument("--holdout", action="store_true",
+                    help="the gate's run on evals/holdout/: --repeat 3, workers 1, "
+                         "totals only (evals/README.md, Held-out set)")
+    ap.add_argument("--check", action="store_true",
+                    help="with --holdout: the test-set checks alone, no API call")
     args = ap.parse_args()
+
+    if args.check and not args.holdout:
+        ap.error("--check needs --holdout")
+    if args.holdout:
+        # Each would print per photo, cut the set, skip the save, or change
+        # the run procedure's settings (ADR-0002). `test` keeps an offline run.
+        refused = [flag for flag, bad in [
+            ("--limit", args.limit is not None), ("--no-save", args.no_save),
+            ("--replay", args.replay), ("--baseline", args.baseline),
+            ("--repeat", args.repeat not in (None, HOLDOUT_REPEAT)),
+            ("--workers", args.workers not in (None, HOLDOUT_WORKERS)),
+            ("--model", args.model not in (None, "test")),
+        ] if bad]
+        if args.check:
+            # The checks make no read, so no run setting applies.
+            refused += [flag for flag, passed in [
+                ("--repeat", args.repeat is not None), ("--workers", args.workers is not None),
+                ("--model", args.model is not None), ("--note", bool(args.note)),
+            ] if passed and flag not in refused]
+        if refused:
+            ap.error(f"--holdout{' --check' if args.check else ''} can't be used with "
+                     f"{', '.join(refused)}")
+        return holdout_main(args)
 
     if args.replay:
         passed = [flag for flag, value in [
@@ -664,6 +1016,7 @@ def main() -> int:
             ap.error(f"--replay can't be used with {', '.join(passed)}")
     args.model = args.model or ART_MODEL
     args.repeat = args.repeat or 1
+    args.workers = 4 if args.workers is None else args.workers
 
     if not MANIFEST.is_file():
         print(f"no manifest at {MANIFEST} — skipping.")
@@ -724,11 +1077,7 @@ def main() -> int:
         task = partial(get_art_number_reading, model=args.model)
         workers, repeat, name = args.workers, args.repeat, args.model
 
-    dataset = Dataset(name="art-number-transcription",
-                      cases=cases, evaluators=[CorrectArtNumber(), CorrectArtBase()],
-                      report_evaluators=[ConfidenceRates(), PerPhotoCounts(),
-                                         BaseExactCounts()])
-    report = dataset.evaluate_sync(
+    report = dataset_of(cases).evaluate_sync(
         task,
         max_concurrency=workers,
         repeat=repeat,
