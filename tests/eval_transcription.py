@@ -466,11 +466,13 @@ class Check(NamedTuple):
     detail: str = ""
 
 
-def holdout_checks(rows: list[dict], dev_rows: list[dict] | None) -> list[Check]:
+def holdout_checks(rows: list[dict], dev_rows: list[dict] | None,
+                   photos: Path) -> list[Check]:
     """The held-out set's checks (ADR-0002, *Rules for the test set*), each
     failing with the number of rows that break it. `dev_rows` is the dev
     manifest, read as labels only; None if it is missing, which fails the
-    two checks that need it rather than skipping them."""
+    three checks that need it rather than skipping them. `photos` is where
+    the rows' photos must be; they are looked for, never read."""
     def failing(n: int) -> str:
         return f"{n} row{'' if n == 1 else 's'}" if n else ""
 
@@ -517,6 +519,18 @@ def holdout_checks(rows: list[dict], dev_rows: list[dict] | None) -> list[Check]
 
     n_sides = len(set(sides))
     checks.append(Check("size", n_sides >= MIN_SIDES, f"{n_sides} garment-sides"))
+
+    # 8. A missing photo would fail its reads, and void the run.
+    missing = sum(1 for r in rows
+                  if not cell(r, "photo") or not (photos / cell(r, "photo")).is_file())
+    checks.append(Check("photo files", not missing, failing(missing)))
+
+    if dev_rows is None:
+        checks.append(Check("no id overlap", False, "no dev manifest"))
+    else:
+        dev_ids = {cell(r, "id") for r in dev_rows} - {""}
+        shared_ids = sum(1 for i in ids if i in dev_ids)
+        checks.append(Check("no id overlap", not shared_ids, failing(shared_ids)))
     return checks
 
 
@@ -538,14 +552,15 @@ class GateTotals(NamedTuple):
     sides: int          # positive garment-sides: one photo each, by the checks
     correct: int        # of those, correct by the 2-of-3 rule
     needed: int
-    reads: int          # every run, failed ones included
+    reads: int          # every read, failed ones included
     reads_correct: int
-    failed: int         # reads that failed: in `reads`, never in `reads_correct`
+    failed: int         # any makes the run void
 
 
 def gate_totals(report: EvaluationReport) -> GateTotals:
-    """The gate's numbers. Unlike the dev table's "reads correct", a failed
-    read stays in the denominator: the gate counts it as a wrong read."""
+    """The gate's numbers. `reads` is every read: on a run that isn't void
+    no read failed, so it equals the reads scored. A misread counts as
+    wrong."""
     sides = [p for p in bases_by_photo(report) if p.kind == "positive"]
     return GateTotals(
         sides=len(sides),
@@ -829,7 +844,8 @@ def run_holdout(args: argparse.Namespace) -> int:
     # The dev manifest is read as labels only, for the overlap checks: no
     # dev row is a case, and no dev photo is loaded.
     checks = holdout_checks(read_rows(HOLDOUT_MANIFEST),
-                             read_rows(MANIFEST) if MANIFEST.is_file() else None)
+                            read_rows(MANIFEST) if MANIFEST.is_file() else None,
+                            HOLDOUT_PHOTOS)
     if args.check:
         return 0 if print_checks(checks) else 1
 
@@ -854,19 +870,26 @@ def run_holdout(args: argparse.Namespace) -> int:
             partial(get_art_number_reading, model=args.model),
             max_concurrency=args.workers, repeat=args.repeat, name=name,
             metadata=metadata, progress=False)
-    report = replace(report, experiment_metadata={**metadata, **call_metadata(report)})
+    g = gate_totals(report)
+    # ADR-0002: a run with any failed read is void, not an attempt. Its
+    # totals stay unprinted, so a rerun can't depend on them.
+    void = g.failed > 0
+    report = replace(report, experiment_metadata={**metadata, **call_metadata(report),
+                                                  "void": void})
     path = save(report, name)
 
-    g = gate_totals(report)
-    share = f" ({100 * g.reads_correct / g.reads:.1f}%)" if g.reads else ""
     print(f"\nheld-out run: {args.model} at {metadata['commit']}, "
           f"--repeat {args.repeat}, workers {args.workers}")
-    print(f"garment-sides correct: {g.correct} of {g.sides}")
-    print(f"needed to pass: {g.needed} ({GATE_PERCENT}% of {g.sides}, rounded up)")
-    print(f"reads correct: {g.reads_correct} of {g.reads}{share}, failed reads counted as wrong")
-    print(f"failed reads: {g.failed}")
+    if void:
+        print(f"{g.failed} failed reads: run void, rerun")
+    else:
+        share = f" ({100 * g.reads_correct / g.reads:.1f}%)" if g.reads else ""
+        print(f"garment-sides correct: {g.correct} of {g.sides}")
+        print(f"needed to pass: {g.needed} ({GATE_PERCENT}% of {g.sides}, rounded up)")
+        print(f"reads correct: {g.reads_correct} of {g.reads}{share}")
+        print(f"failed reads: {g.failed}")
     print(f"wrote {path.relative_to(EVALS.parent)}")
-    return 0
+    return 1 if void else 0
 
 
 def main() -> int:

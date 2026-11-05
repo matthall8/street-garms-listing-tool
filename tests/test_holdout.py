@@ -160,27 +160,25 @@ class TestPrivacy:
 
     @pytest.mark.parametrize("capture", ["capsys", "capfd"])
     def test_a_test_model_run_prints_totals_only(self, holdout, request, capture):
-        """`--model test` end to end, with one photo missing: its failed
-        reads carry its path in their error."""
         cap = request.getfixturevalue(capture)
-        rows = holdout.write(missing=(side_row(1)["photo"],))
+        rows = holdout.write()
         assert holdout.run("--model", "test") == 0
         out, err = cap.readouterr()
         assert_nothing_per_photo(out + err, rows)
         assert "garment-sides correct: 0 of 15" in out
-        assert "failed reads: 3" in out
 
     @pytest.mark.parametrize("capture", ["capsys", "capfd"])
-    def test_reads_and_their_failures_stay_unprinted(
+    def test_a_void_run_prints_no_read_or_failure(
         self, holdout, monkeypatch, request, capture
     ):
+        """Each failed read's error carries its photo's path."""
         cap = request.getfixturevalue(capture)
         rows = holdout.write()
         fake_reads(monkeypatch, {r["photo"]: [RIGHT, WRONG, None] for r in rows})
-        assert holdout.run("--model", "test") == 0
+        assert holdout.run("--model", "test") == 1
         out, err = cap.readouterr()
         assert_nothing_per_photo(out + err, rows)
-        assert "reads correct: 15 of 45" in out
+        assert "15 failed reads: run void, rerun" in out
 
     def test_the_saved_report_keeps_every_read(self, holdout, monkeypatch):
         """Local and gitignored, so it may hold per-photo results."""
@@ -223,23 +221,38 @@ class TestHeldOutOnly:
         holdout.write()
         holdout.run("--model", "test", "--note", "gate attempt")
         meta = holdout.saved()[0].experiment_metadata or {}
-        assert meta["set"] == "holdout"
+        assert (meta["set"], meta["void"]) == ("holdout", False)
         assert meta["manifest"] == eval_transcription.fingerprint(holdout.manifest.read_bytes())
         assert (meta["repeat"], meta["limit"], meta["note"]) == (3, None, "gate attempt")
 
-    def test_a_dev_run_has_no_set_field(self, holdout, monkeypatch):
+    def test_a_dev_run_has_no_set_or_void_field(self, holdout, monkeypatch):
         holdout.write()
         monkeypatch.setattr("sys.argv", ["eval", "--model", "test"])
         assert eval_transcription.main() == 0
-        assert "set" not in (holdout.saved()[0].experiment_metadata or {})
+        meta = holdout.saved()[0].experiment_metadata or {}
+        assert "set" not in meta and "void" not in meta
 
 
-def checks(rows: list[dict], dev: list[dict] | None = DEV_ROWS) -> dict[str, Check]:
-    return {c.name: c for c in holdout_checks(rows, dev)}
+@pytest.fixture
+def checks(tmp_path):
+    """holdout_checks by name, with every row's photo on disk in tmp_path
+    except those in `missing`."""
+    def run(rows: list[dict], dev: list[dict] | None = DEV_ROWS,
+            missing: tuple[str, ...] = ()) -> dict[str, Check]:
+        for r in rows:
+            if r["photo"] and r["photo"] not in missing:
+                (tmp_path / r["photo"]).write_bytes(b"photo")
+        return {c.name: c for c in holdout_checks(rows, dev, tmp_path)}
+    return run
 
 
-def failed(rows: list[dict], dev: list[dict] | None = DEV_ROWS) -> dict[str, str]:
-    return {c.name: c.detail for c in holdout_checks(rows, dev) if not c.ok}
+@pytest.fixture
+def failed(checks):
+    """The failing checks' details, by name."""
+    def run(rows: list[dict], dev: list[dict] | None = DEV_ROWS,
+            missing: tuple[str, ...] = ()) -> dict[str, str]:
+        return {n: c.detail for n, c in checks(rows, dev, missing).items() if not c.ok}
+    return run
 
 
 class TestChecks:
@@ -247,23 +260,27 @@ class TestChecks:
     count. The printed lines are tested end to end in TestCheckFlag."""
 
     NAMES = ["rows", "ids", "one photo per garment-side", "no garment overlap",
-             "no product overlap", "no prompt examples", "size"]
+             "no product overlap", "no prompt examples", "size", "photo files",
+             "no id overlap"]
 
-    def test_a_clean_set_passes_every_check(self):
-        result = holdout_checks(held_out(), DEV_ROWS)
-        assert [c.name for c in result] == self.NAMES
-        assert all(c.ok for c in result)
+    def test_a_clean_set_passes_every_check(self, checks):
+        result = checks(held_out())
+        assert list(result) == self.NAMES
+        assert all(c.ok for c in result.values())
 
     @pytest.mark.parametrize("cells", [
         {"expected_art_base": ""}, {"expected_art_base": "UNKNOWN"},
         {"expected_art_base": "none"}, {"expected_art_number": "NONE"},
-        {"photo": ""},
-    ], ids=["blank base", "unknown base", "none base", "none legacy", "no photo"])
-    def test_rows_fail_on_a_row_that_is_not_scored(self, cells):
+    ], ids=["blank base", "unknown base", "none base", "none legacy"])
+    def test_rows_fail_on_a_row_that_is_not_scored(self, failed, cells):
         rows = [*held_out(), side_row(16, **cells)]
         assert failed(rows) == {"rows": "1 row"}
 
-    def test_rows_fail_on_a_row_the_loader_would_skip(self):
+    def test_a_row_with_no_photo_fails_rows_and_photo_files(self, failed):
+        assert failed([*held_out(), side_row(16, photo="")]) == {
+            "rows": "1 row", "photo files": "1 row"}
+
+    def test_rows_fail_on_a_row_the_loader_would_skip(self, checks):
         """Never skipped quietly: the loader's own rule is part of the check."""
         row = side_row(16, expected_art_base="")
         assert eval_transcription.loader_skips(row)
@@ -271,39 +288,40 @@ class TestChecks:
 
     @pytest.mark.parametrize("cells,detail", [
         ({"id": ""}, "1 row"), ({"id": "hid-01"}, "2 rows")])
-    def test_ids_fail_on_a_blank_or_repeated_id(self, cells, detail):
+    def test_ids_fail_on_a_blank_or_repeated_id(self, failed, cells, detail):
         assert failed([*held_out(), side_row(16, **cells)]) == {"ids": detail}
 
-    def test_one_photo_per_garment_side(self):
+    def test_one_photo_per_garment_side(self, failed):
         second_shot = side_row(16, garment="hgarm-01")
         assert failed([*held_out(), second_shot]) == {"one photo per garment-side": "2 rows"}
 
-    def test_two_sides_of_one_garment_are_two_garment_sides(self):
+    def test_two_sides_of_one_garment_are_two_garment_sides(self, failed):
         back = side_row(16, garment="hgarm-01", side="back")
         assert failed([*held_out(14), back]) == {}
 
     @pytest.mark.parametrize("cells", [{"garment": ""}, {"side": ""}])
-    def test_a_row_with_no_garment_or_side_fails(self, cells):
+    def test_a_row_with_no_garment_or_side_fails(self, failed, cells):
         assert failed([*held_out(), side_row(16, **cells)]) == {
             "one photo per garment-side": "1 row"}
 
-    def test_no_garment_overlap(self):
+    def test_no_garment_overlap(self, failed):
         assert failed([*held_out(), side_row(16, garment="g1")]) == {
             "no garment overlap": "1 row"}
 
-    def test_no_product_overlap_after_normalising(self):
+    def test_no_product_overlap_after_normalising(self, failed):
         spaced = f"{DEV_BASE[:3].lower()} {DEV_BASE[3:]}"
         assert failed([*held_out(), side_row(16, expected_art_base=spaced)]) == {
             "no product overlap": "1 row"}
 
-    def test_a_missing_dev_manifest_fails_both_overlap_checks(self):
+    def test_a_missing_dev_manifest_fails_every_check_that_needs_it(self, failed):
         assert failed(held_out(), dev=None) == {"no garment overlap": "no dev manifest",
-                                                "no product overlap": "no dev manifest"}
+                                                "no product overlap": "no dev manifest",
+                                                "no id overlap": "no dev manifest"}
 
     def test_the_prompt_is_the_one_sent(self):
         assert eval_transcription.ART_PROMPT is transcribe.ART_PROMPT
 
-    def test_no_prompt_examples_after_normalising(self, monkeypatch):
+    def test_no_prompt_examples_after_normalising(self, failed, monkeypatch):
         """Spacing and case in the prompt don't hide a base."""
         spaced = f"{WRONG[:4]} {WRONG[4:].lower()}"
         monkeypatch.setattr(eval_transcription, "ART_PROMPT", f"e.g. ART. {spaced}/12")
@@ -311,9 +329,26 @@ class TestChecks:
             "no prompt examples": "1 row"}
 
     @pytest.mark.parametrize("n,ok", [(14, False), (15, True)])
-    def test_size_counts_garment_sides(self, n, ok):
+    def test_size_counts_garment_sides(self, checks, n, ok):
         size = checks(held_out(n))["size"]
         assert (size.ok, size.detail) == (ok, f"{n} garment-sides")
+
+    def test_photo_files_fail_on_a_missing_photo(self, failed):
+        rows = held_out()
+        assert failed(rows, missing=(rows[0]["photo"], rows[1]["photo"])) == {
+            "photo files": "2 rows"}
+
+    def test_photo_files_look_in_the_directory_given(self, tmp_path):
+        """The held-out photos' directory, never the dev one."""
+        rows = held_out()
+        (tmp_path / "elsewhere").mkdir()
+        for r in rows:
+            (tmp_path / "elsewhere" / r["photo"]).write_bytes(b"photo")
+        result = {c.name: c for c in holdout_checks(rows, DEV_ROWS, tmp_path)}
+        assert result["photo files"] == Check("photo files", False, "15 rows")
+
+    def test_no_id_overlap(self, failed):
+        assert failed([*held_out(), side_row(16, id="p1")]) == {"no id overlap": "1 row"}
 
 
 class TestCheckFlag:
@@ -322,7 +357,8 @@ class TestCheckFlag:
     PASS = ("test-set checks (ADR-0002):\n"
             "  rows: pass\n  ids: pass\n  one photo per garment-side: pass\n"
             "  no garment overlap: pass\n  no product overlap: pass\n"
-            "  no prompt examples: pass\n  size: pass (15 garment-sides)\n")
+            "  no prompt examples: pass\n  size: pass (15 garment-sides)\n"
+            "  photo files: pass\n  no id overlap: pass\n")
 
     def test_a_clean_set_passes(self, holdout, capsys):
         holdout.write()
@@ -332,9 +368,10 @@ class TestCheckFlag:
     def test_every_check_failing_prints_counts_only(self, holdout, monkeypatch, capsys):
         rows = [side_row(1, expected_art_base="NONE"), side_row(2, id="hid-01"),
                 side_row(3, garment="hgarm-02"), side_row(4, garment="g1"),
-                side_row(5, expected_art_base=DEV_BASE), side_row(6, expected_art_base=WRONG)]
+                side_row(5, expected_art_base=DEV_BASE), side_row(6, expected_art_base=WRONG),
+                side_row(7, id="p1")]
         monkeypatch.setattr(eval_transcription, "ART_PROMPT", f"e.g. {WRONG}")
-        holdout.write(rows)
+        holdout.write(rows, missing=(rows[6]["photo"],))
         assert holdout.run("--check") == 1
         out, err = capsys.readouterr()
         assert out == ("test-set checks (ADR-0002):\n"
@@ -343,7 +380,9 @@ class TestCheckFlag:
                        "  no garment overlap: fail (1 row)\n"
                        "  no product overlap: fail (1 row)\n"
                        "  no prompt examples: fail (1 row)\n"
-                       "  size: fail (5 garment-sides)\n")
+                       "  size: fail (6 garment-sides)\n"
+                       "  photo files: fail (1 row)\n"
+                       "  no id overlap: fail (1 row)\n")
         assert err == ""
         assert_nothing_per_photo(out, rows)
 
@@ -353,8 +392,8 @@ class TestCheckFlag:
         no_api(monkeypatch)
         assert holdout.run("--check") == 0
 
-    def test_it_reads_no_photo(self, holdout, monkeypatch):
-        holdout.write(missing=tuple(r["photo"] for r in held_out()))
+    def test_it_sends_no_photo(self, holdout, monkeypatch):
+        holdout.write()
         no_api(monkeypatch)
         assert holdout.run("--check") == 0
         assert not (holdout.root / "results").exists()
@@ -471,14 +510,15 @@ class TestGateArithmetic:
     def test_80_percent_rounded_up(self, sides, needed):
         assert gate_needed(sides) == needed
 
-    def test_failed_reads_count_as_reads_and_as_wrong(self, holdout, monkeypatch, capsys):
+    def test_misreads_count_as_wrong_and_every_read_is_counted(
+        self, holdout, monkeypatch, capsys
+    ):
         rows = holdout.write()
         reads: dict[str, list[str | None]] = {r["photo"]: [RIGHT] * 3 for r in rows}
         photo = [r["photo"] for r in rows]
-        reads[photo[0]] = [RIGHT, RIGHT, None]   # correct: 2 of 3
-        reads[photo[1]] = [RIGHT, None, None]    # wrong: the failures count against it
-        reads[photo[2]] = [None, None, None]     # wrong
-        reads[photo[3]] = [WRONG, RIGHT, RIGHT]  # correct
+        reads[photo[0]] = [WRONG, RIGHT, RIGHT]  # correct: 2 of 3
+        reads[photo[1]] = [WRONG, WRONG, RIGHT]  # wrong
+        reads[photo[2]] = [WRONG, WRONG, WRONG]  # wrong
         fake_reads(monkeypatch, reads)
         assert holdout.run("--model", "test") == 0
         out = capsys.readouterr().out
@@ -487,10 +527,53 @@ class TestGateArithmetic:
             "held-out run: test at abc1234, --repeat 3, workers 1",
             "garment-sides correct: 13 of 15",
             "needed to pass: 12 (80% of 15, rounded up)",
-            "reads correct: 38 of 45 (84.4%), failed reads counted as wrong",
-            "failed reads: 6",
+            "reads correct: 39 of 45 (86.7%)",
+            "failed reads: 0",
         ]
         assert totals[5].startswith("wrote ") and "/results/" in totals[5]
         assert len(totals) == 6
         report, _ = holdout.saved()
-        assert gate_totals(report) == (15, 13, 12, 45, 38, 6)
+        assert gate_totals(report) == (15, 13, 12, 45, 39, 0)
+        assert (report.experiment_metadata or {})["void"] is False
+
+
+class TestVoidRun:
+    """ADR-0002: a run with any failed read is void, not an attempt."""
+
+    def run_with_one_failure(self, holdout, monkeypatch) -> int:
+        rows = holdout.write()
+        reads: dict[str, list[str | None]] = {r["photo"]: [RIGHT] * 3 for r in rows}
+        reads[rows[0]["photo"]] = [RIGHT, RIGHT, None]   # still 2 of 3 correct
+        fake_reads(monkeypatch, reads)
+        return holdout.run("--model", "test")
+
+    def test_one_failed_read_voids_the_run_and_hides_the_totals(
+        self, holdout, monkeypatch, capsys
+    ):
+        assert self.run_with_one_failure(holdout, monkeypatch) == 1
+        out = capsys.readouterr().out
+        lines = out[out.index("held-out run:"):].splitlines()
+        assert lines[:2] == ["held-out run: test at abc1234, --repeat 3, workers 1",
+                             "1 failed reads: run void, rerun"]
+        assert lines[2].startswith("wrote ") and len(lines) == 3
+        for total in ("garment-sides correct", "needed to pass", "reads correct"):
+            assert total not in out
+
+    def test_the_void_report_is_saved_and_marked(self, holdout, monkeypatch):
+        self.run_with_one_failure(holdout, monkeypatch)
+        report, _ = holdout.saved()
+        assert (report.experiment_metadata or {})["void"] is True
+        assert len(report.cases) == 44 and len(report.failures) == 1
+
+    def test_the_denominator_is_every_read(self, holdout, monkeypatch):
+        """Failed reads included; on a run that isn't void there are none."""
+        self.run_with_one_failure(holdout, monkeypatch)
+        report, _ = holdout.saved()
+        assert gate_totals(report) == (15, 15, 12, 45, 44, 1)
+
+    def test_a_void_report_is_still_refused_by_replay(self, holdout, monkeypatch, capsys):
+        self.run_with_one_failure(holdout, monkeypatch)
+        _, path = holdout.saved()
+        monkeypatch.setattr("sys.argv", ["eval", "--replay", str(path)])
+        assert eval_transcription.main() == 1
+        assert "is a --holdout report" in capsys.readouterr().out
