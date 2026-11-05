@@ -1,7 +1,7 @@
 # ADR-0002: Phase 1 acceptance
 
-- **Status:** Accepted; amended 2026-10-28, 2026-10-30 and 2026-11-04
-  (*Amendments*)
+- **Status:** Accepted; amended 2026-10-28, 2026-10-30, 2026-11-04 and
+  2026-11-05 (*Amendments*)
 - **Date:** 2026-10-22
 - **Supersedes:** ADR-0001's launch criteria (*For launch*, under *Success
   criteria*) and, in phase 1, its per-run hard rule (no garment-side newly
@@ -81,14 +81,12 @@ bar (wrong and unflagged) must be added to the gate first.
 
 Rules for the development set:
 
-- Frozen from 2026-11-04. There is no photo session and no grown-set
-  baseline: run 0 (2026-10-30) stays the latest baseline until the model
-  pin's recorded run replaces it (*Rules for the test set*), and that run
-  until a run passes ADR-0006's rule or the grown set's baseline replaces
-  it (below). New photos go to the test set only; the only photos to join
-  the development set are a failed test set's (below). The grown set then
-  gets a paid baseline of the accepted configuration, recorded, not
-  judged, before the next development run.
+- Frozen from 2026-11-04. There is no photo session: run 0 (2026-10-30)
+  stays the latest baseline until a run passes ADR-0006's rule or the
+  grown set's baseline replaces it (below). New photos go to the test set
+  only; the only photos to join the development set are a failed test
+  set's (below). The grown set then gets a paid baseline of the accepted
+  configuration, recorded, not judged, before the next development run.
 - Any parser, gate or catalogue change is measured by
   replaying the latest baseline's saved reads, which costs nothing. That
   replay is the comparison point for the next paid run.
@@ -108,12 +106,10 @@ Rules for the test set:
   `evals/BASELINES.md` the manifest's md5, the count needed to pass, the
   number of garments, the format families covered, and how many
   garment-sides were left out, by reason. Only then run.
-- The gate runs the latest baseline's configuration with the model pinned
-  to a dated snapshot, and the staff trial runs the same configuration.
-  The pin is recorded, not judged: the development set can't judge it
-  (ADR-0006). Its record is a paid development run of the pinned
-  configuration, `--repeat 3`, compared with run 0 and recorded as the
-  new baseline, like run 0 itself.
+- The gate runs the latest baseline's configuration, and the staff trial
+  runs the same configuration. Its model ID, `claude-sonnet-5`, is a
+  pinned snapshot: every Claude model ID is, dateless ones included
+  (Anthropic's models overview), so the gate reads with run 0's model.
 - Run once, from a tagged commit, and recorded in `evals/BASELINES.md`. On
   a fail, the test set joins the development set and the result goes back
   to the wider team; the next gate attempt needs a new test set.
@@ -169,6 +165,10 @@ See *Phase 1* in TODO.md for an up-to-date list.
   amendment): replaced (amended 2026-10-30). Run 0 doesn't wait for the
   photo session; the grown set gets its own baseline. The photo session was
   itself dropped on 2026-11-04.
+- **Pinning a dated snapshot before the gate, recorded by a paid
+  development run** (this ADR before the 2026-11-05 amendment): dropped.
+  `claude-sonnet-5` is already a pinned snapshot, so there is nothing to
+  pin.
 
 ## Consequences
 
@@ -210,3 +210,5 @@ See *Phase 1* in TODO.md for an up-to-date list.
   photographed by 2026-11-06, at least 15 garment-sides, run once; the
   development set is frozen as it is until a test set fails. Agreed with
   the wider team.
+- **2026-11-05:** no model pin: `claude-sonnet-5` is already a pinned
+  snapshot, so run 0 stays the latest baseline.

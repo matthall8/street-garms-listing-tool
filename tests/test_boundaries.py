@@ -156,3 +156,50 @@ class TestSharedTimeout:
             "CLAUDE.md, Engineering constraints: all model calls use the shared "
             "60s timeout (MODEL_SETTINGS).\n" + "\n".join(bad)
         )
+
+
+class TestExplicitRetries:
+    """CLAUDE.md, Engineering constraints: the client's retries and the
+    agent's output retries are set explicitly, not left to library defaults.
+    Read from source, as TestSharedTimeout is; tests/test_transcribe.py,
+    TestRetries, shows the values take effect."""
+
+    def test_every_agent_sets_its_output_retries(self):
+        path = _source("labels/transcribe.py")
+        calls = _agent_calls(path)
+        assert calls, "no Agent(...) call found in labels/transcribe.py: update this test"
+        bad = [
+            f"labels/transcribe.py:{call.lineno} Agent(...) without retries={{'output': OUTPUT_RETRIES}}"
+            for call in calls
+            if not any(
+                kw.arg == "retries"
+                and isinstance(kw.value, ast.Dict)
+                and any(isinstance(k, ast.Constant) and k.value == "output"
+                        and isinstance(v, ast.Name) and v.id == "OUTPUT_RETRIES"
+                        for k, v in zip(kw.value.keys, kw.value.values, strict=True))
+                for kw in call.keywords
+            )
+        ]
+        assert not bad, (
+            "CLAUDE.md, Engineering constraints: set the agent's output retries "
+            "explicitly.\n" + "\n".join(bad)
+        )
+
+    def test_the_client_retries_are_set(self):
+        tree = ast.parse(_source("labels/transcribe.py").read_text())
+        assigned = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Assign)
+            and any(isinstance(t, ast.Attribute) and t.attr == "max_retries" for t in node.targets)
+            and isinstance(node.value, ast.Name) and node.value.id == "CLIENT_RETRIES"
+        ]
+        assert assigned, (
+            "CLAUDE.md, Engineering constraints: set the Anthropic client's "
+            "retries explicitly (`.max_retries = CLIENT_RETRIES`)."
+        )
+
+    def test_the_retries_are_counts(self):
+        from labels.transcribe import CLIENT_RETRIES, OUTPUT_RETRIES
+
+        assert isinstance(CLIENT_RETRIES, int) and CLIENT_RETRIES >= 0
+        assert isinstance(OUTPUT_RETRIES, int) and OUTPUT_RETRIES >= 0

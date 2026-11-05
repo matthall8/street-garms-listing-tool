@@ -99,11 +99,16 @@ manifest `id`, never by filename. Never quote a catalogue product name.
 - `labels/transcribe.py` is the only module permitted to call an API. Everything
   else is pure or reads local files — that's why the suite is offline and fast.
 - All model calls use the shared 60s timeout (`MODEL_SETTINGS`). Do not remove
-  it. It applies per HTTP attempt, so retries multiply it. When changing how a
-  model call is made (agent construction, model settings, the client), set the
-  Anthropic client's retries and the agent's output retries explicitly; don't
-  rely on library defaults. `tests/test_boundaries.py::TestSharedTimeout`
-  checks the 60s value and that every `Agent(...)` passes `MODEL_SETTINGS`.
+  it. It applies per HTTP attempt, so retries multiply it. The Anthropic
+  client's retries (`CLIENT_RETRIES`) and the agent's output retries
+  (`OUTPUT_RETRIES`) are set explicitly, in `labels/transcribe.py`; when
+  changing how a model call is made (agent construction, model settings, the
+  client), keep them explicit, never library defaults. Worst case about
+  600s: 2 model requests × 3 HTTP attempts × 60s, plus the SDK's waits
+  between attempts (up to 60s each on retry-after); approximate, since the
+  60s is httpx's limit per phase. `tests/test_boundaries.py::TestSharedTimeout`
+  checks the 60s value and that every `Agent(...)` passes `MODEL_SETTINGS`;
+  `TestExplicitRetries` checks both retries are set.
 - Agents are built lazily and `@cache`d. Importing the module must not require
   an API key.
 - `Extraction` stays JSON-serialisable and `all_reads` stays plain dicts

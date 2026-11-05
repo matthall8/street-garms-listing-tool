@@ -86,11 +86,11 @@ photo, against the 2026-10-29 replay:
 | negative photos correct | 4 of 4 | 4 of 4 |
 
 One flip: `p11` (`g06` front), 0 of 3 → 3 of 3, the same on all three
-reads. Nothing the model sees changed, so it is read-to-read noise or a
-model change behind the undated alias (TODO.md, *model-identity*);
-the reports can't tell which. Within this run every photo read
-identically, so read-to-read noise is the less likely explanation, though
-the reports can't rule it out. No other photo's correct-read count changed.
+reads. Nothing the model sees changed, and `claude-sonnet-5` is a pinned
+snapshot (corrected 2026-11-05: this entry first allowed for a model
+change behind an alias), so it is read-to-read noise, though within this
+run every photo read identically. No other photo's correct-read count
+changed.
 
 **Legacy metrics**, against the 2026-10-08 report. The photo sets differ
 (*2026-10-08 baseline*, *Set*), so the totals don't compare.

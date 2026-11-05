@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from pydantic import ValidationError
-from pydantic_evals import Case, Dataset
+from pydantic_evals import Case, Dataset, increment_eval_metric, set_eval_attribute
 from pydantic_evals.evaluators import (
     Evaluator,
     EvaluatorContext,
@@ -53,7 +53,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from labels.photo import upright
 from labels.pipeline import from_reading
 from labels.schemas import ArtNumberReading
-from labels.transcribe import ART_MODEL, ART_PROMPT, ART_USER_MESSAGE, transcribe_art
+from labels.transcribe import (
+    ART_MODEL,
+    ART_PROMPT,
+    ART_USER_MESSAGE,
+    SETTINGS_RECORD,
+    ArtRead,
+    read_art,
+)
 
 EVALS = Path(__file__).parent.parent / "evals"
 MANIFEST = EVALS / "manifest.csv"
@@ -63,6 +70,10 @@ PHOTOS = EVALS / "photos"
 RESULTS = EVALS / "results"
 # Between the code and the model, or scoring what comes back.
 PACKAGES = ("pydantic-ai", "anthropic", "pydantic", "pydantic-evals", "pillow")
+# From each read's run result: model requests (output retries included, the
+# SDK's HTTP retries not) and tokens.
+USAGE_FIELDS = ("requests", "input_tokens", "output_tokens", "cache_read_tokens",
+                "cache_write_tokens")
 
 
 def levenshtein(a: str, b: str) -> int:
@@ -406,8 +417,31 @@ def media_type(photo_path: Path) -> str:
     return guess_type(photo_path.name)[0] or "image/jpeg"
 
 
+def record_call(read: ArtRead) -> None:
+    """The read's usage and reported model name, on its case in the report.
+    pydantic-evals leaves a metric that stays 0 out of the case's metrics."""
+    for field in USAGE_FIELDS:
+        increment_eval_metric(field, getattr(read.usage, field))
+    set_eval_attribute("reported_model", read.model_name)
+
+
 def get_art_number_reading(photo_path: Path, model: str) -> ArtNumberReading:
-    return transcribe_art(photo_path.read_bytes(), media_type(photo_path), model=model)
+    read = read_art(photo_path.read_bytes(), media_type(photo_path), model=model)
+    record_call(read)
+    return read.reading
+
+
+def call_metadata(report: EvaluationReport) -> dict:
+    """Header totals over the run's reads: the model names the API reported,
+    and usage summed. A failed read records neither: its run raised before
+    returning a result."""
+    names = {str(r.attributes["reported_model"])
+             for r in report.cases if "reported_model" in r.attributes}
+    return {
+        "reported_model": ", ".join(sorted(names)) or None,
+        "usage": {f: sum(int(r.metrics.get(f, 0)) for r in report.cases)
+                  for f in USAGE_FIELDS},
+    }
 
 def git(*args: str) -> str:
     """Output of a git command run in the repo, or "" if it fails."""
@@ -446,6 +480,7 @@ def run_metadata(args: argparse.Namespace) -> dict:
         "schema": fingerprint(
             json.dumps(ArtNumberReading.model_json_schema(), sort_keys=True).encode()),
         "versions": versions(),
+        "model_settings": dict(SETTINGS_RECORD),
         "manifest": fingerprint(MANIFEST.read_bytes()),
         "limit": args.limit,
         "repeat": args.repeat,
@@ -464,7 +499,7 @@ def id_problems(cases: list[Case]) -> list[str]:
 
 def photo_metadata(cases: list[Case]) -> dict:
     """The photos this run sends, by manifest id: a sha256 each of the bytes
-    sent, after upright() as transcribe_art applies it, and one fingerprint over
+    sent, after upright() as read_art applies it, and one fingerprint over
     them all. An untagged photo is sent as its file, so `shasum -a 256` checks
     it by hand. Hashed once per photo, whatever --repeat is. A missing photo is
     None; its read fails as before."""
@@ -480,8 +515,8 @@ def photo_metadata(cases: list[Case]) -> dict:
 
 def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
     """The scoring run's commit and manifest; the reads' model, prompt, user
-    message, schema, photos and library versions. A source from before a field
-    existed gives None."""
+    message, schema, photos, library versions, model settings, reported model
+    and usage. A source from before a field existed gives None."""
     read_by = source.experiment_metadata or {}
     return {
         **run_metadata(args),
@@ -492,6 +527,9 @@ def replay_metadata(args: argparse.Namespace, source: EvaluationReport) -> dict:
         "photos": read_by.get("photos"),
         "photo_hashes": read_by.get("photo_hashes"),
         "versions": read_by.get("versions"),
+        "model_settings": read_by.get("model_settings"),
+        "reported_model": read_by.get("reported_model"),
+        "usage": read_by.get("usage"),
         "repeat": read_by.get("repeat", 1),
         "replay_of": args.replay.name,
     }
@@ -525,11 +563,12 @@ def replay_task(source: EvaluationReport, cases: list[Case]):
 
 
 def baseline_warnings(baseline: dict, run: dict) -> list[str]:
-    """Where the baseline's output schema, user message, library versions or
-    photos differ from this run's. Any of them changing alongside the change
-    under test makes the diff meaningless, and none shows in a prompt or model
-    comparison: a library upgrade can change what's sent without moving the
-    schema. Not `prompt` or `model`: a comparison usually changes one on purpose."""
+    """Where the baseline's output schema, user message, library versions,
+    model settings or photos differ from this run's. Any of them changing
+    alongside the change under test makes the diff meaningless, and none shows
+    in a prompt or model comparison: a library upgrade can change what's sent
+    without moving the schema. Not `prompt` or `model`: a comparison usually
+    changes one on purpose."""
     warnings = []
     for what, key in [("output schema", "schema"), ("user message", "user_message"),
                       ("versions line", "versions")]:
@@ -538,6 +577,15 @@ def baseline_warnings(baseline: dict, run: dict) -> list[str]:
         elif baseline[key] != run[key]:
             warnings.append(f"warning: the {what} differs from the baseline's "
                             f"({baseline[key]} -> {run[key]})")
+
+    # A dict: name each setting that changed, not the whole record.
+    then, now = baseline.get("model_settings"), run["model_settings"]
+    if then is None:
+        warnings.append("warning: the model settings are not recorded in the baseline")
+    elif then != now:
+        changed = ", ".join(f"{k}: {then.get(k)} -> {now.get(k)}"
+                            for k in sorted({*then, *now}) if then.get(k) != now.get(k))
+        warnings.append(f"warning: the model settings differ from the baseline's ({changed})")
 
     then, now = baseline.get("photo_hashes"), run["photo_hashes"]
     if then is None:
@@ -687,6 +735,9 @@ def main() -> int:
         name=name,
         metadata=metadata,
     )
+    if not args.replay:
+        # Known only once the reads are in; a replay keeps the source's.
+        report = replace(report, experiment_metadata={**metadata, **call_metadata(report)})
     printable(report).print(include_output=True, include_expected_output=True,
                             baseline=printable(baseline) if baseline else None)
     if not args.no_save:

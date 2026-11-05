@@ -127,7 +127,7 @@ This project:
   `needs_review` in `pipeline.py`: was the gate decision made explicitly,
   and is it tested?
 - **Prompt contract.** Anything sent to the model is the prompt: the prompt
-  constants, the user message built in `transcribe_art`, the reading
+  constants, the user message built in `read_art`, the reading
   schemas in `schemas.py` (docstrings, field names, field order,
   descriptions), the model strings, `MODEL_SETTINGS`, and the image
   handling in `labels/photo.py` (what `upright()` sends). A change to

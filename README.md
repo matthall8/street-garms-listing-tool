@@ -149,9 +149,7 @@ Most serious first.
   label read correctly on all 3 reads
   ([evals/BASELINES.md](evals/BASELINES.md)).
 - **Operations.** There is no per-call cost tracking or eval spend cap.
-  `claude-sonnet-5` has no dated snapshot, so a silent model update can't be
-  told apart from other changes in a run diff. The web form has no auth or
-  rate limit.
+  The web form has no auth or rate limit.
 - **The CLI** shows a traceback on API failure.
 
 ## Deliberate choices and open questions
