@@ -366,6 +366,13 @@ class TestChecks:
         assert failed(rows, missing=(rows[0]["photo"], rows[1]["photo"])) == {
             "photo files": "2 rows"}
 
+    def test_photo_files_fail_on_a_photo_two_rows_share(self, failed):
+        """Each row's photo is on disk, but a repeated case name would stop
+        the gate run before any read."""
+        rows = held_out()
+        assert failed([*rows, side_row(16, photo=rows[0]["photo"])]) == {
+            "photo files": "2 rows"}
+
     def test_photo_files_look_in_the_directory_given(self, tmp_path):
         """The held-out photos' directory, never the dev one."""
         rows = held_out()
@@ -556,7 +563,7 @@ class TestGateArithmetic:
             "garment-sides correct: 13 of 15",
             "needed to pass: 12 (80% of 15, rounded up)",
             "reads correct: 39 of 45 (86.7%)",
-            "unusable answers: 0, counted as wrong",
+            "unusable answers or refusals: 0, counted as wrong",
         ]
         assert totals[5].startswith("wrote ") and "/results/" in totals[5]
         assert len(totals) == 6
@@ -671,7 +678,7 @@ class TestFailureKinds:
         out = capsys.readouterr().out
         assert "garment-sides correct: 14 of 15" in out
         assert "reads correct: 42 of 45 (93.3%)" in out
-        assert "unusable answers: 3, counted as wrong" in out
+        assert "unusable answers or refusals: 3, counted as wrong" in out
         assert "void" not in out
         report, _ = holdout.saved()
         assert gate_totals(report) == (15, 14, 12, 45, 42, 0, 3)

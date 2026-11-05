@@ -200,7 +200,7 @@ the test set*:
 | `no product overlap` | an `expected_art_base` equal to a dev one, after `normalise` |
 | `no prompt examples` | an `expected_art_base` found in `ART_PROMPT`, both normalised: a substring test, so conservative |
 | `size` | fewer garment-sides than ADR-0002's minimum; prints the count |
-| `photo files` | a row whose `photo` isn't in `holdout/photos/`; looked for, never read |
+| `photo files` | a row whose `photo` isn't in `holdout/photos/`, or is another row's too; looked for, never read |
 | `no id overlap` | an `id` in the dev manifest |
 
 A missing dev manifest fails the three checks that need it: garment,
@@ -225,7 +225,7 @@ loaded.
   photo.
 - **Prints** the checks and totals only, nothing per photo: garment-sides
   correct, as `n of N`; the count needed to pass; the share of reads
-  correct, over every read; the number of unusable answers; and the report
+  correct, over every read; the number of unusable answers or refusals; and the report
   path. It doesn't print pass or fail: comparing the two counts is the gate
   result.
 - **Each read that raises is classified** by its pydantic-ai exception,

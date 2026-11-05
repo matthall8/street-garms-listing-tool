@@ -526,10 +526,12 @@ def holdout_checks(rows: list[dict], dev_rows: list[dict] | None,
     n_sides = len(set(sides))
     checks.append(Check("size", n_sides >= MIN_SIDES, f"{n_sides} garment-sides"))
 
-    # 8. A missing photo would fail its reads, and void the run.
-    missing = sum(1 for r in rows
-                  if not cell(r, "photo") or not (photos / cell(r, "photo")).is_file())
-    checks.append(Check("photo files", not missing, failing(missing)))
+    # 8. A missing photo would fail its reads, and void the run. A photo two
+    # rows share would stop it before any read: a case name must be unique.
+    names = [cell(r, "photo") for r in rows]
+    bad_photos = sum(1 for p in names
+                     if not p or not (photos / p).is_file() or names.count(p) > 1)
+    checks.append(Check("photo files", not bad_photos, failing(bad_photos)))
 
     if dev_rows is None:
         checks.append(Check("no id overlap", False, "no dev manifest"))
@@ -951,7 +953,7 @@ def run_holdout(args: argparse.Namespace) -> int:
         print(f"garment-sides correct: {g.correct} of {g.sides}")
         print(f"needed to pass: {g.needed} ({GATE_PERCENT}% of {g.sides}, rounded up)")
         print(f"reads correct: {g.reads_correct} of {g.reads}{share}")
-        print(f"unusable answers: {g.unusable}, counted as wrong")
+        print(f"unusable answers or refusals: {g.unusable}, counted as wrong")
     print(f"wrote {path.relative_to(EVALS.parent)}")
     return 1 if void else 0
 
