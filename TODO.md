@@ -385,7 +385,7 @@ sort them into a section.
 - The eval harness's `photo_metadata` repeats `read_art`'s photo
   preparation (`upright()`) rather than sharing it. A test catches drift,
   but one function in `labels/` used by both would remove it
-- At gate-result, compare the gate report's prompt, user_message and
+- At gate-attempt, compare the gate report's prompt, user_message and
   schema fingerprints with run 0's by hand: `--holdout` doesn't check
   them, as run 0 records no model_settings and has a different versions
   line, so an automatic check would always fail
