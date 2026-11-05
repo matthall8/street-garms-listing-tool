@@ -20,10 +20,8 @@ garment-sides change.
 
 **Scope:** phase 1 development runs, for any change to what the model sees:
 the prompt, user message, schema, image handling, model or model settings.
-It replaces the rule as first written outright. A model pin is the
-exception: recorded, not judged (ADR-0002, *Rules for the test set*).
-Before the staff trial, it
-is revisited to set the rule for later runs, including the guardrails
+It replaces the rule as first written outright. Before the staff trial,
+it is revisited to set the rule for later runs, including the guardrails
 ADR-0001's per-run rule cites.
 
 **Comparison point:** the latest baseline's reads, replayed at the new run's

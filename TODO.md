@@ -24,8 +24,7 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
 
 ## Phase 1
 
-Any change to what the model sees is a run, one per run (*Iterations*),
-except the model pin (**model-identity**).
+Any change to what the model sees is a run, one per run (*Iterations*).
 
 ### Gate attempt
 The test-set rules, build order and what's recorded are in ADR-0002.
@@ -46,17 +45,13 @@ By Friday 2026-11-06:
   needed to pass, and the share of reads correct (ADR-0002).
   `evals/README.md`, *Held-out set*, says the harness doesn't read the
   set yet
-- **model-identity**: pin the dated snapshot the alias resolves to
-  today, and record the reported model name and token usage from the
-  run result (outside `Extraction`) in the run header. Also the model
-  settings sent (thinking, effort, max tokens, timeout) in a
-  `model_settings` header field, with `--baseline` warning on a
-  difference; set explicitly at today's defaults. Before
-  **gate-attempt**: the gate and the staff trial run the pinned
-  snapshot, recorded, not judged, by a paid dev run that becomes the new
-  baseline (ADR-0002). Its BASELINES.md row says a difference can't be
-  put down to the pin alone: `upright()` and `pillow` (PR #61) came
-  after run 0, so expect "versions line differs"
+- **model-identity**: record the model name the API reports and the
+  token usage from the run result (outside `Extraction`) in the run
+  header. Also the model settings sent (thinking, effort, max tokens,
+  timeout) in a `model_settings` header field, with `--baseline` warning
+  on a difference; set explicitly at today's defaults, changing nothing
+  sent. `ART_MODEL` stays: `claude-sonnet-5` is already a pinned
+  snapshot (ADR-0002)
 - **retries**: set the client's and the agent's output retries
   explicitly (CLAUDE.md, *Engineering constraints*); each retry is
   another paid call. Log the request count per call; record worst-case
@@ -101,8 +96,7 @@ Only after a failed gate: the test set joins dev (ADR-0002).
   dev is saturated (4 garment-sides can win; the rule needs 6): fixes
   ADR-0002 requires to the photo sent (PR #61 merged one with a Must
   fix noted), and a no-worse path for hygiene changes
-  (**invented-examples**). The pinned snapshot is settled: recorded, not
-  judged (ADR-0002). Also before the next input-side fix
+  (**invented-examples**). Also before the next input-side fix
 - **one-prompt-definition**: one definition of what the model is sent,
   which `/open-pr`'s *Eval* bullet and the reviewer's *Prompt contract*
   check both point to. Today they differ: only the reviewer counts the
@@ -407,9 +401,6 @@ a quiet moment.
 ## Inbox
 Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
 sort them into a section.
-- ADR-0002's development-set rules open "There is no photo session and no
-  grown-set baseline", then describe a grown-set baseline after a failed
-  gate. Drop "and no grown-set baseline", or say "no photo-session baseline"
 - The eval harness's `photo_metadata` repeats `transcribe_art`'s photo
   preparation (`upright()`) rather than sharing it. A test catches drift,
   but one function in `labels/` used by both would remove it
