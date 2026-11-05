@@ -46,6 +46,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | parser score | `.venv/bin/python tests/report_art_number.py` |
 | split on truth | `.venv/bin/python tests/report_split_on_truth.py` — the split against the dev manifest's labels; prints shapes, never values |
 | eval, offline | `.venv/bin/python tests/eval_transcription.py --model test --no-save` |
+| held-out checks | `.venv/bin/python tests/eval_transcription.py --holdout --check` — the test-set checks, pass/fail and counts only; no read, so safe to run any time |
 | eval, real | `evals/README.md`, *Eval run procedure* |
 
 ## Domain invariants

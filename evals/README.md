@@ -200,8 +200,11 @@ the test set*:
 | `no product overlap` | an `expected_art_base` equal to a dev one, after `normalise` |
 | `no prompt examples` | an `expected_art_base` found in `ART_PROMPT`, both normalised: a substring test, so conservative |
 | `size` | fewer garment-sides than ADR-0002's minimum; prints the count |
+| `photo files` | a row whose `photo` isn't in `holdout/photos/`; looked for, never read |
+| `no id overlap` | an `id` in the dev manifest |
 
-A missing dev manifest fails both overlap checks.
+A missing dev manifest fails the three checks that need it: garment,
+product and id overlap.
 
 `--holdout` is the gate's run. It sends only the held-out photos: the dev
 manifest is read as labels, for the overlap checks, and no dev photo is
@@ -216,15 +219,18 @@ loaded.
   last row of the holdout md5 ledger above, and every check passes.
   `--model test` skips the tag and the ledger, so the path runs offline.
 - **Saves** every read to `results/<stamp>-<model>-holdout.json`. Its header
-  has `set: holdout`, and its `manifest` is the held-out one's.
+  has `set: holdout` and `void`, and its `manifest` is the held-out one's.
   `--replay` and `--baseline` refuse that report: either would print it per
   photo.
 - **Prints** the checks and totals only, nothing per photo: garment-sides
   correct, as `n of N`; the count needed to pass; the share of reads
-  correct; the number of failed reads; and the report path. A failed read
-  counts as a read, and as wrong, in both the garment-side verdict and the
-  share, unlike the dev table's `reads correct`. It doesn't print pass or
-  fail: comparing the two counts is the gate result.
+  correct, over every read; the number of failed reads; and the report
+  path. A misread counts as wrong. It doesn't print pass or fail: comparing
+  the two counts is the gate result.
+- **A failed read voids the run** ([ADR-0002](../adr/0002-phase-1-acceptance.md)):
+  it prints `N failed reads: run void, rerun` and the report path instead of
+  the totals, saves the report with `void: true`, and exits 1. So on a run
+  that counts, every read was scored.
 
 ## Running
 
@@ -429,6 +435,7 @@ Every report records what produced it, shown in its header:
 | `limit`, `repeat`, `note` | as passed on the command line |
 | `replay_of` | replays only: the saved report whose reads were rescored |
 | `set` | `--holdout` runs only: `holdout` |
+| `void` | `--holdout` runs only: `true` if any read failed, so the run doesn't count |
 
 To test a change:
 
