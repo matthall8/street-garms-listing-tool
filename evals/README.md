@@ -219,18 +219,25 @@ loaded.
   last row of the holdout md5 ledger above, and every check passes.
   `--model test` skips the tag and the ledger, so the path runs offline.
 - **Saves** every read to `results/<stamp>-<model>-holdout.json`. Its header
-  has `set: holdout` and `void`, and its `manifest` is the held-out one's.
+  has `set: holdout`, `void` and `read_failures`, and its `manifest` is the
+  held-out one's.
   `--replay` and `--baseline` refuse that report: either would print it per
   photo.
 - **Prints** the checks and totals only, nothing per photo: garment-sides
   correct, as `n of N`; the count needed to pass; the share of reads
-  correct, over every read; the number of failed reads; and the report
-  path. A misread counts as wrong. It doesn't print pass or fail: comparing
-  the two counts is the gate result.
-- **A failed read voids the run** ([ADR-0002](../adr/0002-phase-1-acceptance.md)):
-  it prints `N failed reads: run void, rerun` and the report path instead of
-  the totals, saves the report with `void: true`, and exits 1. So on a run
-  that counts, every read was scored.
+  correct, over every read; the number of unusable answers; and the report
+  path. It doesn't print pass or fail: comparing the two counts is the gate
+  result.
+- **Each read that raises is classified** by its pydantic-ai exception,
+  and its saved failure starts `ReadFailure: <kind>:`. The API gave no
+  answer: `missing photo`, `api error`, `connection error or timeout`, or
+  `other` for anything unrecognised. The API answered, unusably:
+  `unusable answer` (it failed the output schema after its retries) or
+  `refusal`. Those two count as wrong reads, as a misread does.
+- **A read with no answer voids the run**
+  ([ADR-0002](../adr/0002-phase-1-acceptance.md)): it prints `1 failed read`
+  or `N failed reads`, then `: run void, rerun`, and the report path instead
+  of the totals, saves the report with `void: true`, and exits 1.
 
 ## Running
 
@@ -435,7 +442,8 @@ Every report records what produced it, shown in its header:
 | `limit`, `repeat`, `note` | as passed on the command line |
 | `replay_of` | replays only: the saved report whose reads were rescored |
 | `set` | `--holdout` runs only: `holdout` |
-| `void` | `--holdout` runs only: `true` if any read failed, so the run doesn't count |
+| `void` | `--holdout` runs only: `true` if the API gave no answer for a read, so the run doesn't count |
+| `read_failures` | `--holdout` runs only: the reads that raised, counted by kind (see [Running the held-out set](#running-the-held-out-set)) |
 
 To test a change:
 
