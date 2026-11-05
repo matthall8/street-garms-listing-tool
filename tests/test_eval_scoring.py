@@ -12,11 +12,13 @@ evals rejects a None metric and discards the WHOLE case result, including
 
 import argparse
 import hashlib
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from PIL import ExifTags, Image
 from pydantic import Field, create_model
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import EvaluatorContext
@@ -35,6 +37,7 @@ from eval_transcription import (
     load_manifest,
     normalise,
 )
+from labels.photo import upright
 from labels.schemas import AmbiguousCharacter, ArtLegibility, ArtNumberReading
 from tests import synthetic as s
 
@@ -708,6 +711,16 @@ def paths(tmp_path, monkeypatch):
     return tmp_path
 
 
+def tagged_jpeg() -> bytes:
+    """A synthetic JPEG with EXIF orientation 6, as a phone tags a sideways
+    shot: upright() rotates it, so what is sent differs from the file."""
+    exif = Image.Exif()
+    exif[ExifTags.Base.Orientation] = 6
+    out = BytesIO()
+    Image.new("RGB", (40, 20), (255, 255, 255)).save(out, format="JPEG", exif=exif.tobytes())
+    return out.getvalue()
+
+
 def no_api(monkeypatch, why="a replay must not call the model"):
     def fail(*_, **__):
         raise AssertionError(why)
@@ -751,6 +764,40 @@ class TestPhotoRecord:
         assert after["photo_hashes"]["p1"] == before["photo_hashes"]["p1"]
         assert after["photo_hashes"]["p2"] != before["photo_hashes"]["p2"]
         assert after["photos"] != before["photos"]
+
+    def test_a_tagged_photo_is_hashed_as_sent(self, paths, monkeypatch):
+        """The hash is of upright()'s output, the bytes transcribe_art sends,
+        not of the file."""
+        tagged = tagged_jpeg()
+        self.run(paths, monkeypatch, self.ROWS, {"a": tagged, "b": b"two"}, "--no-save")
+        hashes = eval_transcription.photo_metadata(load_manifest())["photo_hashes"]
+        sent, _ = upright(tagged, "image/jpeg")
+        assert hashes["p1"] == hashlib.sha256(sent).hexdigest()
+        assert hashes["p1"] != hashlib.sha256(tagged).hexdigest()
+        assert hashes["p2"] == hashlib.sha256(b"two").hexdigest()
+
+    @pytest.mark.parametrize("name", [s.PHOTO, s.NEGATIVE_PHOTO, s.WEBP_PHOTO, s.PHOTO_STEM])
+    def test_the_read_and_the_record_use_the_same_media_type(
+        self, tmp_path, monkeypatch, name
+    ):
+        """Else the record could hash bytes upright() made for another type."""
+        path = tmp_path / name
+        path.write_bytes(b"one")
+        seen = {}
+
+        def read(data, media_type, model):
+            seen["read"] = media_type
+
+        def record(data, media_type):
+            seen["record"] = media_type
+            return data, media_type
+
+        monkeypatch.setattr(eval_transcription, "transcribe_art", read)
+        monkeypatch.setattr(eval_transcription, "upright", record)
+        eval_transcription.get_art_number_reading(path, model="test")
+        eval_transcription.photo_metadata(
+            [Case(name=name, inputs=str(path), metadata={"id": "p1"})])
+        assert seen["read"] == seen["record"]
 
     def test_a_missing_photo_is_none_and_its_read_fails(self, paths, monkeypatch):
         assert self.run(paths, monkeypatch, self.ROWS, {"a": b"one"}) == 0

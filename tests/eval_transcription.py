@@ -50,6 +50,7 @@ from pydantic_evals.reporting.analyses import ScalarResult, TableResult
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from labels.photo import upright
 from labels.pipeline import from_reading
 from labels.schemas import ArtNumberReading
 from labels.transcribe import ART_MODEL, ART_PROMPT, ART_USER_MESSAGE, transcribe_art
@@ -399,12 +400,14 @@ def load_manifest() -> list[Case]:
             ))
     return cases
 
+def media_type(photo_path: Path) -> str:
+    """The media type a photo is sent with, guessed from its name. The read
+    and the photo record both use it, so they can't disagree."""
+    return guess_type(photo_path.name)[0] or "image/jpeg"
+
+
 def get_art_number_reading(photo_path: Path, model: str) -> ArtNumberReading:
-    return transcribe_art(
-        photo_path.read_bytes(),
-        guess_type(photo_path.name)[0] or "image/jpeg",
-        model=model
-    )
+    return transcribe_art(photo_path.read_bytes(), media_type(photo_path), model=model)
 
 def git(*args: str) -> str:
     """Output of a git command run in the repo, or "" if it fails."""
@@ -460,14 +463,17 @@ def id_problems(cases: list[Case]) -> list[str]:
 
 
 def photo_metadata(cases: list[Case]) -> dict:
-    """The photos this run sends, by manifest id: a sha256 each, so one can be
-    checked by hand, and one fingerprint over them all. Hashed once per photo,
-    whatever --repeat is. A missing photo is None; its read fails as before."""
+    """The photos this run sends, by manifest id: a sha256 each of the bytes
+    sent, after upright() as transcribe_art applies it, and one fingerprint over
+    them all. An untagged photo is sent as its file, so `shasum -a 256` checks
+    it by hand. Hashed once per photo, whatever --repeat is. A missing photo is
+    None; its read fails as before."""
     hashes = {}
     for c in cases:
         path = Path(c.inputs)
         hashes[(c.metadata or {})["id"]] = (
-            hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None)
+            hashlib.sha256(upright(path.read_bytes(), media_type(path))[0]).hexdigest()
+            if path.is_file() else None)
     return {"photos": fingerprint(json.dumps(hashes, sort_keys=True).encode()),
             "photo_hashes": hashes}
 
