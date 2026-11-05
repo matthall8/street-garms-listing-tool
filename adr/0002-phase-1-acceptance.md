@@ -116,8 +116,8 @@ Rules for the test set:
 - A gate run in which any read fails (an API error, a timeout, a missing
   photo) is void: it isn't an attempt, and it is run again. This is decided
   before any total is seen, so whether to rerun never depends on the
-  result. A misread, a refusal, or an answer that fails the output schema
-  after its retries, isn't a failed read: it counts as wrong.
+  result. A misread, a refusal or an answer that fails the output schema
+  after its retries isn't a failed read: it counts as wrong.
 - Totals only, never results per photo. If per-photo results are ever opened,
   those garments move to development.
 

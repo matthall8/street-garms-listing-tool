@@ -225,9 +225,9 @@ loaded.
   photo.
 - **Prints** the checks and totals only, nothing per photo: garment-sides
   correct, as `n of N`; the count needed to pass; the share of reads
-  correct, over every read; the number of unusable answers or refusals; and the report
-  path. It doesn't print pass or fail: comparing the two counts is the gate
-  result.
+  correct, over every read; the number of unusable answers or refusals;
+  and the report path. It doesn't print pass or fail: comparing the two
+  counts is the gate result.
 - **Each read that raises is classified** by its pydantic-ai exception,
   and its saved failure starts `ReadFailure: <kind>:`. The API gave no
   answer: `missing photo`, `api error`, `connection error or timeout`, or
