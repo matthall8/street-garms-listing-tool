@@ -21,7 +21,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
 ## Next
 - **holdout-flag**
 - **model-identity** (with **retries**)
-- **sent-bytes-hash**
 
 ## Phase 1
 
@@ -47,9 +46,6 @@ By Friday 2026-11-06:
   needed to pass, and the share of reads correct (ADR-0002).
   `evals/README.md`, *Held-out set*, says the harness doesn't read the
   set yet
-- **sent-bytes-hash**: `photo_hashes` hashes the file, so a rotation by
-  `upright()` (`p04`'s) doesn't show in it. Its own branch, before any
-  paid run
 - **model-identity**: pin the dated snapshot the alias resolves to
   today, and record the reported model name and token usage from the
   run result (outside `Extraction`) in the run header. Also the model
@@ -81,8 +77,8 @@ After Friday:
   any run. Once `evals/holdout/manifest.csv` exists, the privacy hook
   blocks every commit until its ledger row is in: add both together
 - **gate-attempt**: once, on the test set, from a tagged commit, totals
-  only (ADR-0002). After **holdout-flag**, **sent-bytes-hash**,
-  **model-identity** and **freeze-test**. The report says sides of one
+  only (ADR-0002). After **holdout-flag**, **model-identity** and
+  **freeze-test**. The report says sides of one
   garment aren't independent: a pass means good enough to try, not a
   proven 80%
 
@@ -114,8 +110,8 @@ Only after a failed gate: the test set joins dev (ADR-0002).
   user message and the image handling in `labels/photo.py`; only
   `/open-pr` has the `model_json_schema()` exception. Replace the
   reviewer's `git diff <cited-tag>` coverage check, read by hand today,
-  with a comparison of the header fingerprints; the image's needs
-  **sent-bytes-hash**. With **adr-0006-saturated**
+  with a comparison of the header fingerprints. With
+  **adr-0006-saturated**
 - **flagged-rename**: rename the harness's "flagged but correct" to
   "ambiguous but correct": it counts `ambiguous_characters`, not
   `needs_review`, so `evals/README.md` and BASELINES.md describe it
