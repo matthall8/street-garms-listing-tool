@@ -129,8 +129,8 @@ any result.
   all run 0's.
 - Report: `evals/results/20261106T182343Z-anthropic_claude-sonnet-5-holdout.json`
   (gitignored). Cost: $1.37 (Anthropic console).
-- A pass means good enough to try in the staff trial, not a proven 80%: sides
-  of one garment aren't independent. The set's limitations are below.
+- What a pass means: [ADR-0002](../adr/0002-phase-1-acceptance.md),
+  *Decision*. The set's limitations are below.
 - Manifest md5: the last row of *Held-out manifest md5*, below.
 - Set: 27 garment-sides, one photo each, from 18 garments, 9 of them with
   both sides.

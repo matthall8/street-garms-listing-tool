@@ -22,14 +22,8 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
 
 ## Phase 1
 
-Any change to what the model sees is a run, one per run (*Iterations*).
-
-### Gate attempt
-The test-set rules, build order and what's recorded are in ADR-0002.
-
-- **results-backup**: back up `evals/results/` after each paid run,
-  until **dvc-eval-set** covers it; the reports are the only record of
-  paid reads, and `--replay` needs them
+The gate passed (BASELINES.md, *Held-out test set*). Any change to what
+the model sees is a run, one per run (*Iterations*).
 
 ### Iterations
 Only after a failed gate: the test set joins dev (ADR-0002).
@@ -95,7 +89,7 @@ Only after a failed gate: the test set joins dev (ADR-0002).
   with **cost-capture** in place
 
 ## Staff trial
-Phase 2, after a pass at *Gate attempt*: route B, agreed with the wider
+Phase 2, now the gate has passed: route B, agreed with the wider
 team (ADR-0002, *Consequences*).
 
 - **adr-phase-2**. Decision (wider team): the phase 2 ADR (ADR-0007):
@@ -363,3 +357,6 @@ sort them into a section.
 - The eval harness's `photo_metadata` repeats `read_art`'s photo
   preparation (`upright()`) rather than sharing it. A test catches drift,
   but one function in `labels/` used by both would remove it
+- **results-backup**: back up `evals/results/` after each paid run,
+  until **dvc-eval-set** covers it; the reports are the only record of
+  paid reads, and `--replay` needs them
