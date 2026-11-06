@@ -30,9 +30,6 @@ The test-set rules, build order and what's recorded are in ADR-0002.
 - **results-backup**: back up `evals/results/` after each paid run,
   until **dvc-eval-set** covers it; the reports are the only record of
   paid reads, and `--replay` needs them
-- **gate-attempt**: once, on the test set, from a tagged commit, totals
-  only (ADR-0002). The report says sides of one garment aren't
-  independent: a pass means good enough to try, not a proven 80%
 
 ### Iterations
 Only after a failed gate: the test set joins dev (ADR-0002).
@@ -366,7 +363,3 @@ sort them into a section.
 - The eval harness's `photo_metadata` repeats `read_art`'s photo
   preparation (`upright()`) rather than sharing it. A test catches drift,
   but one function in `labels/` used by both would remove it
-- At gate-attempt, compare the gate report's prompt, user_message and
-  schema fingerprints with run 0's by hand: `--holdout` doesn't check
-  them, as run 0 records no model_settings and has a different versions
-  line, so an automatic check would always fail

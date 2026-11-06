@@ -115,10 +115,22 @@ every read. No read is legacy-exact and base-wrong.
 
 ## Held-out test set
 
-**Frozen 2026-11-06, not run yet.** The test set for the phase 1 gate
+**Frozen 2026-11-06. Gate run 2026-11-06: passed, 24 of 27 garment-sides
+correct (22 to pass).** The test set for the phase 1 gate
 ([ADR-0002](../adr/0002-phase-1-acceptance.md)). Totals only, here and in
 any result.
 
+- Reads correct: 72 of 81 (88.9%). Unusable answers or refusals: 0. Failed
+  reads: 0.
+- With the left-out fused label as a miss, for information only: 24 of 28
+  (23 to pass).
+- Code: tag `gate-2026-11-06` → `f574ec1`, `dirty: False`. Fingerprints:
+  prompt `4fc3298aa412`, user_message `3b608b481703`, schema `4e5d5d4c0601`,
+  all run 0's.
+- Report: `evals/results/20261106T182343Z-anthropic_claude-sonnet-5-holdout.json`
+  (gitignored). Cost: $1.37 (Anthropic console).
+- A pass means good enough to try in the staff trial, not a proven 80%: sides
+  of one garment aren't independent. The set's limitations are below.
 - Manifest md5: the last row of *Held-out manifest md5*, below.
 - Set: 27 garment-sides, one photo each, from 18 garments, 9 of them with
   both sides.

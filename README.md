@@ -8,9 +8,10 @@ first step towards filling in a listing (product name, season, garment type)
 for a reseller of second-hand pieces. A vision model copies the code off the
 photo, a rule-based parser decodes it, and a private catalogue matches it to a
 real product. Pre-launch, one developer, no users: a proof of concept that
-moves on once at least 80% of garment-sides (a garment's front or back label)
-read correctly, out of at least 30 from garments it has never seen (at least
-24 of 30; [ADR-0002](adr/0002-phase-1-acceptance.md)).
+had to read at least 80% of garment-sides (a garment's front or back label)
+correctly, on garments it had never seen, before moving on. It has passed that
+gate ([ADR-0002](adr/0002-phase-1-acceptance.md);
+[Where it stands](#where-it-stands)).
 
 ## The problem
 
@@ -56,14 +57,14 @@ Terms: [GLOSSARY.md](GLOSSARY.md).
 
 ## Where it stands
 
-Phase 1 has not been attempted yet. The held-out set is frozen
+The phase 1 gate passed: 24 of 27 garment-sides correct, with 22 needed. That
+means good enough to try in the staff trial, not a proven 80%
 ([evals/BASELINES.md](evals/BASELINES.md)).
 
 **Phase 1 gate.** Phase 1 passes on a held-out set of at least 15
 garment-sides, read 3 times each and run once, when at least 80% of them
 read the ART number's base correctly. Staff confirm every result at the next
-stage, so the gate measures only that; a pass means good enough to try, not
-a proven 80%. Full gate and set rules:
+stage, so the gate measures only that. Full gate and set rules:
 [ADR-0002](adr/0002-phase-1-acceptance.md).
 
 **Current baseline, run 0 (2026-10-30):** on the development set, 32 of 36
@@ -134,10 +135,10 @@ Most serious first.
   `exact` and isn't flagged (10 of the 12,829 synthetic misreads above). On an
   exact match the season comes from the parser, not the catalogue, so title and
   season can disagree unflagged; which source wins is undecided.
-- **Untested format, unverified seasons.** The eval has never tested
-  `si_alpha`. Parser seasons agree with the catalogue on 2,287 of 2,357
-  checkable rows; the 70 disagreements are untriaged, so that ground truth is
-  unverified.
+- **Barely tested format, unverified seasons.** The only `si_alpha` the eval
+  has tested is one held-out garment-side, reported in totals only. Parser
+  seasons agree with the catalogue on 2,287 of 2,357 checkable rows; the 70
+  disagreements are untriaged, so that ground truth is unverified.
 - **Thin test coverage in CI.** CI runs 33 of the 40 `needs_review` test
   cases, on a synthetic catalogue; the other 7 need the real one. `parse()` is
   tested directly for format family and flags. No test checks a decoded
