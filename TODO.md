@@ -22,17 +22,8 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
 
 ## Phase 1
 
-Any change to what the model sees is a run, one per run (*Iterations*).
-
-### Gate attempt
-The test-set rules, build order and what's recorded are in ADR-0002.
-
-- **results-backup**: back up `evals/results/` after each paid run,
-  until **dvc-eval-set** covers it; the reports are the only record of
-  paid reads, and `--replay` needs them
-- **gate-attempt**: once, on the test set, from a tagged commit, totals
-  only (ADR-0002). The report says sides of one garment aren't
-  independent: a pass means good enough to try, not a proven 80%
+The gate passed (BASELINES.md, *Held-out test set*). Any change to what
+the model sees is a run, one per run (*Iterations*).
 
 ### Iterations
 Only after a failed gate: the test set joins dev (ADR-0002).
@@ -98,7 +89,7 @@ Only after a failed gate: the test set joins dev (ADR-0002).
   with **cost-capture** in place
 
 ## Staff trial
-Phase 2, after a pass at *Gate attempt*: route B, agreed with the wider
+Phase 2, now the gate has passed: route B, agreed with the wider
 team (ADR-0002, *Consequences*).
 
 - **adr-phase-2**. Decision (wider team): the phase 2 ADR (ADR-0007):
@@ -366,7 +357,9 @@ sort them into a section.
 - The eval harness's `photo_metadata` repeats `read_art`'s photo
   preparation (`upright()`) rather than sharing it. A test catches drift,
   but one function in `labels/` used by both would remove it
-- At gate-attempt, compare the gate report's prompt, user_message and
-  schema fingerprints with run 0's by hand: `--holdout` doesn't check
-  them, as run 0 records no model_settings and has a different versions
-  line, so an automatic check would always fail
+- **results-backup**: back up `evals/results/` after each paid run,
+  until **dvc-eval-set** covers it; the reports are the only record of
+  paid reads, and `--replay` needs them
+- *Iterations* still opens "Only after a failed gate", so nothing under
+  it can start now the gate has passed. Decide whether those items stay
+  conditional or move

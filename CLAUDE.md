@@ -3,8 +3,8 @@
 Takes photos of Stone Island / C.P. Company garment labels and reads the ART
 number, the first part of a listing. A vision call transcribes it, a
 deterministic parser reads it, and a private catalogue resolves it to a real
-product. Pre-launch, one developer, no users. A proof of concept: to move on,
-it must meet the phase 1 gate in `adr/0002-phase-1-acceptance.md`.
+product. Pre-launch, one developer, no users. A proof of concept that has
+passed the phase 1 gate in `adr/0002-phase-1-acceptance.md`.
 
 This file describes stable architecture, domain invariants and working
 constraints. `TODO.md` describes what is currently changing — gaps and
