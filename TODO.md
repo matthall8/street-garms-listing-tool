@@ -27,34 +27,12 @@ Any change to what the model sees is a run, one per run (*Iterations*).
 ### Gate attempt
 The test-set rules, build order and what's recorded are in ADR-0002.
 
-By Friday 2026-11-06:
-- **incoming-photos**: 39 photos: 19 received 2026-11-03 in
-  `images/incoming-3-11-2026/` (about 9 garments, several shots each, 4
-  not upright) and 20 received 2026-11-04 in
-  `images/incoming-4-11-2026/`. No exact duplicates. Test candidates
-  under ADR-0002's rules; a garment already in dev is left out. Not in
-  a manifest and not run until **freeze-test**
-- **test-photographer**. Decision: who takes the test photos: some by
-  staff, or note the single capture regime as a limitation
 - **results-backup**: back up `evals/results/` after each paid run,
   until **dvc-eval-set** covers it; the reports are the only record of
   paid reads, and `--replay` needs them
-
-After Friday:
-- **label-photos**: label every shot by eye (`garment`, `side`,
-  `expected_art_line`, `expected_art_base`). Re-check by eye every
-  `expected_art_base` that isn't a catalogue key. Convert any HEIC
-  export to JPEG before it enters `evals/holdout/photos/`
-- **test-set-check**: what stays manual of ADR-0002's test-set rules:
-  the selection rule, one shot per garment-side, rotating by hand; then
-  `--holdout --check` until it passes (`evals/README.md`, *Held-out set*)
-- **freeze-test**: record in BASELINES.md what ADR-0002 lists, before
-  any run. Once `evals/holdout/manifest.csv` exists, the privacy hook
-  blocks every commit until its ledger row is in: add both together
 - **gate-attempt**: once, on the test set, from a tagged commit, totals
-  only (ADR-0002). After **freeze-test**. The
-  report says sides of one garment aren't independent: a pass means
-  good enough to try, not a proven 80%
+  only (ADR-0002). The report says sides of one garment aren't
+  independent: a pass means good enough to try, not a proven 80%
 
 ### Iterations
 Only after a failed gate: the test set joins dev (ADR-0002).
@@ -382,6 +360,9 @@ a quiet moment.
 ## Inbox
 Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
 sort them into a section.
+- **deps-update**, after the gate: move to `pydantic-ai-slim` with only
+  the Anthropic extra and bump `certifi`, then upgrade `pydantic-ai` on
+  its own, with a replay and a run against the latest baseline
 - The eval harness's `photo_metadata` repeats `read_art`'s photo
   preparation (`upright()`) rather than sharing it. A test catches drift,
   but one function in `labels/` used by both would remove it

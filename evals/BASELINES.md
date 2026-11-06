@@ -113,6 +113,35 @@ every read. No read is legacy-exact and base-wrong.
 **Scope.** Positives are 37 `si_numeric` and 3 `cp_modern` photos, with no
 `si_alpha`. `g13` has 5 of the 40 positive photos.
 
+## Held-out test set
+
+**Frozen 2026-11-06, not run yet.** The test set for the phase 1 gate
+([ADR-0002](../adr/0002-phase-1-acceptance.md)). Totals only, here and in
+any result.
+
+- Manifest md5: `64670a287615e8f0ff8e0c62754e2c34` (*Held-out manifest md5*,
+  below).
+- Set: 27 garment-sides, one photo each, from 18 garments, 9 of them with
+  both sides.
+- To pass: at least 22 of 27 garment-sides correct.
+- Format families, by garment-side: SI numeric 24, CP modern 2, SI
+  alphanumeric 1, CP transitional none.
+- Left out, 4 garment-sides: no ART number 2; in `ART_PROMPT`'s examples
+  1; a tail fused to the base with no separator, so no safe
+  `expected_art_base` (`evals/README.md`, *Ground truth for the ART line*),
+  1.
+
+Limitations:
+
+- Sides of one garment aren't independent, and two of the garments share an
+  `expected_art_base`, so 27 garment-sides are less evidence than 27
+  separate products.
+- Nearly all of the set is one format family: it says little about C.P.
+  Company labels, and nothing about CP transitional.
+- Labels printed with a fused tail aren't measured, and the split gives no
+  `art_base` for one (ADR-0005, *Fused keys miss*). The gate result is also
+  given with the left-out one counted as a miss: n of 28, 23 to pass.
+
 ## Previous baselines
 
 ### 2026-10-08 baseline
@@ -304,12 +333,11 @@ Re-run `md5 -q evals/manifest.csv` after any edit and add a row. A changed md5
 with no row here means an unrecorded ground-truth edit.
 
 **Held-out manifest md5** (`evals/holdout/manifest.csv`). The last row is
-current. Empty until the set
-exists; its first row goes in with the manifest's first row, since the hook
-blocks every commit while the manifest has a header and no rows:
+current:
 
 | date | holdout md5 | what changed |
 |---|---|---|
+| 2026-11-06 | `64670a287615e8f0ff8e0c62754e2c34` | First freeze (*Held-out test set*). 27 rows. |
 
 Re-run `md5 -q evals/holdout/manifest.csv` after any edit and add a row here,
 never in the table above.
