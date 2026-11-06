@@ -56,8 +56,8 @@ Terms: [GLOSSARY.md](GLOSSARY.md).
 
 ## Where it stands
 
-Phase 1 has not been attempted yet. A held-out set of the garments
-photographed by 2026-11-06 comes first ([TODO.md](TODO.md)).
+Phase 1 has not been attempted yet. The held-out set is frozen
+([evals/BASELINES.md](evals/BASELINES.md)).
 
 **Phase 1 gate.** Phase 1 passes on a held-out set of at least 15
 garment-sides, read 3 times each and run once, when at least 80% of them

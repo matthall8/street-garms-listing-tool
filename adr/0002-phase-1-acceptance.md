@@ -1,7 +1,7 @@
 # ADR-0002: Phase 1 acceptance
 
-- **Status:** Accepted; amended 2026-10-28, 2026-10-30, 2026-11-04 and
-  2026-11-05 (*Amendments*)
+- **Status:** Accepted; amended 2026-10-28, 2026-10-30, 2026-11-04,
+  2026-11-05 and 2026-11-06 (*Amendments*)
 - **Date:** 2026-10-22
 - **Supersedes:** ADR-0001's launch criteria (*For launch*, under *Success
   criteria*) and, in phase 1, its per-run hard rule (no garment-side newly
@@ -37,9 +37,10 @@ shape in this photo could be read two ways (such as `0` or `O`, `1` or `I`, `5` 
 `B`) makes it not readable. Readability is judged when the photo is
 labelled, before any run; a garment-side with no readable shot isn't in the
 test set. Nothing is dropped after a run. Photos with no ART number aren't
-in the test set. If fewer than 15 garment-sides qualify by 2026-11-06, the
-cutoff moves until 15 do; the gate never runs on fewer. A format family the test
-set misses is a stated limitation, not a blocker.
+in the test set. Nor is a garment-side whose `expected_art_base` can only be
+`UNKNOWN` (`evals/README.md`, *Ground truth for the ART line*). If fewer
+than 15 garment-sides qualify by 2026-11-06, the cutoff moves until 15 do;
+the gate never runs on fewer. A format family the test set misses is a stated limitation, not a blocker.
 
 Every photo, in both sets, is **upright**. The user checks this before
 upload; the tool doesn't rotate. The rule covers rotation only, so a
@@ -101,9 +102,9 @@ Rules for the test set:
   filename order, rotated by hand if it isn't upright; its other shots are
   dropped. Exports can rewrite EXIF capture times, so they don't set the
   order.
-- Built in this order, after 2026-11-06: label every shot by eye, apply
-  the rule above, rotate the chosen photos, then record in
-  `evals/BASELINES.md` the manifest's md5, the count needed to pass, the
+- Built in this order, once the last photos of 2026-11-06 are in: label
+  every shot by eye, apply the rule above, rotate the chosen photos, then
+  record in `evals/BASELINES.md` the manifest's md5, the count needed to pass, the
   number of garments, the format families covered, and how many
   garment-sides were left out, by reason. Only then run.
 - The gate runs the latest baseline's configuration, and the staff trial
@@ -112,7 +113,9 @@ Rules for the test set:
   (Anthropic's models overview), so the gate reads with run 0's model.
 - Run once, from a tagged commit, and recorded in `evals/BASELINES.md`. On
   a fail, the test set joins the development set and the result goes back
-  to the wider team; the next gate attempt needs a new test set.
+  to the wider team; the next gate attempt needs a new test set. The
+  frozen set alone decides the gate; a count that adds left-out
+  garment-sides as misses is information only.
 - A gate run in which any read fails (an API error, a timeout, a missing
   photo) is void: it isn't an attempt, and it is run again. This is decided
   before any total is seen, so whether to rerun never depends on the
@@ -219,3 +222,6 @@ See *Phase 1* in TODO.md for an up-to-date list.
   snapshot, so run 0 stays the latest baseline.
 - **2026-11-05:** a gate run in which the API gives no answer for a read is
   void, not an attempt; decided before any total is seen.
+- **2026-11-06:** a garment-side with no safe `expected_art_base` is left
+  out; the set is built once the last photos of 2026-11-06 are in; only the
+  frozen set decides the gate.
