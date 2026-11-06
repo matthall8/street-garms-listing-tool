@@ -119,8 +119,7 @@ every read. No read is legacy-exact and base-wrong.
 ([ADR-0002](../adr/0002-phase-1-acceptance.md)). Totals only, here and in
 any result.
 
-- Manifest md5: `64670a287615e8f0ff8e0c62754e2c34` (*Held-out manifest md5*,
-  below).
+- Manifest md5: the last row of *Held-out manifest md5*, below.
 - Set: 27 garment-sides, one photo each, from 18 garments, 9 of them with
   both sides.
 - To pass: at least 22 of 27 garment-sides correct.
@@ -139,8 +138,11 @@ Limitations:
 - Nearly all of the set is one format family: it says little about C.P.
   Company labels, and nothing about CP transitional.
 - Labels printed with a fused tail aren't measured, and the split gives no
-  `art_base` for one (ADR-0005, *Fused keys miss*). The gate result is also
-  given with the left-out one counted as a miss: n of 28, 23 to pass.
+  `art_base` for one (ADR-0005, *When the split fails*). The gate result is
+  also given with the left-out one counted as a miss, n of 28, for
+  information only: 22 of 27 decides.
+- Who took the photos isn't recorded here, so variety of capture isn't
+  assessed.
 
 ## Previous baselines
 
