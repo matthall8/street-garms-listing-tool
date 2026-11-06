@@ -360,3 +360,6 @@ sort them into a section.
 - **results-backup**: back up `evals/results/` after each paid run,
   until **dvc-eval-set** covers it; the reports are the only record of
   paid reads, and `--replay` needs them
+- *Iterations* still opens "Only after a failed gate", so nothing under
+  it can start now the gate has passed. Decide whether those items stay
+  conditional or move
