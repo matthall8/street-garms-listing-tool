@@ -341,7 +341,7 @@ at the phase 1 gate's settings.
 - **D5, link retakes to one item:** rejected. It adds an endpoint and a guard
   against a late read overwriting a newer one, for a figure that is reported,
   not gated.
-- **D6, the existing Hetzner Postgres:** rejected. It saves the instance cost,
+- **D6, an existing Postgres server outside Google Cloud:** rejected. It saves the instance cost,
   but Cloud Run has no fixed outbound IP, so reaching it safely needs a NAT or a
   tunnel. It would also split trial data across two providers and share a server
   with whatever else runs there.
