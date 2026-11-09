@@ -89,21 +89,9 @@ Only after a failed gate: the test set joins dev (ADR-0002).
   with **cost-capture** in place
 
 ## Staff trial
-Phase 2, now the gate has passed: route B, agreed with the wider
-team (ADR-0002, *Consequences*).
+Phase 2, now the gate has passed, agreed with the wider team (ADR-0002,
+*Consequences*).
 
-- **adr-phase-2**. Decision (wider team): the phase 2 ADR (ADR-0007):
-  route B's scope and what's stored, the stop rule (e.g. corrections
-  above X% after N items), the Sheet field (`art_base` or the full
-  `art_line`, GLOSSARY.md), the manual-entry time the trial's time taken
-  is compared with, and the trial's acceptance criteria. Before
-  **staff-trial**
-- **catalogue-required**. Decision first: does route B's app use the
-  catalogue at all (it drives corrections and flags, and decides whether
-  the catalogue is hosted)? If it does: the app refuses to start without
-  the catalogue (today `load_catalogue()` returns `{}` and every read shows
-  as a miss, unflagged), plus a `/health` route. App only: the CLI, tests
-  and CI still run without it
 - **privacy-adr**: a Certilogo code is never shown as a code, never in
   an identifying field and never logged; it is stored alongside the
   photo. Also: the logging allowlist (enums and fingerprints only,
@@ -116,20 +104,17 @@ team (ADR-0002, *Consequences*).
   environment flag that stops model calls and falls back to manual
   entry
 - **docker-image**: a Docker image of the Python side, local only:
-  catalogue mounted at run time and never baked in, gunicorn timeout
-  above the worst-case call (CLAUDE.md, *Engineering constraints*).
-  Needs no deploy and no **privacy-adr**, so it can come first
-- **api-split-adr**: the staff app is a TypeScript frontend calling a
-  Python API (decided). ADR before the split, which changes CLAUDE.md's
-  *Flow* (`app/` is a Flask app today)
-- **deploy**: deploy on a managed host, with auth at the platform edge.
-  After **api-split-adr** and **privacy-adr**; Terraform later
+  gunicorn timeout above the worst-case call (CLAUDE.md, *Engineering
+  constraints*). Needs no deploy and no **privacy-adr**, so it can come
+  first
+- **deploy**: deploy on a managed host, with auth at the platform edge
+  (ADR-0008, D1). After **privacy-adr**; Terraform later
   (**mlops-stack**)
 - **mvp-confirm**: the confirm-or-edit screen in TypeScript (photo →
   read → confirm or edit), storing the photo, the read, the final value
-  and the time taken (route B, ADR-0002)
+  and the time taken (ADR-0007, *Scope and storage*)
 - **sheets-push**: the confirmed ART number goes into the existing
-  Google Sheet, in the field **adr-phase-2** sets. After **privacy-adr**
+  Google Sheet, in the field ADR-0007 sets. After **privacy-adr**
   (what goes to the Sheet)
 - **observability**: one allowlisted record per read (**privacy-adr**):
   request ID, version (commit, prompt fingerprint, model), latency,
@@ -143,8 +128,6 @@ team (ADR-0002, *Consequences*).
   its configuration
 - **audit-sample**: check a random sample of confirmed results by eye
   now and then, and log the outcome; a confirmation isn't ground truth
-- **later-run-rule**: the run rule for later runs (ADR-0006 revisit),
-  with ADR-0001's per-run rule
 - **upright-guidance**: capture guidance in the web UI: the photo must
   be upright (ADR-0002)
 - **phone-upload-size**: measure real phone uploads through the form
@@ -153,15 +136,19 @@ team (ADR-0002, *Consequences*).
   limit, shrink only photos above it, on its own branch (resizing is an
   iteration variable)
 - **staff-trial**: staff confirm or correct every result before it's
-  recorded (ADR-0002, *Context*), under **adr-phase-2**. The result page
+  recorded (ADR-0002, *Context*), under ADR-0007. The result page
   shows the ART number only: decoder flags and product name hidden, code
   kept
 
 ## Later
 - **feedback-loop**: production photos join an eval set only after
   labelling by eye, independently of the model and of staff
-  corrections. Dev is frozen, so they go to test or a new set
-  (ADR-0002). After **staff-trial**
+  corrections. Dev is frozen, except a failed trial's labelled items
+  (ADR-0007), so otherwise they go to test or a new set (ADR-0002).
+  After **staff-trial**
+- **later-run-rule**: the run rule for later runs (ADR-0006 revisit),
+  with ADR-0001's per-run rule. After **staff-trial**, before any fix
+  following a fail is tested (ADR-0007)
 - **monitoring**: review rate, correction rate, latency, and the
   `not_visible`, catalogue miss and `corrected` rates and format-family
   mix against the current baseline's, once there's traffic. A jump

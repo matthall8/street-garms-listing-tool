@@ -54,7 +54,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 **`needs_review` is the gate between a bad read and a published listing**
 (`labels/pipeline.py:47-55`). Any new field in `Extraction` must explicitly be
 considered for this gate. Changing what flags is a product decision, not a
-refactor.
+refactor. In the staff trial it is computed but hidden (ADR-0007).
 
 **Season tables are frozen data, never a formula** (`labels/art_number.py`,
 `SI_SEASON` / `CP_MODERN_SEASON`). Unknown keys return `None` rather than
@@ -152,6 +152,7 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   | harness and procedure | `evals/README.md` |
   | eval run procedure | `evals/README.md` |
   | results, baselines and md5 ledgers | `evals/BASELINES.md` |
+  | staff trial results, totals only (per-item records stay in the private store) | `evals/BASELINES.md` |
   | how the privacy hooks work | `hooks/README.md` |
   | status and next steps | `TODO.md` |
 

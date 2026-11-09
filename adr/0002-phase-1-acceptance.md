@@ -1,7 +1,7 @@
 # ADR-0002: Phase 1 acceptance
 
 - **Status:** Accepted; amended 2026-10-28, 2026-10-30, 2026-11-04,
-  2026-11-05 and 2026-11-06 (*Amendments*)
+  2026-11-05, 2026-11-06 and 2026-11-09 (*Amendments*)
 - **Date:** 2026-10-22
 - **Supersedes:** ADR-0001's launch criteria (*For launch*, under *Success
   criteria*) and, in phase 1, its per-run hard rule (no garment-side newly
@@ -86,7 +86,8 @@ Rules for the development set:
   stays the latest baseline until a run passes ADR-0006's rule or the
   grown set's baseline replaces it (below). New photos go to the test set
   only; the only photos to join the development set are a failed test
-  set's (below). The grown set then gets a paid baseline of the accepted
+  set's (below) and a failed staff trial's labelled items (ADR-0007). The
+  grown set then gets a paid baseline of the accepted
   configuration, recorded, not judged, before the next development run.
 - Any parser, gate or catalogue change is measured by
   replaying the latest baseline's saved reads, which costs nothing. That
@@ -182,9 +183,9 @@ See *Phase 1* in TODO.md for an up-to-date list.
 
 - On a pass, the staff trial follows (agreed with the wider
   team, 2026-11-04): staff confirm or edit each read; the photo, the read, the
-  final value and the time taken are stored, so the trial gives a
-  correction rate; and the confirmed code goes into the Google Sheet. Its
-  stop rule is set before the trial (TODO.md, *adr-phase-2*).
+  final value and the time taken are stored, so the trial gives an edit
+  rate (GLOSSARY.md); and the confirmed code goes into the Google Sheet.
+  ADR-0007 sets the trial.
 - A bigger test set comes before any automation.
 - ADR-0001: its launch criteria, and in phase 1 its per-run hard rule, are
   superseded (*Supersedes* line); runs 2–4 are out of Phase 1
@@ -225,3 +226,7 @@ See *Phase 1* in TODO.md for an up-to-date list.
 - **2026-11-06:** a garment-side with no safe `expected_art_base` is left
   out; the set is built once the last photos of 2026-11-06 are in; only the
   frozen set decides the gate.
+- **2026-11-09:** ADR-0007 sets the staff trial. "Correction rate" becomes
+  edit rate (GLOSSARY.md). A failed trial's labelled items may join the
+  development set; the next development run then needs the grown set's paid
+  baseline.

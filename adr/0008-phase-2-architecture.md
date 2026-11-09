@@ -1,9 +1,9 @@
 # ADR-0008: Phase 2 architecture
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Amends:** ADR-0007 (retakes, D5); CLAUDE.md, *Flow* and *Engineering
-  constraints* (D8)
+- **Amends:** CLAUDE.md, *Flow*, *Commands* and *Engineering constraints* (D4,
+  D8)
 - **Depends on:** ADR-0007
 - **Terms:** see `GLOSSARY.md`.
 
@@ -18,15 +18,16 @@ ADR-0007 and the existing code set these constraints:
 - **Frozen configuration.** The trial runs at the phase 1 gate's settings, and a
   change restarts the count. The model must see what the gate's reads saw.
 - **The records are the evidence.** The gate is counted from what's stored per
-  item (ADR-0007, *Scope and storage*), so they must be reliable and queryable,
-  including during the trial for the stop rule.
+  item in Postgres (ADR-0007, *Scope and storage*) plus the hand log (ADR-0007,
+  *How items count*), so the records must be reliable and queryable, including
+  during the trial for the stop rule.
 - **The Sheet must be right.** The trial pauses if a confirmed value reaches it
   incorrectly.
 - **Some fields stay hidden.** `needs_review` is computed but must not reach
   staff.
 - **Slow reads are possible.** A read's worst case is about 600s (CLAUDE.md,
   *Engineering constraints*).
-- **The trial is small.** About 60 items, a few staff and one developer, so
+- **The trial is small.** About 60 items, one staff member and one developer, so
   complexity is a cost that has to pay for itself.
 - **The catalogue is off,** so it isn't hosted.
 
@@ -137,9 +138,16 @@ confirmed item holds the last read staff saw, which is what ADR-0007 scores.
 Unconfirmed items stay recorded, and their total is the trial's retake figure.
 Whether their photos are kept is for ADR-0009.
 
+An empty read still stores the item, which is never confirmed and adds to the
+retake total. A refusal or an answer that fails the output schema is stored the
+same way, as an item with an empty value (ADR-0007, *How items count*). The
+frontend shows the empty-read screen (ADR-0007) when the value
+is empty, with no ART logic of its own. The server refuses a confirm whose final
+value is empty or blank, and any confirm on an item whose value shown is empty.
+
 **Accepted cost:** no retake count per item, and the total slightly overstates
 retakes because it includes scans staff abandoned. Time taken covers only the
-final upload. Retakes and time are reported, not gated.
+final upload. Neither figure is gated.
 
 ### D6: Where records and photos live (mechanism only)
 
@@ -147,12 +155,12 @@ Photos go in a private Cloud Storage bucket. Records go in PostgreSQL on Cloud
 SQL, in the same Google project as the service. Who can see them and for how
 long is for ADR-0009.
 
-Each item (D5) is one row. The first scan of an ART Number and the count of
-edits for the stop rule (ADR-0007) are plain SQL queries.
+Each item (D5) is one row. Counted items and the count of edits for the stop
+rule (ADR-0007) are plain SQL queries on Postgres, plus the hand log (ADR-0007).
 
 Cloud Run connects through its built-in Cloud SQL connection, and the instance
-has no authorised networks. Automated backups are on, because these records are
-the gate's only evidence.
+has no authorised networks. Automated backups are on, because these records and
+the hand log (ADR-0007) are the gate's only evidence.
 
 The schema is a plain SQL file. A migration framework waits until there's more
 than a table or two to manage.
@@ -168,24 +176,25 @@ Each confirmed value adds a new row to the Sheet, within a minute of the confirm
    sets the status to sent or failed.
 3. On failure, staff see: "Saved, but we couldn't confirm it reached the Sheet.
    Check the Sheet. If it isn't there, tap Post to Sheet." The button makes one
-   more append, and only while the status is failed.
+   more append, and only while the status is failed or has been pending for
+   longer than the append timeout, so it can't write during a live append.
 4. A wrong confirm is corrected directly in the Sheet. The record keeps what was
    confirmed.
 
-A timed-out append may still have landed, so a retry could add a duplicate, and
-ADR-0007 pauses the trial if a confirmed value reaches the Sheet incorrectly.
-Staff can see the Sheet, so they make that check. A missing row is visible and
-easy to fix, and the gate counts from Postgres, so a failed Sheet write doesn't
-affect the score.
+A timed-out append may still have landed, so a retry could add a duplicate row,
+which then has to be deleted (ADR-0007). Staff can see the Sheet, so they make
+that check. A missing row is visible and easy to fix, and the gate counts from
+Postgres plus the hand log (ADR-0007), so a failed Sheet write doesn't affect
+the score.
 
-A short SQL query finds items stuck at pending or failed, for when staff close
-the page or an instance dies mid-confirm. It runs alongside the stop rule's edit
-count.
+A short SQL query finds items stuck at pending or failed. If the page was closed
+there is no way back to the item, so that case stays with the query. It runs
+alongside the stop rule's edit count.
 
 **Accepted cost:** staff do a manual check on a failed write, and the Sheet can
 differ from the record after a correction.
 
-### D8: External-call boundary (Sheets, storage), tests stay offline
+### D8: External-call boundary (database, Sheets, storage), tests stay offline
 
 Each external system has one module in `app/` (`app/db.py`, `app/photos.py`,
 `app/sheet.py`), the only importer of its client. `labels/transcribe.py` remains
@@ -195,8 +204,8 @@ Route tests patch those modules, as they patch `extract_bytes` today. A test tha
 reaches an unpatched one fails.
 
 A few tests run against real Postgres, because they cover the numbers the trial
-depends on: a second confirm changes nothing (D7), the first scan of an ART
-Number is selected correctly, and the edit count is correct. They run only when
+depends on: a second confirm changes nothing (D7), counted items are selected
+correctly, and the edit count is correct. They run only when
 a test database URL is set, and skip otherwise. In CI the URL is required, so a
 missing database fails the run instead of skipping unnoticed.
 
@@ -228,11 +237,14 @@ at the phase 1 gate's settings.
 - D4: after deploy, read the service's concurrency back as 1.
 - D5: a test that confirmed or edited comes from the stored value shown, and the
   confirm request carries only the final value.
+- D5: a test that the server refuses a confirm whose final value is empty or
+  blank, and any confirm on an item whose value shown is empty.
 - D6: after deploy, the bucket has public access prevention on and the Cloud SQL
   instance has no authorised networks.
 - D6: one backup is restored successfully before the team trial starts.
 - D7: a test that a second confirm changes nothing and makes no Sheet write.
-- D7: a test that Post to Sheet writes only when the status is failed.
+- D7: a test that Post to Sheet writes only when the status is failed or has
+  been pending for longer than the append timeout.
 - D7: the Sheet append sets its timeout explicitly and has no automatic retries.
 - D7: before the founder review, an append to a copy of the real Sheet puts the
   row and the value where staff expect them.
@@ -250,10 +262,10 @@ at the phase 1 gate's settings.
   unconfirmed uploads' photos and any phone location data are kept, what logs and
   tracing may record, the limits on what reaches the Sheet, and the Google Cloud
   region.
-- **The mvp-confirm brief (TODO.md):** the confirm screen's design and wording,
-  and the upright-photo guidance.
 - **Frontend tooling:** framework and build setup.
-- **TODO.md:** **web-hardening** and **observability**.
+- **TODO.md:** **mvp-confirm** (the confirm screen's design and wording),
+  **upright-guidance** (the upright-photo guidance), **web-hardening** and
+  **observability**.
 
 ## Alternatives considered
 - **D1, AWS ECS Fargate with login at the load balancer:** rejected. More setup
@@ -340,13 +352,12 @@ at the phase 1 gate's settings.
 
 ## Consequences
 
+- D2: `.github/workflows/tests.yml` gains a frontend job for D2's test once the
+  frontend tooling is chosen.
 - D4: CLAUDE.md's web command changes when `app/` moves to FastAPI, and FastAPI
   and its server join the dependencies.
 - D4: the gunicorn lines in TODO.md (**web-hardening**, **docker-image**) need
   rewording.
-- D5: ADR-0007's "number of retakes" (*Scope and storage*) and its retake lines
-  (*How items count*, *Reported but not gated*) become a trial total of
-  unconfirmed uploads.
 - D6: a Postgres driver and the Cloud Storage client join the dependencies, and
   D8 sets where they may be imported.
 - D7: a Google Sheets client joins the dependencies, under the same D8 rule.

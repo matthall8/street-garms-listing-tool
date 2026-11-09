@@ -1,12 +1,14 @@
 # ADR-0006: Decision rule for prompt changes
 
-- **Status:** Accepted. Phase 1 only; the rule for later runs is set before
-  the staff trial (TODO.md, *later-run-rule*).
+- **Status:** Accepted. Phase 1 only; the rule for later runs is set after
+  the staff trial, before any fix following a failed trial is tested
+  (ADR-0007; TODO.md, *later-run-rule*).
 - **Date:** 2026-09-25. Moved from `TODO.md` 2026-10-19, word for word.
   Links to `TODO.md` sections updated 2026-10-22 after ADR-0002, and its
   phase 1 metric 2026-10-28 after ADR-0002's amendment. Updated 2026-10-30
   after ADR-0002 moved phase 1 runs to base-exact: the rule is replaced,
-  every part decided by Matt.
+  every part decided by Matt. Updated 2026-11-09 after ADR-0007: the rule for
+  later runs moves to after the staff trial.
 
 ## Context
 
@@ -20,9 +22,10 @@ garment-sides change.
 
 **Scope:** phase 1 development runs, for any change to what the model sees:
 the prompt, user message, schema, image handling, model or model settings.
-It replaces the rule as first written outright. Before the staff trial,
-it is revisited to set the rule for later runs, including the guardrails
-ADR-0001's per-run rule cites.
+It replaces the rule as first written outright. After the staff trial,
+before any fix following a failed trial is tested, it is revisited to set
+the rule for later runs, including the guardrails ADR-0001's per-run rule
+cites.
 
 **Comparison point:** the latest baseline's reads, replayed at the new run's
 commit, so only what the model sees differs. Run 0 is recorded as the first

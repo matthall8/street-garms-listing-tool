@@ -5,7 +5,8 @@
   ADR-0002, and in phase 1 so is the per-run hard rule (*For each run to be
   accepted*). Only *Pending decisions* stay Proposed.
 - **Date:** 2026-10-09. Terms moved to `GLOSSARY.md` 2026-10-18. Amended
-  2026-10-19: thresholds from the full-manifest baseline.
+  2026-10-19: thresholds from the full-manifest baseline. Amended 2026-11-09
+  after ADR-0007: the guardrails for later runs move to after the staff trial.
 
 ## Context
 
@@ -284,7 +285,7 @@ garment don't skew them.
 - no garment-side is newly wrong and unflagged (hard rule);
 - the guardrails in ADR-0006 (*Decision rule for prompt changes*) hold
   (ADR-0006's rule is phase 1 only; the guardrails for later runs are set
-  before the staff trial).
+  after the staff trial, before any fix following a failed trial is tested).
 
 **For launch**, on a held-out set of at least `<N>` garments that played no
 part in tuning:

@@ -56,8 +56,13 @@ under a different product name may be exceptions.
 | `needs_review` | The gate: true means a person checks the listing before it publishes. |
 | *looks right* / *check this* | How a listing shows: `needs_review` false / true. |
 | `review_reasons` | Why `needs_review` is set. *(not in code yet)* |
-| edit | A counted item whose final value differs from the value shown, or that was typed into the Sheet with no read. Separate from the catalogue's `corrected`. |
-| edit rate | Edits as a share of counted items (ADR-0007). ADR-0002's "correction rate" means this. |
+| item | One upload and its stored read (ADR-0008, D5). |
+| retake | An item never confirmed. Only reported, as a trial total (ADR-0008, D5). |
+| value shown | The value given to staff from the last read of that item. |
+| final value | The value staff confirm. |
+| counted item | The first confirmed item of an ART number in the team trial, in confirm-time order, or a hand-logged entry (ADR-0007). |
+| edit | A counted item whose final value differs from the value shown, or that was typed into the Sheet with no read or after an empty read. Separate from the catalogue's `corrected`. |
+| edit rate | Edits as a share of counted items (ADR-0007). |
 
 ## Evaluation
 
@@ -92,3 +97,4 @@ under a different product name may be exceptions.
 | `expected_line`, `expected_style` | `expected_art_line`, `expected_art_base` | hook, PR #36 |
 | style-exact | base-exact | never in code |
 | `art_number_raw` | `art_line` | run 1 |
+| correction rate | edit rate | never in code |

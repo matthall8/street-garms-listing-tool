@@ -153,8 +153,8 @@ Limitations:
   `art_base` for one (ADR-0005, *When the split fails*). The gate result is
   also given with the left-out one counted as a miss, n of 28, for
   information only: 22 of 27 decides.
-- Who took the photos isn't recorded here, so variety of capture isn't
-  assessed.
+- Staff took the photos at product intake over 2 weeks, so variety of capture
+  is limited.
 
 ## Previous baselines
 
