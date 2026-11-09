@@ -405,3 +405,11 @@ sort them into a section.
 - *Iterations* still opens "Only after a failed gate", so nothing under
   it can start now the gate has passed. Decide whether those items stay
   conditional or move
+- **mid-trial-config-rule**: ADR-0007 allows a mid-trial configuration
+  change with a restart, but ADR-0006 is phase 1 only and
+  **later-run-rule** comes after the trial, so no rule judges that
+  change. Say which rule applies, or that it's a project team decision
+- **postgres-test-skips**: the real-Postgres tests (ADR-0008, D8) skip
+  when no URL is set, but the reviewer requires 0 local skips
+  (`.claude/agents/code-reviewer.md`). Reconcile them with
+  **trial-records**
