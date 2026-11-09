@@ -167,10 +167,10 @@ by someone not in the IAP policy can't be detected.
 ## Consequences
 
 - **deploy** uses London, creates the Anthropic workspace, key and spend limit,
-  puts both credentials in Secret Manager, leaves IAP access logs off and checks
-  the Sheet sharing, all before the founder review.
+  puts both credentials in Secret Manager and leaves IAP access logs off, all
+  before the founder review.
 - **observability** records only what D3 allows.
-- The founder review includes D2's check.
+- The founder review includes D2's check and D1's Sheet-sharing check.
 - The project team's stage 3 decision also sets the deletion date.
 - ADR-0007's *Stop Rule* uses D7's definition.
 - The downtime log is a tab in the feedback Sheet.

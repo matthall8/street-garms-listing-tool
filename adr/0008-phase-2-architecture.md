@@ -244,7 +244,7 @@ The API passes those bytes to the pipeline as received. `upright()`, in
 
 A rejected upload, by type or by size, is a failed read (ADR-0007). Photos are
 never shrunk or converted to fit. If the staff member's phone fails the check
-under *Build constraints*, its camera setting is lowered instead.
+under *Build constraints*, its camera setting is changed instead.
 
 The stored photo (D6) is the upload as received, so a replay goes through
 `upright()` exactly as the original read did, because ADR-0007 freezes the trial
@@ -285,8 +285,10 @@ at the phase 1 gate's settings.
 - D9: a test that the bytes reaching `extract_bytes()` equal the bytes uploaded.
   The frontend uploads the original `File`; review checks nothing draws it to
   a canvas first.
-- D9: at **deploy**, a real upload from the staff member's phone, HEIC included,
-  is accepted and is within the API's per-image limit.
+- D9: at **deploy**, a real upload from the staff member's phone arrives in a
+  type the app accepts and within the API's per-image limit. If the phone
+  produces a rejected type such as HEIC, change the phone's camera format; never
+  convert in the app.
 
 ## Not decided here
 
