@@ -98,7 +98,9 @@ Items are in build order.
   the D4 test; CLAUDE.md's web command changes with it (ADR-0008, D4,
   *Consequences*). Before anything else is built on it. Check the
   schema, prompt and user-message fingerprints still match the gate's,
-  and the `pydantic-ai` and `anthropic` locks haven't moved (ADR-0007,
+  `labels/` is unchanged since the gate (which covers image handling and
+  `MODEL_SETTINGS`), and the `pydantic-ai` and `anthropic` locks haven't
+  moved (ADR-0007,
   *Scope and storage*, Config; BASELINES.md, *Held-out test set*). Same
   check when **trial-records** or **sheets-push** adds a dependency
 - **docker-image**: a Docker image of the Python side, with no catalogue
@@ -123,7 +125,8 @@ Items are in build order.
   ADR-0009, D6), `app/db.py`, `app/photos.py`, `POST /items` and confirm
   (D5), what's stored per item (ADR-0007, *Scope and storage*) and the
   response allowlist (D3). A failed read, refusals and schema failures
-  included, stores no row (ADR-0007, *How items count*; D5). The server
+  included, stores no row, with D5's one exception (ADR-0007, *How items
+  count*; D5). The server
   refuses the confirms D5 lists. The D3, D5 and D9 tests, D6's
   after-deploy check, the real-Postgres tests and CI service (D8), and
   the counted-item, stop-rule and stuck-Sheet queries (D6, D7). Adds the

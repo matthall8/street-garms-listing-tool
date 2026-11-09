@@ -66,7 +66,7 @@ under a different product name may be exceptions.
 | edit | A counted item whose final value differs from the value shown (compared as in ADR-0008, D5), or that was typed into the Sheet and hand-logged (ADR-0007). Separate from the catalogue's `corrected`. |
 | edit rate | Edits as a share of counted items (ADR-0007). |
 | empty read | A read with no value to show. Stored, but can't be confirmed (ADR-0007). |
-| failed read | A read where no result reaches staff (ADR-0007, *How items count*). Stores no item (ADR-0008, D5). |
+| failed read | A read where no result reaches staff (ADR-0007, *How items count*). Stores no item, unless it ran past the 2-minute limit and later finishes (ADR-0008, D5). |
 | hand log | The log in the feedback Sheet of ART numbers typed into the main Sheet (ADR-0007). |
 | downtime log | The tab in the feedback Sheet recording when the app is down (ADR-0007, ADR-0009). |
 | main Sheet | The Google Sheet staff work from, which receives each final value (ADR-0007). |

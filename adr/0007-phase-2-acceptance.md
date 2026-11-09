@@ -1,6 +1,6 @@
 # ADR-0007: Phase 2 acceptance
 
-- **Status:** Accepted
+- **Status:** Accepted (project team, 2026-11-09)
 - **Date:** 2026-11-09
 - **Amends:** ADR-0001, ADR-0002, ADR-0006
 - **Terms:** see `GLOSSARY.md`.

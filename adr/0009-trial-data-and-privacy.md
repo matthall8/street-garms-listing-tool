@@ -44,6 +44,10 @@ The catalogue is off, so the trial holds no code-to-product mapping. Replaying
 saved reads through the catalogue later (ADR-0007) would create one, and that
 output falls under the catalogue's rules.
 
+Photos paired with final values aren't eval ground truth, because final values
+aren't labelled independently (ADR-0007). Anything labelled for the eval set
+comes under CLAUDE.md.
+
 ## What's held where
 
 | Store | Holds | Who can see | Kept for |
@@ -102,16 +106,16 @@ emails. **observability** follows this.
 ### D4: ART numbers and Certilogo codes in trial data
 
 These values are public once a garment is listed, so trial stores have no limits
-on them beyond ADR-0007's Sheet field, including before listing, and one appearing
-in a log or Sheet isn't an incident.
+on them beyond D3's allowlist and ADR-0007's Sheet field, including before
+listing, and one appearing in a log or Sheet isn't an incident.
 
 This applies to trial stores only. CLAUDE.md, ADR-0001 and the commit hooks don't
 change: codes stay out of git, and the model doesn't return them.
 
 ### D5: Secrets and spend
 
-The Anthropic API key and the Google credential for the Sheet are held in Secret
-Manager, never in git.
+The Anthropic API key, the Google credential for the Sheet and any database
+credential are held in Secret Manager, never in git.
 
 The trial uses its own Anthropic workspace and key, with a monthly spend limit of
 $10, set by **deploy** before the founder review. A read refused at the limit is
@@ -129,7 +133,7 @@ An incident is any of:
 
 - a store readable by someone not on its list
 - someone not in the IAP policy reaching the app
-- a leaked API key or Google credential
+- a leaked API key, Google credential or database credential
 - trial records pasted into the public repo
 
 The developer pauses the trial or the founder review, closes the access or
@@ -167,8 +171,8 @@ by someone not in the IAP policy can't be detected.
 ## Consequences
 
 - **deploy** uses London, creates the Anthropic workspace, key and spend limit,
-  puts both credentials in Secret Manager and leaves IAP access logs off, all
-  before the founder review.
+  puts the API key, the Sheet credential and any database credential in Secret
+  Manager and leaves IAP access logs off, all before the founder review.
 - **observability** records only what D3 allows.
 - The founder review includes D2's check and D1's Sheet-sharing check.
 - The project team's stage 3 decision also sets the deletion date.
