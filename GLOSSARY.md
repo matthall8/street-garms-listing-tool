@@ -56,6 +56,28 @@ under a different product name may be exceptions.
 | `needs_review` | The gate: true means a person checks the listing before it publishes. |
 | *looks right* / *check this* | How a listing shows: `needs_review` false / true. |
 | `review_reasons` | Why `needs_review` is set. *(not in code yet)* |
+| item | One upload and its stored read (ADR-0008, D5). |
+| retake | Uploading a garment again, which starts a new item (ADR-0008, D5). The reported retake total counts items never confirmed, not new uploads (ADR-0007). |
+| value shown | The `art_base` given to staff from the last read of that item. |
+| final value | The value staff confirm, unchanged or edited. An item's ART number is its final value. |
+| confirmed item | Any item with a final value, whether confirmed unchanged or edited. |
+| confirmed unchanged | A confirmed item whose final value matches the value shown (compared as in ADR-0008, D5). |
+| counted item | The first entry of an ART number in the team trial, confirmed or hand-logged (ADR-0007). |
+| edit | A counted item whose final value differs from the value shown (compared as in ADR-0008, D5), or that was typed into the Sheet and hand-logged (ADR-0007). Separate from the catalogue's `corrected`. |
+| edit rate | Edits as a share of counted items (ADR-0007). |
+| empty read | A read with no value to show. Stored, but can't be confirmed (ADR-0007). |
+| failed read | A read where no result reaches staff (ADR-0007, *How items count*). Stores no item, unless it ran past the 2-minute limit and later finishes (ADR-0008, D5). |
+| hand log | The log in the feedback Sheet of ART numbers typed into the main Sheet (ADR-0007). |
+| downtime log | The tab in the feedback Sheet recording when the app is down (ADR-0007, ADR-0009). |
+| main Sheet | The Google Sheet staff work from, which receives each final value (ADR-0007). |
+| feedback Sheet | The Google Sheet holding ad-hoc feedback and the trial's manual logs (ADR-0007, ADR-0009). |
+| configuration | What the trial freezes; a change restarts the count (ADR-0007, *Scope and storage*). |
+| staff trial | Phase 2 as a whole: founder review, team trial and decision (ADR-0007). |
+| founder review | Stage 1 of the staff trial. About 10 items that don't count towards the gate (ADR-0007). |
+| team trial | Stage 2 of the staff trial, whose counted items decide the gate (ADR-0007). |
+| project team | The developer, the founder and the day-to-day editor. Decides what follows phase 2 (ADR-0007). |
+| the developer | The tech team, which is one person. |
+| the staff member | The day-to-day editor, the one staff member in the trial (ADR-0007). |
 
 ## Evaluation
 
@@ -90,3 +112,4 @@ under a different product name may be exceptions.
 | `expected_line`, `expected_style` | `expected_art_line`, `expected_art_base` | hook, PR #36 |
 | style-exact | base-exact | never in code |
 | `art_number_raw` | `art_line` | run 1 |
+| correction rate | edit rate | never in code |

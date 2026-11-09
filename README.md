@@ -61,6 +61,8 @@ The phase 1 gate passed: 24 of 27 garment-sides correct, with 22 needed. That
 means good enough to try in the staff trial, not a proven 80%
 ([evals/BASELINES.md](evals/BASELINES.md)).
 
+Phase 2, the staff trial, is being built ([ADR-0007](adr/0007-phase-2-acceptance.md)).
+
 **Phase 1 gate.** Phase 1 passes on a held-out set of at least 15
 garment-sides, read 3 times each and run once, when at least 80% of them
 read the ART number's base correctly. Staff confirm every result at the next
