@@ -24,7 +24,7 @@ In phase 2, staff confirm or correct every result before anything is
 recorded, so a wrong read can't reach a listing unseen. That is why this gate
 measures only the correct rate. It is also why the test set can be small:
 the staff trial records every confirmation and edit, so it measures the
-rate on far more photos than a test set holds. That rate is for the
+rate on more garments than a test set holds. That rate is for the
 garments staff process, not all future garments.
 
 ## Decision

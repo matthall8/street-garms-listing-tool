@@ -20,7 +20,7 @@ the final value goes into the Google Sheet, so a wrong read can't reach a
 listing unseen. That is why this phase measures how often staff edit, not
 silent errors.
 
-What follows phase 2 will be decided by the project team (the tech team, the founder and the day-to-day editor), from the gate result and staff feedback.
+What follows phase 2 will be decided by the project team (the developer, the founder, and the day-to-day editor, the one staff member in the trial), from the gate result and staff feedback.
 
 ## Scope and storage
 
@@ -39,7 +39,7 @@ Stored per item, so the trial can be judged and traced:
 - the photo
 - the last read and the value shown from it
 - the final value
-- whether the user confirmed or edited
+- whether the final value was confirmed unchanged or edited
 - when it was scanned and the time taken (ADR-0008, D5)
 - the configuration that produced the read
 
@@ -51,16 +51,20 @@ Settings for the trial:
   read with a value.
 - Sheet field: `art_base`, what the phase 1 gate measured. A fused
   label gives no `art_base`, so staff type those into the Sheet.
-- Config: frozen at the phase 1 gate's settings for the whole trial.
+- Config: frozen at the phase 1 gate's settings for the whole trial. The
+  configuration is everything ADR-0006's *Scope* lists as what the model sees,
+  at the gate run's recorded values (`evals/BASELINES.md`, *Held-out test set*),
+  plus the locked versions of `pydantic-ai` and `anthropic`. An ordinary deploy
+  that changes none of these doesn't restart the count.
 
 ## Stages
 
 1. Founder review: about 10 items, end to end. Doesn't count towards the gate.
-   Ends when the founder approves.
+   Ends when the founder approves. A privacy incident pauses it (ADR-0009, D7).
 2. Team trial: starts the day after the founder approves and runs to the first
-   50 unique ART numbers or for 2 weeks, whichever comes first. The stop rule
-   applies. If the count restarts, so do the 2 weeks. The clock stops during a
-   pause.
+   50 unique ART numbers or for 2 weeks, whichever comes first. During the team
+   trial, only the staff member uploads. The stop rule applies. If the count
+   restarts, so do the 2 weeks. The clock stops during a pause.
 
    With fewer than 50 at 2 weeks, the trial is inconclusive, neither a pass nor
    a fail. The project team decides whether to extend it or stop.
@@ -73,31 +77,35 @@ Feedback is gathered in stages 1 and 2. Build work is in TODO.md.
 Measured on the first 50 unique ART numbers of the team trial. Both checks
 must hold:
 
-1. At least 40 of the 50 are confirmed without an edit.
+1. At least 40 of the 50 are confirmed unchanged.
 2. The one staff member in the trial says yes to "Would you use this instead of
-   manual entry for every garment?" A "no" and its reason are recorded, and
-   the trial doesn't pass until the reason is understood. Sign-off can block
-   a pass but can't rescue a failed count.
+   manual entry for every garment?" The trial passes only on a yes. On a no, the
+   project team chooses to fix and re-ask, or stop. The reason for a no is
+   recorded in the feedback Sheet, with only yes or no in `evals/BASELINES.md`.
+   Sign-off can block a pass but can't rescue a failed count.
 
 How items count:
 
 - An item is one upload (ADR-0008, D5). It is scored on the last read shown.
   Retakes are reported as a trial total (ADR-0008, D5).
-- A counted item is the first confirmed item of an ART number in the team
-  trial, in confirm-time order. Hand-logged entries are also counted items.
-  Same-day hand-logged entries come before that day's confirmed items, in log
-  order.
-- An ART number typed into the Sheet with no read, or after an empty read,
-  counts as edited. It is recorded by hand in a log in the ad-hoc feedback
-  Sheet (the hand log), with the ART number and date.
+- A counted item is the first entry of an ART number in the team trial,
+  confirmed or hand-logged. Confirmed items are in confirm-time order. Same-day
+  hand-logged entries come before that day's confirmed items, in log order. Two
+  entries are the same ART number if they match after the trimming and
+  uppercasing in ADR-0008, D5.
+- An ART number typed into the Sheet with no read, after an empty read, or
+  instead of confirming a value shown, counts as edited, unless the app is down
+  (below). It is recorded by hand in a log in the ad-hoc feedback Sheet (the
+  hand log), with the ART number and date.
 - A garment with no ART number at all can't be logged, so it never counts.
-- A failed read is one where no result reaches staff: an API error, a timeout
-  or the 2-minute limit (ADR-0008, D2). It gets one retake. If that also fails,
-  the app counts as down: the item isn't counted and goes in the downtime log.
-- An empty read is not a failed read. Following ADR-0002, nor is a refusal or an
-  answer that fails the output schema: those are treated as empty reads, so they
-  count as edits rather than disappearing as downtime.
-- Items entered while the app is down aren't counted.
+- A failed read is one where no result reaches staff: an API error, a timeout,
+  the 2-minute limit (ADR-0008, D2), a refusal, an answer that fails the output
+  schema, or a rejected upload (ADR-0008, D9). It gets one retake. If that also
+  fails, the app counts as down, from that second failure until the next read
+  that isn't a failed read. The garment isn't counted and goes in the downtime
+  log. ART numbers typed into the Sheet in that window go only in the downtime
+  log, not the hand log. A later upload that succeeds counts normally.
+- An empty read is not a failed read.
 
 ## Stop Rule
 
@@ -112,6 +120,11 @@ trial; it is deleted. A wrong confirm by staff doesn't pause the trial and
 doesn't count as an edit, even if caught later. The record keeps what was
 confirmed.
 
+During a pause, staff enter ART numbers by hand and nothing counts: items
+confirmed and entries typed in that window are neither counted items nor edits.
+The trial's start, each pause's start and end, and any restart are written down,
+with their times, in the feedback Sheet.
+
 The project team decides when a pause ends. If the configuration or the capture
 instructions have to change during the trial, the count restarts at zero.
 Earlier ART numbers can then count again, but products aren't deliberately
@@ -125,7 +138,7 @@ in `evals/BASELINES.md`. None of these can pass or fail the trial.
 - Model cost per item, from the Anthropic console
 - Edit rate with its 95% range
 - Edit rate by format family, with counts
-- Retakes: the trial total of unconfirmed uploads (ADR-0008, D5)
+- Retakes: the trial total of unconfirmed items (ADR-0008, D5)
 - Spot check: up to 30 random confirmed items read by eye from the photo, before
   looking at the final value. This only rules out large problems: 0 wrong
   still allows up to about 10%.
@@ -146,14 +159,15 @@ We will move onto phase 3, which will be decided by the project team.
 
 The project team decides whether to fix and rerun, or stop.
 
-All of the trial's confirmed items, not only the failures, are labelled by eye,
-independently of the model and of staff's final values. They then join the
+All of the trial's confirmed items and empty-read photos, not only the failures,
+are labelled by eye, independently of the model and of staff's final values.
+They then join the
 development set (amending ADR-0002, which today admits only a failed test set).
 
 The edits are analysed to find the cause. Changes to photo quality, the prompt
 or the model are tested one at a time, under the rule for later runs (TODO.md,
 *later-run-rule*). A rerun starts the count at zero and counts only ART
-numbers not in the failed trial.
+numbers not in the failed trial (the list kept under ADR-0009, D1).
 
 ## How to get there
 
@@ -175,7 +189,7 @@ See *Staff trial* in TODO.md for an up-to-date list.
 
 - Edits only show errors staff catch, so the edit rate is a floor on the real
   error rate.
-- The share confirmed without an edit will probably be lower than phase 1's
+- The share confirmed unchanged will probably be lower than phase 1's
   correct rate, which excluded unreadable photos, photos with no ART number
   and fused labels.
 - 50 items is a small sample: exactly 40 of 50 means about 67–89%.
@@ -237,6 +251,10 @@ See *Staff trial* in TODO.md for an up-to-date list.
   following a fail is tested.
 - Fused labels give no `art_base`, so they always count as edits, through the
   hand log. This is an accepted cost.
+- A refusal or an answer that fails the output schema is a failed read here,
+  though phase 1 counted it as wrong (ADR-0002), because `app/` can't tell them
+  from API errors without changing `labels/`. So a rare model failure shows as
+  downtime, not an edit (none in the gate's 81 reads).
 - Items typed into the Google Sheet, and periods when the app is down, have
   to be recorded manually during the trial.
 - The ad-hoc feedback Sheet can hold ART numbers, so ADR-0009 covers it.

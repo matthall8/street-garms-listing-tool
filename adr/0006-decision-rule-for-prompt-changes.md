@@ -101,5 +101,6 @@ The rule as first written also required confirming a pass on photos outside
 this set before merging, because a pass here is in-sample. That condition was
 **waived for this merge** by decision, on confidence that the change is better
 generally. It still applies in spirit: when photos join the development
-set (a failed test set, ADR-0002), run the previous and current baselines
-on them and check the gain holds.
+set (a failed test set, ADR-0002, or a failed trial's labelled items,
+ADR-0007), run the previous and current baselines on them and check the
+gain holds.

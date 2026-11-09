@@ -17,8 +17,9 @@ It covers trial data only. The catalogue and the eval set stay under CLAUDE.md,
 
 ## Threat model
 
-ART numbers, Certilogo codes and label photos are already public on Street
-Garms' website. What's left to protect is the staff member's work record (with
+ART numbers, Certilogo codes and label photos are already public once a garment
+is listed on Street Garms' website; trial items are photographed at intake,
+before listing. What's left to protect is the staff member's work record (with
 one person in the trial, per-item times and edits identify them), any location
 in a photo, and the integrity of the Sheet and the gate's records.
 
@@ -49,9 +50,10 @@ output falls under the catalogue's rules.
 |---|---|---|---|
 | Postgres on Cloud SQL | One row per item: read, value shown, final value, configuration, times (ADR-0008, D5, D6) | The developer | Deletion date (D1) |
 | Postgres backups | Copies of those rows (ADR-0008, D6) | The developer | Deletion date (D1) |
-| Cloud Storage bucket | Photos as uploaded, including items never confirmed (ADR-0008, D6, D9) | The developer | Deletion date (D1) |
-| Main Google Sheet | Final values (ADR-0007) | The developer, the founder and the day-to-day team | Not deleted: it is the working document |
-| Feedback Sheet | Ad-hoc feedback, the hand log and a tab for the downtime log; can hold ART numbers (ADR-0007) | The project team | Deletion date (D1) |
+| Cloud Storage bucket | Photos as uploaded, including items never confirmed and failed reads (ADR-0008, D5, D6, D9) | The developer | Deletion date (D1) |
+| Main Google Sheet | Final values (ADR-0007) | The developer, the founder and the day-to-day editor, the one staff member | Not deleted: it is the working document |
+| Feedback Sheet | Ad-hoc feedback, the hand log, a tab for the downtime log, the trial's start, pause and restart times, and the reason for any sign-off "no"; can hold ART numbers (ADR-0007) | The project team | Deletion date (D1) |
+| Failed-trial list, only on a fail | ART numbers only, outside git (D1) | The developer | Until the rerun's gate is read or the project team stops |
 | App logs and tracing | What D3 allows | The developer | 30 days |
 | Platform logs (Cloud Run) | Request logs. IAP's access logs, which carry the signed-in email, stay off | The developer | 30 days |
 | Anthropic API | Every photo, sent for its read | Anthropic | 30 days, or up to 2 years if flagged by its safety systems (its terms, checked 2026-11-09) |
@@ -62,7 +64,7 @@ output falls under the catalogue's rules.
 
 Each store's access is named people only, as listed in *What's held where*. App
 access is the IAP policy (ADR-0008, D1): the developer, the founder and the
-staff member. Both Sheets are shared with named accounts, never by link, and
+day-to-day editor, the one staff member. Both Sheets are shared with named accounts, never by link, and
 that is checked once before the founder review.
 
 Only the developer can reach the technical stores.
@@ -73,6 +75,10 @@ there first, and on a fail the date allows for that labelling (ADR-0007). The
 developer deletes it and checks the bucket is empty and the Cloud SQL instance
 is gone, with retained backups off.
 
+On a fail, before deletion, the developer saves a list of the team trial's ART
+numbers (the final values plus the hand log, nothing per item) and keeps it until the
+rerun's gate is read or the project team stops (ADR-0007, *Fail*).
+
 The same date covers photos of items never confirmed. The gate needs only their
 rows, for the retake total.
 
@@ -81,7 +87,7 @@ stores. The instance keeps billing until the deletion date.
 
 ### D2: Phone location data in photos
 
-One real phone upload is checked at the founder review. If it carries location,
+One real upload from the staff member's phone is checked at the founder review. If it carries location,
 camera location is turned off on that phone. Nothing changes at the server, so
 ADR-0008, D9 still holds.
 
@@ -90,13 +96,14 @@ Anthropic as well as the bucket.
 
 ### D3: What logs and tracing may record
 
-Allowlisted fields only: enums, fingerprints and counts. No photos and no staff
+Allowlisted fields only: enums, fingerprints, counts and numeric measurements such as latency and input size. No photos and no staff
 emails. **observability** follows this.
 
 ### D4: ART numbers and Certilogo codes in trial data
 
-These values are public, so trial stores have no limits on them beyond ADR-0007's
-Sheet field, and one appearing in a log or Sheet isn't an incident.
+These values are public once a garment is listed, so trial stores have no limits
+on them beyond ADR-0007's Sheet field, including before listing, and one appearing
+in a log or Sheet isn't an incident.
 
 This applies to trial stores only. CLAUDE.md, ADR-0001 and the commit hooks don't
 change: codes stay out of git, and the model doesn't return them.
@@ -123,10 +130,16 @@ An incident is any of:
 - a store readable by someone not on its list
 - someone not in the IAP policy reaching the app
 - a leaked API key or Google credential
+- trial records pasted into the public repo
 
-The developer pauses the trial, closes the access or rotates the key, and treats
-everything that access could reach as seen. The project team decides when the
-pause ends (ADR-0007, *Stop Rule*). Reaching the spend limit isn't an incident.
+The developer pauses the trial or the founder review, closes the access or
+rotates the key, and treats everything that access could reach as seen. The
+project team decides when the pause ends (ADR-0007, *Stop Rule*), and the founder
+can't approve the review until it does. Reaching the spend limit isn't an
+incident.
+
+**Accepted cost:** IAP access logs are off and items record no user, so a login
+by someone not in the IAP policy can't be detected.
 
 ## Alternatives considered
 

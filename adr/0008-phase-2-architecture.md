@@ -113,23 +113,30 @@ types are generated from the OpenAPI schema, so both sides share one definition.
 Routes are plain `def`, because the read uses `run_sync`, which can't run inside
 an `async def` route.
 
-Cloud Run runs one request per instance. Eval runs are serial, as a precaution
+Cloud Run runs one request per instance, with at least two instances allowed so
+an upload doesn't queue behind an abandoned read (D2). Eval runs are serial, as a precaution
 against a suspected pydantic-ai concurrency stall (`evals/README.md`), and this
 keeps the app the same.
 
 ### D5: API shape, and who holds item state
 
-The server stores one item per upload, and the client holds only its ID.
+The server stores one item per upload, except a failed read (below), and the
+client holds only its ID and its count of failures in a row.
 
 ```
 POST /items                photo → stores the item and its read, returns the ID and the value shown
-POST /items/{id}/confirm   final value → records it; the server works out confirmed or edited
+POST /items/{id}/confirm   final value → records it; the server works out confirmed unchanged or edited
 POST /items/{id}/post-to-sheet   retries the Sheet write after a failure (D7)
 ```
 
 The read, the value shown and the configuration are stored when the read is
 made, so the gate never rests on what the browser reports. Time taken runs from
 the upload to the confirm, both timed on the server.
+
+To work out confirmed unchanged or edited, the server compares the final value
+with the value shown after trimming spaces and uppercasing both. Leading zeros
+are kept. This applies only to that comparison and to matching ART numbers for
+the count (ADR-0007): the final value is stored and sent to the Sheet as entered.
 
 Upload again starts a new item, with nothing linking it to the last one. An
 item that is never confirmed has no final value, so it doesn't count. The
@@ -139,11 +146,18 @@ Unconfirmed items stay recorded, and their total is the trial's retake figure.
 Whether their photos are kept is for ADR-0009.
 
 An empty read still stores the item, which is never confirmed and adds to the
-retake total. A refusal or an answer that fails the output schema is stored the
-same way, as an item with an empty value (ADR-0007, *How items count*). The
-frontend shows the empty-read screen (ADR-0007) when the value
+retake total. The frontend shows the empty-read screen (ADR-0007) when the value
 is empty, with no ART logic of its own. The server refuses a confirm whose final
-value is empty or blank, and any confirm on an item whose value shown is empty.
+value is empty or blank or contains `?`, so staff must edit a value with `?` in
+it, and any confirm on an item whose value shown is empty.
+
+A failed read (ADR-0007) stores no row and returns an error. Any photo already
+stored stays in the bucket. The frontend shows a failed-read screen, separate
+from the empty-read screen, offering upload again. It counts failures in a row,
+and after the second the screen tells staff to enter the ART number in the Sheet
+and note it in the downtime log. A read past the 2-minute limit (D2) shows the
+same screen, but if it later finishes it stores its item as usual, which is never
+confirmed and adds to the retake total.
 
 **Accepted cost:** no retake count per item, and the total slightly overstates
 retakes because it includes scans staff abandoned. Time taken covers only the
@@ -156,11 +170,14 @@ SQL, in the same Google project as the service. Who can see them and for how
 long is for ADR-0009.
 
 Each item (D5) is one row. Counted items and the count of edits for the stop
-rule (ADR-0007) are plain SQL queries on Postgres, plus the hand log (ADR-0007).
+rule (ADR-0007) come from a plain SQL query on Postgres, with the hand log
+(ADR-0007) applied by eye, because it will be a handful of rows. The developer
+runs this once per working day, with D7's Sheet comparison in the same run.
 
 Cloud Run connects through its built-in Cloud SQL connection, and the instance
-has no authorised networks. Automated backups are on, because these records and
-the hand log (ADR-0007) are the gate's only evidence.
+has no authorised networks. Automated backups are on, because these records are
+most of the gate's evidence. They don't cover the hand log, which is in the
+feedback Sheet (ADR-0009).
 
 The schema is a plain SQL file. A migration framework waits until there's more
 than a table or two to manage.
@@ -172,13 +189,15 @@ Each confirmed value adds a new row to the Sheet, within a minute of the confirm
 1. Confirm updates the Postgres row first, only if the item is still
    unconfirmed, and sets its Sheet status to pending. A second tap changes
    nothing.
-2. It makes one Sheet append, with a short timeout and no automatic retries, then
-   sets the status to sent or failed.
+2. It makes one Sheet append as raw text, so Sheets doesn't parse the value, with
+   a short timeout and no automatic retries, then sets the status to sent or
+   failed.
 3. On failure, staff see: "Saved, but we couldn't confirm it reached the Sheet.
    Check the Sheet. If it isn't there, tap Post to Sheet." The button makes one
-   more append, and only while the status is failed or has been pending for
-   longer than the append timeout, so it can't write during a live append.
-4. A wrong confirm is corrected directly in the Sheet. The record keeps what was
+   more append, and only after moving the status to pending in one atomic
+   update, from failed or from a pending older than the append timeout, so a
+   second tap or a live append can't cause another write.
+4. A wrong confirm is fixed directly in the Sheet. The record keeps what was
    confirmed.
 
 A timed-out append may still have landed, so a retry could add a duplicate row,
@@ -189,10 +208,14 @@ the score.
 
 A short SQL query finds items stuck at pending or failed. If the page was closed
 there is no way back to the item, so that case stays with the query. It runs
-alongside the stop rule's edit count.
+alongside the stop rule's edit count (D6).
+
+The same run compares the Sheet with Postgres. Differences are checked by eye,
+because hand-typed rows and fixes (step 4) are expected. Any other difference is
+a confirmed value reaching the Sheet incorrectly (ADR-0007, *Stop Rule*).
 
 **Accepted cost:** staff do a manual check on a failed write, and the Sheet can
-differ from the record after a correction.
+differ from the record after a fix.
 
 ### D8: External-call boundary (database, Sheets, storage), tests stay offline
 
@@ -219,6 +242,10 @@ resizing, compression, cropping, rotation or format conversion in the frontend.
 The API passes those bytes to the pipeline as received. `upright()`, in
 `read_art()`, stays the only change made to a photo before the model sees it.
 
+A rejected upload, by type or by size, is a failed read (ADR-0007). Photos are
+never shrunk or converted to fit. If the staff member's phone fails the check
+under *Build constraints*, its camera setting is lowered instead.
+
 The stored photo (D6) is the upload as received, so a replay goes through
 `upright()` exactly as the original read did, because ADR-0007 freezes the trial
 at the phase 1 gate's settings.
@@ -234,20 +261,23 @@ at the phase 1 gate's settings.
 - D2: a frontend test that a read past the limit offers upload again.
 - D3: a test that the read response's keys equal the allowlist.
 - D4: a test that no route handler is a coroutine function.
-- D4: after deploy, read the service's concurrency back as 1.
-- D5: a test that confirmed or edited comes from the stored value shown, and the
-  confirm request carries only the final value.
+- D4: after deploy, read the service's concurrency back as 1 and its maximum
+  instances as at least 2.
+- D5: a test that confirmed unchanged or edited comes from the stored value
+  shown, and the confirm request carries only the final value.
 - D5: a test that the server refuses a confirm whose final value is empty or
-  blank, and any confirm on an item whose value shown is empty.
+  blank or contains `?`, and any confirm on an item whose value shown is empty.
 - D6: after deploy, the bucket has public access prevention on and the Cloud SQL
   instance has no authorised networks.
 - D6: one backup is restored successfully before the team trial starts.
 - D7: a test that a second confirm changes nothing and makes no Sheet write.
 - D7: a test that Post to Sheet writes only when the status is failed or has
-  been pending for longer than the append timeout.
-- D7: the Sheet append sets its timeout explicitly and has no automatic retries.
+  been pending for longer than the append timeout, and that a second tap during
+  that write makes no append.
+- D7: the Sheet append sets its timeout explicitly, has no automatic retries and
+  writes raw text.
 - D7: before the founder review, an append to a copy of the real Sheet puts the
-  row and the value where staff expect them.
+  row and the value where staff expect them, with a leading-zero value intact.
 - D8: `API_CLIENTS` in `tests/test_boundaries.py` gains the Google clients and
   the Postgres driver, and the boundary test checks each against its one module.
   It doesn't list them today, so without this nothing catches a stray import.
@@ -255,6 +285,8 @@ at the phase 1 gate's settings.
 - D9: a test that the bytes reaching `extract_bytes()` equal the bytes uploaded.
   The frontend uploads the original `File`; review checks nothing draws it to
   a canvas first.
+- D9: at **deploy**, a real upload from the staff member's phone, HEIC included,
+  is accepted and is within the API's per-image limit.
 
 ## Not decided here
 
