@@ -56,6 +56,8 @@ under a different product name may be exceptions.
 | `needs_review` | The gate: true means a person checks the listing before it publishes. |
 | *looks right* / *check this* | How a listing shows: `needs_review` false / true. |
 | `review_reasons` | Why `needs_review` is set. *(not in code yet)* |
+| edit | A counted item whose final value differs from the value shown, or that was typed into the Sheet with no read. Separate from the catalogue's `corrected`. |
+| edit rate | Edits as a share of counted items (ADR-0007). ADR-0002's "correction rate" means this. |
 
 ## Evaluation
 
