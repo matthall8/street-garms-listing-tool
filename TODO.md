@@ -19,6 +19,9 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
+- **frontend-tooling**
+- **python-api**
+- **docker-image**
 
 ## Phase 1
 
