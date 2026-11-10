@@ -418,3 +418,16 @@ sort them into a section.
   Add the frontend job's checks and how to select the pinned Node to
   `.claude/skills/open-pr/SKILL.md` and `.claude/agents/code-reviewer.md`,
   on its own branch, before **mvp-confirm**
+- **upload-cap-scope**: the 16MB check in `app/routes.py` covers only the
+  photo field and runs once the body has arrived, so a large upload is
+  stored before its 413 and a large extra file part is parsed, then
+  ignored. Decide whether **web-hardening** needs a request-level limit
+- Frontend validation for a missing photo, with **mvp-confirm**
+- Whether to start **mvp-confirm**'s screens before **trial-records**'s
+  first endpoint, with a placeholder type until the generated types
+  exist. Depends on the design
+- Whether to move **deploy** after the frontend: that removes the need
+  for the form, but delays the phone and IAP checks that could still
+  change ADR-0008, D2 or D9
+- Reuse the upload-cap helper in `app/routes.py` for `POST /items`, with
+  **trial-records**
