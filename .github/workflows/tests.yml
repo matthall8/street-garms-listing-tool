@@ -24,3 +24,27 @@ jobs:
         if: ${{ !cancelled() }}  # report types even when lint fails
       - run: uv run --locked python -m pytest -rs
         if: ${{ !cancelled() }}  # report tests even when lint fails
+
+  frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci  # fails if package-lock.json is out of date
+      - run: npm run build
+      - run: npm run typecheck
+        if: ${{ !cancelled() }}  # report types even when the build fails
+      - run: npm run lint
+        if: ${{ !cancelled() }}  # report lint even when the build fails
+      - run: npm test
+        if: ${{ !cancelled() }}  # report tests even when the build fails
