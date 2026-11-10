@@ -19,7 +19,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
-- **python-api**
 - **docker-image**
 
 ## Phase 1
@@ -94,20 +93,11 @@ Only after a failed gate: the test set joins dev (ADR-0002).
 Phase 2: the build for ADR-0007's trial, under ADR-0008 and ADR-0009.
 Items are in build order.
 
-- **python-api**: Flask to FastAPI in `app/`, plain `def` routes, and
-  the D4 test; CLAUDE.md's web command changes with it (ADR-0008, D4,
-  *Consequences*). Before anything else is built on it. Check the
-  schema, prompt and user-message fingerprints still match the gate's,
-  `labels/` is unchanged since the gate (which covers image handling and
-  `MODEL_SETTINGS`), and the `pydantic-ai` and `anthropic` locks haven't
-  moved (ADR-0007,
-  *Scope and storage*, Config; BASELINES.md, *Held-out test set*). Same
-  check when **trial-records** or **sheets-push** adds a dependency
 - **docker-image**: a Docker image of the Python side, with no catalogue
-  in it (ADR-0007, *Scope and storage*): gunicorn timeout above the
-  worst-case call (CLAUDE.md, *Engineering constraints*). The frontend
-  files join it with **mvp-confirm** (ADR-0008, *Diagram*). After
-  **python-api**, with **deploy**
+  in it (ADR-0007, *Scope and storage*), running `uvicorn` with any
+  timeout set above the worst-case call (ADR-0008, *Build constraints*,
+  D1; CLAUDE.md, *Engineering constraints*). The frontend files join it
+  with **mvp-confirm** (ADR-0008, *Diagram*). With **deploy**
 - **deploy**: the early skeleton, with no real data (the real phone
   upload uses a non-trial label): the container on Cloud Run behind IAP, its policy naming the people in ADR-0009, D1
   (ADR-0008, D1). The after-deploy checks in ADR-0008, *Build
@@ -132,7 +122,7 @@ Items are in build order.
   the counted-item, stop-rule and stuck-Sheet queries (D6, D7). Adds the
   Postgres driver and the Cloud Storage client to `API_CLIENTS` (D8).
   CLAUDE.md's API rule, *Flow* and CI command change with it (ADR-0008,
-  *Consequences*). After **python-api**
+  *Consequences*)
 - **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`:
   each confirmed value as a new row, in the field ADR-0007 sets
   (ADR-0008, D7 and its *Build constraints*), including the raw-text
@@ -144,14 +134,17 @@ Items are in build order.
   again, the empty-read screen (ADR-0007, *Scope and storage*), the
   failed-read screen (D5) and Post to Sheet (D7). The flow is a
   discriminated union in `useReducer`, with the 2-minute
-  `AbortController` in the submit handler rather than a `useEffect`. Can
-  start alongside **trial-records** and **sheets-push** once
+  `AbortController` in the submit handler rather than a `useEffect`.
+  Deletes the Jinja form, `GET /` and `POST /` (`app/templates/`,
+  `app/static/style.css`), the `jinja2` pin and the HTML route tests:
+  `result.html` branches on `needs_review`, which ADR-0007 hides from
+  staff. Can start alongside **trial-records** and **sheets-push** once
   **trial-records** has its first endpoint (D5 fixes the API shape)
 - **upright-guidance**: capture guidance in the web UI: the photo must
   be upright (ADR-0002). With **mvp-confirm**
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
   upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
-  logged with the raw error hidden, gunicorn timeouts
+  logged with the raw error hidden, `uvicorn` timeouts
 - **observability**: minimal: one allowlisted record per read, only what
   ADR-0009, D3 allows: status, commit, prompt fingerprint, model,
   latency, request count and token usage per call, input size,
@@ -415,7 +408,7 @@ sort them into a section.
   (`.claude/agents/code-reviewer.md`). Reconcile them with
   **trial-records**
 - **generated-types-check**: the CI check that the committed types match
-  a fresh generation (ADR-0008, D10). Needs **python-api**; the natural
+  a fresh generation (ADR-0008, D10). The natural
   home is **mvp-confirm**, where the generated types first appear
 - **frontend-review-checks**: `/open-pr` and the code-reviewer list only
   the Python checks, so every frontend PR comes back "Review incomplete".

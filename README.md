@@ -117,7 +117,7 @@ uv sync                                             # needs uv; creates .venv fr
 cp .env.example .env                                # add ANTHROPIC_API_KEY
 git config core.hooksPath hooks                     # privacy hooks, once per clone
 .venv/bin/python main.py <label.jpg>                # CLI, prints JSON
-.venv/bin/flask --app app run                       # web upload form
+.venv/bin/uvicorn --factory app:create_app          # web upload form
 .venv/bin/python -m pytest                          # offline, no API key
 .venv/bin/ruff check .                              # lint, rules in pyproject.toml
 .venv/bin/pyright                                   # types, basic mode
