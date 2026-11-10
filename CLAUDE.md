@@ -39,7 +39,14 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | tests | `.venv/bin/python -m pytest` — offline, no API key |
 | lint | `.venv/bin/ruff check .` — rules in `pyproject.toml` |
 | types | `.venv/bin/pyright` — basic mode, config in `pyproject.toml` |
-| CI | `.github/workflows/tests.yml` — `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs` on push/PR to main, no catalogue, no key |
+| frontend install | in `frontend/`: `nvm use`, then `npm ci` — Node version from `.nvmrc` |
+| add a frontend dependency | in `frontend/`: `npm install --save-exact <pkg>@<version>` (`-D` for tools); commit `package-lock.json` with it |
+| frontend dev | in `frontend/`: `npm run dev` |
+| frontend build | in `frontend/`: `npm run build` |
+| frontend types | in `frontend/`: `npm run typecheck` |
+| frontend lint | in `frontend/`: `npm run lint` |
+| frontend tests | in `frontend/`: `npm test` |
+| CI | `.github/workflows/tests.yml`, on push/PR to main — Python: `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs`, no catalogue, no key. Frontend: `npm ci`, build, type check, lint and tests, Node from `.nvmrc` |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/flask --app app run` |
 | privacy check | `.venv/bin/python hooks/check_private.py --range main...HEAD` — what the commit hooks run, over a branch; needs the private data to be complete |
