@@ -1,17 +1,20 @@
-"""Flask app factory for the label capture UI."""
+"""FastAPI app factory for the label capture UI."""
 
-from flask import Flask
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 
-def create_app() -> Flask:
+def create_app() -> FastAPI:
     from dotenv import load_dotenv
 
     load_dotenv()
 
-    app = Flask(__name__)
-    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # phone photos are big
+    app = FastAPI()
 
-    from app.routes import bp
+    from app.routes import router
 
-    app.register_blueprint(bp)
+    app.include_router(router)
+    app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"))
     return app
