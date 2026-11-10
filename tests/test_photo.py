@@ -9,6 +9,7 @@ from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
 from PIL import ExifTags, Image
 from pydantic_ai.usage import RunUsage
 
@@ -133,11 +134,9 @@ def test_cli_path_sends_upright(sent, tagged_file):
 
 def test_web_path_sends_upright(sent, monkeypatch):
     monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: False)
-    app = create_app()
-    app.config["TESTING"] = True
-    response = app.test_client().post("/", data={
-        "art_photo": (BytesIO(_encode("JPEG", orientation=6)), "label.jpg", "image/jpeg"),
-    }, content_type="multipart/form-data")
+    response = TestClient(create_app()).post("/", files={
+        "art_photo": ("label.jpg", BytesIO(_encode("JPEG", orientation=6)), "image/jpeg"),
+    })
     assert response.status_code == 200
     _assert_upright(sent)
 
