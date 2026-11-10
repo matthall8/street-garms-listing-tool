@@ -1,4 +1,4 @@
-"""The Flask routes: uploads in, status codes and pages out.
+"""The FastAPI routes: uploads in, status codes and pages out.
 
 Every test here runs offline. Two guards keep it that way:
 
@@ -18,6 +18,7 @@ import io
 import os
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app import create_app, routes
 from labels.schemas import Extraction
@@ -30,8 +31,7 @@ def client(monkeypatch):
     app = create_app()
     leaked = "ANTHROPIC_API_KEY" in os.environ
     assert not leaked, "create_app() loaded .env despite the patch"
-    app.config["TESTING"] = True
-    return app.test_client()
+    return TestClient(app)
 
 
 @pytest.fixture(autouse=True)
@@ -80,66 +80,66 @@ def _extraction(source: str) -> Extraction:
 
 
 def _upload(filename: str, media_type: str) -> dict:
-    return {"art_photo": (io.BytesIO(b"x"), filename, media_type)}
+    return {"art_photo": (filename, io.BytesIO(b"x"), media_type)}
 
 
 def test_no_photo_is_a_400(client):
     response = client.post("/")
     assert response.status_code == 400
-    assert b"Add a photo of the label" in response.data
+    assert b"Add a photo of the label" in response.content
 
 
 def test_unsupported_file_type_is_a_400(client):
-    data = _upload("a.gif", "image/gif")
-    response = client.post("/", data=data, content_type="multipart/form-data")
+    files = _upload("a.gif", "image/gif")
+    response = client.post("/", files=files)
     assert response.status_code == 400
-    assert b"Unsupported image" in response.data
+    assert b"Unsupported image" in response.content
 
 
 @pytest.mark.parametrize("media_type", ["image/heic", "image/heif"])
 def test_heic_and_heif_are_rejected(client, extract_calls, media_type):
     """The API doesn't take HEIC, so the form refuses it before any call."""
-    data = _upload("label." + media_type.split("/")[1], media_type)
-    response = client.post("/", data=data, content_type="multipart/form-data")
+    files = _upload("label." + media_type.split("/")[1], media_type)
+    response = client.post("/", files=files)
     assert response.status_code == 400
-    assert b"Unsupported image" in response.data
+    assert b"Unsupported image" in response.content
     assert extract_calls == []
 
 
 def test_failed_extraction_is_a_502(client, monkeypatch):
     monkeypatch.setattr(routes, "extract_bytes", failing_extract)
-    data = _upload("a.png", "image/png")
-    response = client.post("/", data=data, content_type="multipart/form-data")
+    files = _upload("a.png", "image/png")
+    response = client.post("/", files=files)
     assert response.status_code == 502
-    assert b"Extraction failed" in response.data
-    assert b"boom" in response.data
+    assert b"Extraction failed" in response.content
+    assert b"boom" in response.content
 
 
 @pytest.mark.parametrize("media_type", sorted(routes.ACCEPTED))
 def test_supported_type_reaches_the_pipeline(client, extract_calls, media_type):
     filename = "label." + media_type.split("/")[1]
-    data = _upload(filename, media_type)
-    response = client.post("/", data=data, content_type="multipart/form-data")
+    files = _upload(filename, media_type)
+    response = client.post("/", files=files)
     assert response.status_code == 200
     assert extract_calls == [
         {"art": (b"x", media_type), "source": filename}
     ]
-    assert b"Test Jacket" in response.data
+    assert b"Test Jacket" in response.content
 
 
 def test_a_stray_second_photo_is_ignored(client, extract_calls):
     """The form has one upload box; a details_photo field from an old form or
     a script never reaches the pipeline."""
-    data = _upload("a.png", "image/png")
-    data["details_photo"] = (io.BytesIO(b"y"), "b.png", "image/png")
-    response = client.post("/", data=data, content_type="multipart/form-data")
+    files = _upload("a.png", "image/png")
+    files["details_photo"] = ("b.png", io.BytesIO(b"y"), "image/png")
+    response = client.post("/", files=files)
     assert response.status_code == 200
     assert extract_calls == [{"art": (b"x", "image/png"), "source": "a.png"}]
 
 
 def test_a_second_photo_alone_is_a_400(client, extract_calls):
-    data = {"details_photo": (io.BytesIO(b"y"), "b.png", "image/png")}
-    response = client.post("/", data=data, content_type="multipart/form-data")
+    files = {"details_photo": ("b.png", io.BytesIO(b"y"), "image/png")}
+    response = client.post("/", files=files)
     assert response.status_code == 400
-    assert b"Add a photo of the label" in response.data
+    assert b"Add a photo of the label" in response.content
     assert extract_calls == []
