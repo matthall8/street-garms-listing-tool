@@ -91,7 +91,10 @@ Only after a failed gate: the test set joins dev (ADR-0002).
 
 ## Staff trial
 Phase 2: the build for ADR-0007's trial, under ADR-0008 and ADR-0009.
-Items are in build order.
+Items are in build order. A branch that adds a Python dependency first
+repeats the gate check: fingerprints, `labels/` unchanged, and the
+`pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
+Config; BASELINES.md, *Held-out test set*).
 
 - **docker-image**: a Docker image of the Python side, with no catalogue
   in it (ADR-0007, *Scope and storage*), running `uvicorn` with any
