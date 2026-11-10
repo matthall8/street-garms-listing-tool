@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-11-09
 - **Amends:** CLAUDE.md, *Flow*, *Commands* and *Engineering constraints* (D4,
-  D8)
+  D8, D10)
 - **Depends on:** ADR-0007
 - **Terms:** see `GLOSSARY.md`.
 
@@ -250,6 +250,30 @@ The stored photo (D6) is the upload as received, so a replay goes through
 `upright()` exactly as the original read did, because ADR-0007 freezes the trial
 at the phase 1 gate's settings.
 
+### D10: Frontend tooling
+
+The frontend is React, Vite and strict TypeScript, in a top-level `frontend/`
+folder. React is the best base for wider staff intake and is already familiar.
+It builds to a static single-page app that FastAPI serves from the one container
+(*Diagram*), so production has no Node runtime.
+
+Styling is Tailwind alone, designed phone-first with large tap targets. Repeated
+styles become React components, not `@apply`. `app/static/style.css` isn't
+ported.
+
+There is no router, TanStack Query or state library until a second screen
+exists: the client holds only an item ID and a failure count (D5).
+
+Packages are managed with npm, which ships with Node, with exact versions pinned
+and Node pinned in `.nvmrc`. Tests use Vitest with React Testing Library. Lint is
+ESLint, and TypeScript stays on 6.x until typescript-eslint supports 7.
+
+The generated types (D4) are committed, and CI checks they match a fresh
+generation.
+
+**Accepted cost:** an API change means regenerating and committing the types,
+and TypeScript is a major version behind until typescript-eslint catches up.
+
 ## Build constraints
 
 - D1: the Cloud Run request timeout is set explicitly above the worst-case call,
@@ -296,7 +320,6 @@ at the phase 1 gate's settings.
   unconfirmed uploads' photos and any phone location data are kept, what logs and
   tracing may record, the limits on what reaches the Sheet, and the Google Cloud
   region.
-- **Frontend tooling:** framework and build setup.
 - **TODO.md:** **mvp-confirm** (the confirm screen's design and wording),
   **upright-guidance** (the upright-photo guidance), **web-hardening** and
   **observability**.
@@ -383,11 +406,26 @@ at the phase 1 gate's settings.
   the model sees.
 - **D9, rotate in the browser:** rejected. `read_art()` already does it, in the
   one place every path goes through.
+- **D10, Svelte:** rejected. A smaller ecosystem, and syntax used nowhere else
+  here.
+- **D10, Vue:** rejected. Neither the largest ecosystem nor the smallest output.
+- **D10, plain TypeScript:** rejected. It doesn't grow well and would likely be
+  replaced if intake expands.
+- **D10, Next.js, Nuxt or SvelteKit:** rejected. They need a Node runtime beside
+  FastAPI (*Diagram*), and a static export would carry a framework whose main
+  features go unused.
+- **D10, a router, TanStack Query or a state library now, for wider intake:**
+  rejected. The client holds almost nothing (D5), and adding them later is cheap.
+- **D10, plain CSS:** rejected. Every new screen would be styled by hand.
+- **D10, Tailwind with shadcn/ui:** rejected for now. It can be added on top
+  later if intake needs it.
+- **D10, MUI:** rejected. Heavy and hard to restyle.
+- **D10, generating the types during the build:** rejected. The Docker Node stage
+  would have to run the Python app to get the schema.
 
 ## Consequences
 
-- D2: `.github/workflows/tests.yml` gains a frontend job for D2's test once the
-  frontend tooling is chosen.
+- D2: D2's test runs in the frontend job in `.github/workflows/tests.yml`.
 - D4: CLAUDE.md's web command changes when `app/` moves to FastAPI, and FastAPI
   and its server join the dependencies.
 - D4: the gunicorn lines in TODO.md (**web-hardening**, **docker-image**) need
