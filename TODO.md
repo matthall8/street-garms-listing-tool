@@ -414,3 +414,11 @@ sort them into a section.
   when no URL is set, but the reviewer requires 0 local skips
   (`.claude/agents/code-reviewer.md`). Reconcile them with
   **trial-records**
+- **generated-types-check**: the CI check that the committed types match
+  a fresh generation (ADR-0008, D10). Needs **python-api**; the natural
+  home is **mvp-confirm**, where the generated types first appear
+- **frontend-review-checks**: `/open-pr` and the code-reviewer list only
+  the Python checks, so every frontend PR comes back "Review incomplete".
+  Add the frontend job's checks and how to select the pinned Node to
+  `.claude/skills/open-pr/SKILL.md` and `.claude/agents/code-reviewer.md`,
+  on its own branch, before **mvp-confirm**
