@@ -49,7 +49,7 @@ IMAGE_NAME = re.compile(r"[\w./-]*\w\.(?:jpe?g|png|heic|heif|webp)\b", re.IGNORE
 
 # Where CLAUDE.md allows code-shaped literals. Whole files, or one region of
 # a file, found by name in its staged version.
-PATTERN_EXEMPT_FILES = {"uv.lock", "tests/synthetic.py", "evals/manifest.example.csv"}
+PATTERN_EXEMPT_FILES = {"uv.lock", "tests/synthetic.py", "evals/manifest.example.csv", "frontend/package-lock.json"}
 PATTERN_EXEMPT_REGIONS = {
     "labels/transcribe.py": "ART_PROMPT",
     "labels/art_number.py": "__doc__",
