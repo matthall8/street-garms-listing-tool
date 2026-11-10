@@ -19,7 +19,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
-- **frontend-tooling**
 - **python-api**
 - **docker-image**
 
@@ -95,8 +94,6 @@ Only after a failed gate: the test set joins dev (ADR-0002).
 Phase 2: the build for ADR-0007's trial, under ADR-0008 and ADR-0009.
 Items are in build order.
 
-- **frontend-tooling**. Decision: framework and build setup (ADR-0008,
-  *Not decided here*). Before **mvp-confirm**
 - **python-api**: Flask to FastAPI in `app/`, plain `def` routes, and
   the D4 test; CLAUDE.md's web command changes with it (ADR-0008, D4,
   *Consequences*). Before anything else is built on it. Check the
@@ -145,10 +142,11 @@ Items are in build order.
   generated from the OpenAPI schema (ADR-0008, D3, D4): the original
   file uploaded (D9), the 2-minute limit and its test (D2), upload
   again, the empty-read screen (ADR-0007, *Scope and storage*), the
-  failed-read screen (D5), Post to Sheet (D7), and a frontend CI job
-  (ADR-0008, *Consequences*). After **frontend-tooling**; can start
-  alongside **trial-records** and **sheets-push** once **trial-records**
-  has its first endpoint (D5 fixes the API shape)
+  failed-read screen (D5) and Post to Sheet (D7). The flow is a
+  discriminated union in `useReducer`, with the 2-minute
+  `AbortController` in the submit handler rather than a `useEffect`. Can
+  start alongside **trial-records** and **sheets-push** once
+  **trial-records** has its first endpoint (D5 fixes the API shape)
 - **upright-guidance**: capture guidance in the web UI: the photo must
   be upright (ADR-0002). With **mvp-confirm**
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
@@ -416,3 +414,11 @@ sort them into a section.
   when no URL is set, but the reviewer requires 0 local skips
   (`.claude/agents/code-reviewer.md`). Reconcile them with
   **trial-records**
+- **generated-types-check**: the CI check that the committed types match
+  a fresh generation (ADR-0008, D10). Needs **python-api**; the natural
+  home is **mvp-confirm**, where the generated types first appear
+- **frontend-review-checks**: `/open-pr` and the code-reviewer list only
+  the Python checks, so every frontend PR comes back "Review incomplete".
+  Add the frontend job's checks and how to select the pinned Node to
+  `.claude/skills/open-pr/SKILL.md` and `.claude/agents/code-reviewer.md`,
+  on its own branch, before **mvp-confirm**
