@@ -241,3 +241,7 @@ evals/holdout/
 # Working notes and audits — local scratch, not part of the repo.
 docs/
 
+# Frontend. The lib/ rule above would otherwise ignore frontend/src/lib/.
+node_modules/
+!frontend/src/lib/
+
