@@ -54,12 +54,12 @@ Config; BASELINES.md, *Held-out test set*).
   Add the frontend job's checks and how to select the pinned Node to
   `.claude/skills/open-pr/SKILL.md` and `.claude/agents/code-reviewer.md`,
   on its own branch, before **mvp-scaffold**. The edits are under
-  `.claude/`, which agents are denied, so I make or approve them
+  `.claude/`, where agents need my approval, so I make or approve them
 - **trial-records**: Cloud SQL, the bucket and backups (ADR-0008, D6;
   ADR-0009, D6); `app/db.py`, `app/photos.py` and `POST /items`, storing
-  what ADR-0007, *Scope and storage* lists, behind the response
-  allowlist (D3). A failed read stores no row, with D5's one exception
-  (ADR-0007, *How items count*; D5). The D3 and D9 tests, D6's
+  the read-time fields ADR-0007, *Scope and storage* lists, behind the
+  response allowlist (D3). A failed read stores no row, with D5's one
+  exception (ADR-0007, *How items count*; D5). The D3 and D9 tests, D6's
   after-deploy check; the real-Postgres setup, CI service and required
   test database URL, with one real-Postgres test that stores a row (D8).
   Adds the Postgres driver and the Cloud Storage client to `API_CLIENTS`
@@ -71,9 +71,10 @@ Config; BASELINES.md, *Held-out test set*).
   **trial-records**
 - **upload-cap-reuse**: reuse the upload-cap helper in `app/routes.py`
   for `POST /items`. With **trial-records**
-- **trial-confirm**: confirm and the confirms the server refuses
-  (ADR-0008, D5); D5's tests and D8's three real-Postgres tests; the
-  counted-item and stop-rule queries (D6). After **trial-records**
+- **trial-confirm**: confirm, storing the confirm-time fields, and the
+  confirms the server refuses (ADR-0008, D5); D5's tests and D8's three
+  real-Postgres tests; the counted-item and stop-rule queries (D6).
+  After **trial-records**
 - **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`,
   appending to the field ADR-0007 sets (ADR-0008, D7 and its *Build
   constraints*), and the stuck-Sheet query (D7). Adds the Google Sheets
@@ -81,11 +82,11 @@ Config; BASELINES.md, *Held-out test set*).
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
   upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
   logged with the raw error hidden, `uvicorn` timeouts
-- **upload-cap-scope**: the 16MB check in `app/routes.py` covers only the
-  photo field and runs once the body has arrived, so a large upload is
-  stored before its 413 and a large extra file part is parsed, then
-  ignored. Decide whether **web-hardening** needs a request-level limit.
-  With **web-hardening**
+- **upload-cap-scope**. Decision: the 16MB check in `app/routes.py`
+  covers only the photo field and runs once the body has arrived, so a
+  large upload is stored before its 413 and a large extra file part is
+  parsed, then ignored. Decide whether **web-hardening** needs a
+  request-level limit. With **web-hardening**
 - **uvicorn-timeouts-wording**: reword **web-hardening**'s "`uvicorn`
   timeouts": uvicorn has no request timeout, only keep-alive and worker
   timeouts this image doesn't use. With **web-hardening**
