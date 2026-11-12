@@ -19,19 +19,157 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
+- **deploy**
+- **frontend-review-checks**
+- **trial-records**
 
-## Phase 1
+## Staff trial
+Phase 2: the build for ADR-0007's trial, under ADR-0008 and ADR-0009.
+Items are in build order. A branch that adds a Python dependency first
+repeats the gate check: fingerprints, `labels/` unchanged, and the
+`pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
+Config; BASELINES.md, *Held-out test set*).
 
-The gate passed (BASELINES.md, *Held-out test set*). Any change to what
-the model sees is a run, one per run (*Iterations*).
+- **deploy**: the early skeleton, no real data (the phone upload uses a
+  non-trial label): the container on Cloud Run behind IAP, its policy
+  naming the people in ADR-0009, D1 (ADR-0008, D1); the after-deploy
+  checks in ADR-0008, *Build constraints* (D1, D4 and D2's phone
+  request; D6's is in **trial-records**, which creates those stores);
+  ADR-0009, *Consequences*, **deploy** bullet; logs kept 30 days
+  (ADR-0009, *What's held where*). Memory: no ADR sets it; Cloud Run's
+  default is 512 MiB, its disk is in memory, and going over kills the
+  instance with a 500. Measured 2026-11-12, under emulation so
+  approximate: one read of a 3 MB tagged photo peaked at about 365 MiB,
+  upload included, under the default with one read per instance
+  (ADR-0008, D4). Set memory here
+- **phone-upload-size**: the phone upload check (ADR-0008, *Build
+  constraints* and D9). `upright()` re-encodes a tagged photo, and `p04`
+  came out 16% larger. With **deploy**
+- **gcloudignore-check**: if Cloud Build uploads the source,
+  `.gcloudignore` rather than `.dockerignore` probably governs that
+  upload (unchecked); confirm it before any upload, so private files
+  stay on the Mac. With **deploy**
+- **frontend-review-checks**: `/open-pr` and the code-reviewer list only
+  the Python checks, so every frontend PR comes back "Review incomplete".
+  Add the frontend job's checks and how to select the pinned Node to
+  `.claude/skills/open-pr/SKILL.md` and `.claude/agents/code-reviewer.md`,
+  on its own branch, before **mvp-scaffold**. The edits are under
+  `.claude/`, which agents are denied, so I make or approve them
+- **trial-records**: Cloud SQL, the bucket and backups (ADR-0008, D6;
+  ADR-0009, D6); `app/db.py`, `app/photos.py` and `POST /items`, storing
+  what ADR-0007, *Scope and storage* lists, behind the response
+  allowlist (D3). A failed read stores no row, with D5's one exception
+  (ADR-0007, *How items count*; D5). The D3 and D9 tests, D6's
+  after-deploy check; the real-Postgres setup, CI service and required
+  test database URL, with one real-Postgres test that stores a row (D8).
+  Adds the Postgres driver and the Cloud Storage client to `API_CLIENTS`
+  (D8); CLAUDE.md's API rule, *Flow* and CI command change with it
+  (ADR-0008, *Consequences*)
+- **postgres-test-skips**: the real-Postgres tests (ADR-0008, D8) skip
+  when no URL is set, but the reviewer requires 0 local skips
+  (`.claude/agents/code-reviewer.md`); reconcile them. With
+  **trial-records**
+- **upload-cap-reuse**: reuse the upload-cap helper in `app/routes.py`
+  for `POST /items`. With **trial-records**
+- **trial-confirm**: confirm and the confirms the server refuses
+  (ADR-0008, D5); D5's tests and D8's three real-Postgres tests; the
+  counted-item and stop-rule queries (D6). After **trial-records**
+- **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`,
+  appending to the field ADR-0007 sets (ADR-0008, D7 and its *Build
+  constraints*), and the stuck-Sheet query (D7). Adds the Google Sheets
+  client to `API_CLIENTS` (D8). After **trial-confirm**
+- **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
+  upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
+  logged with the raw error hidden, `uvicorn` timeouts
+- **upload-cap-scope**: the 16MB check in `app/routes.py` covers only the
+  photo field and runs once the body has arrived, so a large upload is
+  stored before its 413 and a large extra file part is parsed, then
+  ignored. Decide whether **web-hardening** needs a request-level limit.
+  With **web-hardening**
+- **uvicorn-timeouts-wording**: reword **web-hardening**'s "`uvicorn`
+  timeouts": uvicorn has no request timeout, only keep-alive and worker
+  timeouts this image doesn't use. With **web-hardening**
+- **mvp-scaffold**: the TypeScript app, with types generated from the
+  OpenAPI schema (ADR-0008, D3, D4); the original file uploaded (D9);
+  the 2-minute limit (D2), its `AbortController` in the submit handler
+  rather than a `useEffect`, and a test that the request aborts; the
+  flow as a discriminated union in `useReducer`. After **sheets-push**
+  and **web-hardening**, so the API, its rejections included, is
+  complete when the types are generated
+- **generated-types-check**: the CI check that the committed types match
+  a fresh generation (ADR-0008, D10). With **mvp-scaffold**
+- **missing-photo-check**: frontend validation for a missing photo. With
+  **mvp-scaffold**
+- **mvp-confirm**: the confirm-or-edit screen, upload again, the
+  empty-read screen (ADR-0007, *Scope and storage*), the failed-read
+  screen (ADR-0008, D5), Post to Sheet (D7), and D2's test that a read
+  past the limit offers upload again. After **mvp-scaffold**
+- **upright-guidance**: capture guidance in the web UI: the photo must
+  be upright (ADR-0002). With **mvp-confirm**
+- **mvp-cutover**: deletes the Jinja form, `GET /` and `POST /`
+  (`app/templates/`, `app/static/style.css`), the `jinja2` pin and the
+  HTML route tests: `result.html` branches on `needs_review`, which
+  ADR-0007 hides from staff. The frontend files join the Docker image
+  (ADR-0008, *Diagram*): its Node stage extends `.dockerignore`'s
+  allowlist and `ALLOWED` in `tests/test_docker_image.py`, and the CI
+  `docker` job's checks of `GET /` and `style.css` move to routes that
+  remain. After **mvp-confirm**
+- **observability**: minimal: one allowlisted record per read, only what
+  ADR-0009, D3 allows: status, commit, prompt fingerprint, model,
+  latency, request count and token usage per call, input size,
+  dimensions and whether it was rotated
+- **image-commit**: add the git commit to the image, which has no
+  `.git`. With **observability**, the first branch that reads it
+- **trial-admin**: the feedback Sheet, with what it holds and who it's
+  shared with (ADR-0009, *What's held where*, D1); the weekly status
+  meeting (ADR-0007, *Team feedback*); the once-per-working-day count
+  and Sheet comparison (ADR-0008, D6, D7)
+- **staff-instructions**: what the staff member does for upright photos,
+  empty and failed reads, the hand log and the downtime log, a wrong
+  confirm and a failed Sheet write (ADR-0008, D7), and who may upload
+  (ADR-0007, *Stages*). Wording follows **mvp-confirm**'s screens; a
+  change during the trial restarts the count (ADR-0007, *Stop Rule*).
+  Before **founder-review**
+- **backup-restore**: restore one backup before the team trial
+  (ADR-0008, *Build constraints*, D6). After **trial-records**
+- **mid-trial-config-rule**. Decision: ADR-0007 allows a mid-trial
+  configuration change with a restart, but ADR-0006 is phase 1 only and
+  **later-run-rule** comes after the trial, so no rule judges that
+  change. Say which rule applies, or that it's a project team decision
+- **founder-review**: ADR-0007, *Stages*, stage 1. First the append to
+  a copy of the real Sheet (ADR-0008, *Build constraints*, D7), then the
+  Sheet-sharing check (ADR-0009, D1), both before its items; the phone
+  location check at the review (ADR-0009, D2). After every item above
+- **staff-trial**: ADR-0007's team trial (*Stages*, *Gate*, *Stop
+  Rule*); what's shown is in *Scope and storage*, Settings for the
+  trial. After **founder-review**
+- **audit-sample**: ADR-0007's single end-of-trial spot check (*Reported
+  but not gated*), reported and not gated. After **staff-trial**
+- **trial-report**: ADR-0007's *Reported but not gated*, totals only in
+  BASELINES.md, plus the gate result and staff sign-off. After
+  **audit-sample**
+- **trial-data-deletion**: delete trial data on the date the project
+  team sets at stage 3, check it's gone, and keep what survives a fail:
+  anything labelled for the eval set, copied there first, and the
+  failed-trial list (ADR-0009, D1). After **staff-trial**
+
+## After the trial
+
+On hold until the trial ends: ADR-0007 freezes the configuration, all
+the model sees, for the whole trial (*Scope and storage*, Config). Dev
+grows only on a failed trial, and **grown-baseline** then comes first
+(ADR-0002, *Decision*, "Frozen from 2026-11-04"; its 2026-11-09
+amendment). Any change to what the model sees is one run
+(*Iterations*). **adr-0006-unit**, **one-prompt-definition**,
+**flagged-rename**, **cost-capture** and **spend-cap** don't touch the
+configuration and can be done during the trial.
 
 ### Iterations
-Only after a failed gate: the test set joins dev (ADR-0002).
 
 #### Before the first
-- **grown-baseline**: a paid run of the accepted configuration on the
-  grown dev set, `--repeat 3`, recorded as the new baseline, not judged
-  (ADR-0002)
+- **grown-baseline**: on a failed trial, a paid run of the accepted
+  configuration on the grown dev set, `--repeat 3`, recorded as the new
+  baseline, not judged (ADR-0002)
 - **margin**. Decision: the dev margin above 80%, informed by how run
   0's out-of-sample photos compare with the rest (BASELINES.md). If it
   becomes a rule, it goes in ADR-0002
@@ -58,6 +196,9 @@ Only after a failed gate: the test set joins dev (ADR-0002).
   "ambiguous but correct": it counts `ambiguous_characters`, not
   `needs_review`, so `evals/README.md` and BASELINES.md describe it
   wrongly in the reports iterations are judged on
+- **later-run-rule**: the run rule for later runs (ADR-0006 revisit),
+  with ADR-0001's per-run rule. After **staff-trial**, before any fix
+  following a fail is tested (ADR-0007)
 
 #### Before the model comparison
 - **cost-capture**: usage / cost capture in code (SG billing?). Run 0's
@@ -87,106 +228,10 @@ Only after a failed gate: the test set joins dev (ADR-0002).
   a cheaper or faster model (ADR-0006). If you want one, decide its rule
   before running it: compared against the last model accepted on wins,
   with **cost-capture** in place
-
-## Staff trial
-Phase 2: the build for ADR-0007's trial, under ADR-0008 and ADR-0009.
-Items are in build order. A branch that adds a Python dependency first
-repeats the gate check: fingerprints, `labels/` unchanged, and the
-`pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
-Config; BASELINES.md, *Held-out test set*).
-
-- **deploy**: the early skeleton, with no real data (the real phone
-  upload uses a non-trial label): the container on Cloud Run behind IAP, its policy naming the people in ADR-0009, D1
-  (ADR-0008, D1). The after-deploy checks in ADR-0008, *Build
-  constraints* (D1, D4), including D2's request held open for the full
-  limit from a phone browser; D6's check is in **trial-records**, which
-  creates those stores. The **deploy** bullet in ADR-0009,
-  *Consequences*, and logs kept 30 days (ADR-0009, *What's held where*). Terraform later (**mlops-stack**).
-  Memory: neither ADR sets a size. Cloud Run defaults to 512 MiB, its
-  disk is in memory, and going over the limit kills the instance with a
-  500. Measured on 2026-11-12, under emulation so approximate: one read
-  of a 3 MB tagged photo peaked at about 365 MiB, upload included, under
-  the default with one read per instance (ADR-0008, D4). Set memory here
-- **phone-upload-size**: with **deploy**, a real upload from the staff
-  member's phone arrives in a type the app accepts and within the API's
-  per-image limit (ADR-0008, *Build constraints*, D9). `upright()`
-  re-encodes a tagged photo, and `p04` came out 16% larger. A rejected
-  upload is a failed read; if the phone fails, its camera setting is
-  changed (D9)
-- **trial-records**: Cloud SQL, the bucket and backups (ADR-0008, D6;
-  ADR-0009, D6), `app/db.py`, `app/photos.py`, `POST /items` and confirm
-  (D5), what's stored per item (ADR-0007, *Scope and storage*) and the
-  response allowlist (D3). A failed read, refusals and schema failures
-  included, stores no row, with D5's one exception (ADR-0007, *How items
-  count*; D5). The server
-  refuses the confirms D5 lists. The D3, D5 and D9 tests, D6's
-  after-deploy check, the real-Postgres tests and CI service (D8), and
-  the counted-item, stop-rule and stuck-Sheet queries (D6, D7). Adds the
-  Postgres driver and the Cloud Storage client to `API_CLIENTS` (D8).
-  CLAUDE.md's API rule, *Flow* and CI command change with it (ADR-0008,
-  *Consequences*)
-- **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`:
-  each confirmed value as a new row, in the field ADR-0007 sets
-  (ADR-0008, D7 and its *Build constraints*), including the raw-text
-  append and the leading-zero test on a copy of the real Sheet. Adds the
-  Google Sheets client to `API_CLIENTS` (D8). After **trial-records**
-- **mvp-confirm**: the confirm-or-edit screen in TypeScript, with types
-  generated from the OpenAPI schema (ADR-0008, D3, D4): the original
-  file uploaded (D9), the 2-minute limit and its test (D2), upload
-  again, the empty-read screen (ADR-0007, *Scope and storage*), the
-  failed-read screen (D5) and Post to Sheet (D7). The flow is a
-  discriminated union in `useReducer`, with the 2-minute
-  `AbortController` in the submit handler rather than a `useEffect`.
-  Deletes the Jinja form, `GET /` and `POST /` (`app/templates/`,
-  `app/static/style.css`), the `jinja2` pin and the HTML route tests:
-  `result.html` branches on `needs_review`, which ADR-0007 hides from
-  staff. Can start alongside **trial-records** and **sheets-push** once
-  **trial-records** has its first endpoint (D5 fixes the API shape).
-  The frontend files join the Docker image (ADR-0008, *Diagram*): its
-  Node stage extends `.dockerignore`'s allowlist and `ALLOWED` in
-  `tests/test_docker_image.py`, and the CI `docker` job's checks of
-  `GET /` and `style.css` move to routes that remain
-- **upright-guidance**: capture guidance in the web UI: the photo must
-  be upright (ADR-0002). With **mvp-confirm**
-- **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
-  upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
-  logged with the raw error hidden, `uvicorn` timeouts
-- **observability**: minimal: one allowlisted record per read, only what
-  ADR-0009, D3 allows: status, commit, prompt fingerprint, model,
-  latency, request count and token usage per call, input size,
-  dimensions and whether it was rotated
-- **trial-admin**: the feedback Sheet, shared with named accounts only
-  (ADR-0009, D1), with the hand log and the downtime tab (ADR-0007, *How
-  items count*); the weekly status meeting (ADR-0007, *Team feedback*);
-  trial start, pause and restart times recorded there (ADR-0007, *Stop
-  Rule*); the once-per-working-day count and Sheet comparison (ADR-0008,
-  D6, D7)
-- **staff-instructions**: what the staff member does for upright photos,
-  empty and failed reads, the hand log and the downtime log, a wrong
-  confirm and a failed Sheet write (ADR-0008, D7), and who may upload
-  during the trial (ADR-0007, *Stages*). Wording follows
-  **mvp-confirm**'s screens; a change during the trial restarts the
-  count (ADR-0007, *Stop Rule*). Before **founder-review**
-- **backup-restore**: restore one backup before the team trial
-  (ADR-0008, *Build constraints*, D6). After **trial-records**
-- **founder-review**: ADR-0007's stage 1, about 10 items end to end
-  (*Stages*). First the append to a copy of the real Sheet (ADR-0008,
-  *Build constraints*, D7), then the Sheet-sharing check (ADR-0009, D1),
-  both before its items; the phone location check at the review
-  (ADR-0009, D2). After every item above
-- **staff-trial**: ADR-0007's team trial (*Stages*, *Gate*, *Stop
-  Rule*): staff confirm or edit every read with a value, and what's
-  shown is in *Scope and storage*, Settings for the trial. After
-  **founder-review**
-- **audit-sample**: ADR-0007's single end-of-trial spot check (*Reported
-  but not gated*), reported and not gated. After **staff-trial**
-- **trial-report**: ADR-0007's *Reported but not gated*, totals only in
-  BASELINES.md, plus the gate result and staff sign-off. After
-  **audit-sample**
-- **trial-data-deletion**: delete trial data on the date the project
-  team sets at stage 3, check it's gone, and keep what survives a fail:
-  anything labelled for the eval set, copied there first, and the
-  failed-trial list (ADR-0009, D1). After **staff-trial**
+- **deps-update**, waits until after **staff-trial** (ADR-0007, frozen
+  configuration): move to `pydantic-ai-slim` with only
+  the Anthropic extra and bump `certifi`, then upgrade `pydantic-ai` on
+  its own, with a replay and a run against the latest baseline
 
 ## Later
 - **feedback-loop**: production photos join an eval set only after
@@ -194,9 +239,6 @@ Config; BASELINES.md, *Held-out test set*).
   edits. Dev is frozen, except a failed trial's labelled items
   (ADR-0007), so otherwise they go to test or a new set (ADR-0002).
   After **staff-trial**
-- **later-run-rule**: the run rule for later runs (ADR-0006 revisit),
-  with ADR-0001's per-run rule. After **staff-trial**, before any fix
-  following a fail is tested (ADR-0007)
 - **monitoring**: review rate, edit rate, latency, and the
   `not_visible`, catalogue miss and `corrected` rates and format-family
   mix against the current baseline's, once there's traffic. A jump
@@ -222,6 +264,9 @@ Config; BASELINES.md, *Held-out test set*).
   harness (today `tests/eval_transcription.py`); scoring stays in one
   place. After **packaging** and **adr-0006-unit**: its promotion step
   uses the report's verdict
+- **results-backup**: back up `evals/results/` after each paid run,
+  until **dvc-eval-set** covers it; the reports are the only record of
+  paid reads, and `--replay` needs them
 - **dvc-eval-set**: version the manifest, photos and `evals/results/`
   (and the catalogue, if it should be restorable) with DVC, local
   remote only (an external drive or an encrypted disk image), never a
@@ -348,6 +393,11 @@ a quiet moment.
 - **ci-privacy-patterns**: run `check_private.py`'s pattern checks in
   CI, if they can run without private values, so a clone without
   `core.hooksPath` is still checked. A `hooks/` change, needs sign-off
+- **shared-photo-prep**: the eval harness's `photo_metadata` repeats
+  `read_art`'s photo preparation (`upright()`) rather than sharing it. A
+  test catches drift, but one function in `labels/` used by both would
+  remove it. After **staff-trial**: the gate check for a new dependency
+  needs `labels/` unchanged (*Staff trial* opener)
 
 ### Bugs and decisions
 - **season-precedence**. Decision: on an exact catalogue hit the season
@@ -392,52 +442,3 @@ a quiet moment.
 ## Inbox
 Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
 sort them into a section.
-- **deps-update**, waits until after **staff-trial** (ADR-0007, frozen
-  configuration): move to `pydantic-ai-slim` with only
-  the Anthropic extra and bump `certifi`, then upgrade `pydantic-ai` on
-  its own, with a replay and a run against the latest baseline
-- The eval harness's `photo_metadata` repeats `read_art`'s photo
-  preparation (`upright()`) rather than sharing it. A test catches drift,
-  but one function in `labels/` used by both would remove it
-- **results-backup**: back up `evals/results/` after each paid run,
-  until **dvc-eval-set** covers it; the reports are the only record of
-  paid reads, and `--replay` needs them
-- *Iterations* still opens "Only after a failed gate", so nothing under
-  it can start now the gate has passed. Decide whether those items stay
-  conditional or move
-- **mid-trial-config-rule**: ADR-0007 allows a mid-trial configuration
-  change with a restart, but ADR-0006 is phase 1 only and
-  **later-run-rule** comes after the trial, so no rule judges that
-  change. Say which rule applies, or that it's a project team decision
-- **postgres-test-skips**: the real-Postgres tests (ADR-0008, D8) skip
-  when no URL is set, but the reviewer requires 0 local skips
-  (`.claude/agents/code-reviewer.md`). Reconcile them with
-  **trial-records**
-- **generated-types-check**: the CI check that the committed types match
-  a fresh generation (ADR-0008, D10). The natural
-  home is **mvp-confirm**, where the generated types first appear
-- **frontend-review-checks**: `/open-pr` and the code-reviewer list only
-  the Python checks, so every frontend PR comes back "Review incomplete".
-  Add the frontend job's checks and how to select the pinned Node to
-  `.claude/skills/open-pr/SKILL.md` and `.claude/agents/code-reviewer.md`,
-  on its own branch, before **mvp-confirm**
-- **upload-cap-scope**: the 16MB check in `app/routes.py` covers only the
-  photo field and runs once the body has arrived, so a large upload is
-  stored before its 413 and a large extra file part is parsed, then
-  ignored. Decide whether **web-hardening** needs a request-level limit
-- Frontend validation for a missing photo, with **mvp-confirm**
-- Whether to start **mvp-confirm**'s screens before **trial-records**'s
-  first endpoint, with a placeholder type until the generated types
-  exist. Depends on the design
-- Whether to move **deploy** after the frontend: that removes the need
-  for the form, but delays the phone and IAP checks that could still
-  change ADR-0008, D2 or D9
-- Reuse the upload-cap helper in `app/routes.py` for `POST /items`, with
-  **trial-records**
-- Reword **web-hardening**'s "`uvicorn` timeouts": uvicorn has no request
-  timeout, only keep-alive and worker timeouts this image doesn't use
-- Add the git commit to the image, in the first branch that reads it
-  (**observability** wants it, and the image has no `.git`)
-- At **deploy**, if Cloud Build uploads the source, `.gcloudignore`
-  rather than `.dockerignore` probably governs that upload (unchecked).
-  Confirm it before any upload, so private files stay on the Mac
