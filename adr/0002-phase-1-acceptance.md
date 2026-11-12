@@ -127,7 +127,7 @@ Rules for the test set:
 
 ## How to get there
 
-See *Phase 1* in TODO.md for an up-to-date list.
+See *After the trial* in TODO.md for an up-to-date list.
 
 ## Not in scope
 
