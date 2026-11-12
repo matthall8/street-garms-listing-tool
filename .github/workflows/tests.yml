@@ -48,3 +48,19 @@ jobs:
         if: ${{ !cancelled() }}  # report lint even when the build fails
       - run: npm test
         if: ${{ !cancelled() }}  # report tests even when the build fails
+
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --platform linux/amd64 -t listing-tool:ci .
+      # A non-default PORT, as Cloud Run injects one. No key, no catalogue.
+      - run: docker run -d --name app -e PORT=9090 -p 9090:9090 listing-tool:ci
+      # Starting proves no file the app needs is missing from the image.
+      - run: curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-all-errors --max-time 5 -o /dev/null http://localhost:9090/
+      - run: curl --fail --silent --show-error --max-time 5 -o /dev/null http://localhost:9090/static/style.css
+      - run: docker logs app
+        if: ${{ failure() }}
