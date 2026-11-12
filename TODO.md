@@ -105,9 +105,8 @@ Config; BASELINES.md, *Held-out test set*).
   Memory: neither ADR sets a size. Cloud Run defaults to 512 MiB, its
   disk is in memory, and going over the limit kills the instance with a
   500. Measured on 2026-11-12, under emulation so approximate: one read
-  of a 3 MB tagged photo peaked at about 365 MiB, upload included, about
-  90 MiB above idle, so concurrent large reads may not fit. Set memory
-  and concurrency here
+  of a 3 MB tagged photo peaked at about 365 MiB, upload included, under
+  the default with one read per instance (ADR-0008, D4). Set memory here
 - **phone-upload-size**: with **deploy**, a real upload from the staff
   member's phone arrives in a type the app accepts and within the API's
   per-image limit (ADR-0008, *Build constraints*, D9). `upright()`
