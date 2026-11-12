@@ -5,6 +5,7 @@ stub get_art_agent rather than anything upstream, so the bytes they see are
 the bytes read_art would send.
 """
 
+import hashlib
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -92,6 +93,47 @@ class TestRotated:
     def test_mpo_goes_out_as_jpeg_even_if_declared_mpo(self):
         _, out_type = upright(_encode("MPO", orientation=6), "image/mpo")
         assert out_type == "image/jpeg"
+
+
+def _textured_jpeg() -> bytes:
+    """A tagged JPEG with photo-like detail, built without randomness.
+
+    A fractal and two gradients, so the encoder has edges and smooth areas to
+    work on, at a size that isn't a multiple of the 16 px block.
+    """
+    size = (600, 404)
+    channels = (
+        Image.effect_mandelbrot(size, (-2.0, -1.2, 1.0, 1.2), 100),
+        Image.linear_gradient("L").resize(size),
+        Image.radial_gradient("L").resize(size),
+    )
+    exif = Image.Exif()
+    exif[ORIENTATION] = 6
+    out = BytesIO()
+    Image.merge("RGB", channels).save(out, format="JPEG", quality=90, exif=exif.tobytes())
+    return out.getvalue()
+
+
+class TestSameBytesEverywhere:
+    """upright() re-encodes a tagged photo, and the bytes it sends are frozen
+    (ADR-0007, *Config*). The gate ran on a Mac and the image runs on
+    linux/amd64, so CI checks Linux gives the bytes the Mac gave.
+
+    A mismatch is an image-handling change, not a fixture to refresh: compare
+    the decoded pixels and decide before changing a hash. The input hash
+    separates building the fixture from upright() itself.
+    """
+
+    INPUT_SHA256 = "be487126b4adad4a4e3779e9484048c8bad55f094e418dc4a605c1a0926125c1"
+    OUTPUT_SHA256 = "5abf3e2f9db4da937d03e1f615e5019fa4c7281994d468eb1929f6b0ab61d550"
+
+    def test_fixture_bytes(self):
+        assert hashlib.sha256(_textured_jpeg()).hexdigest() == self.INPUT_SHA256
+
+    def test_upright_bytes(self):
+        out, out_type = upright(_textured_jpeg(), "image/jpeg")
+        assert (out_type, Image.open(BytesIO(out)).size) == ("image/jpeg", (404, 600))
+        assert hashlib.sha256(out).hexdigest() == self.OUTPUT_SHA256
 
 
 # --- Every path goes through the helper ----------------------------------
