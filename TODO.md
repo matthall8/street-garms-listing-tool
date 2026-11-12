@@ -443,3 +443,17 @@ a quiet moment.
 ## Inbox
 Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
 sort them into a section.
+- **adr-0008-consequences-names**: ADR-0008, *Consequences* names
+  a `docker-image` item and gunicorn lines in **web-hardening**; TODO.md has
+  neither. Reword it on a docs branch
+- **after-trial-prune**. Decision: whether to drop *After the trial* items
+  the gate passed without, such as **cheaper-model** and
+  **barcode-guidance**
+- **milestone-section-rule**. Decision: whether TODO.md's "a section is
+  named after the milestone it leads to" rule still fits *After the
+  trial*, which leads to a pass or a fail, not one milestone
+- **shorten-long-items**: shorten long items outside *Staff trial*
+  (for example **adr-0004**, **claude-md-trim**, **pre-push**), as
+  *Staff trial*'s were
+- **saturated-vs-later-run**. Decision: whether **adr-0006-saturated** and
+  **later-run-rule**, now both in *Before the first*, overlap
