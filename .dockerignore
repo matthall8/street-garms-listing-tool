@@ -1,0 +1,11 @@
+# Block everything, then allow only what the image needs.
+*
+
+!app
+!labels
+!pyproject.toml
+!uv.lock
+
+# These come after the allow lines because the last match wins.
+**/__pycache__
+**/.DS_Store
