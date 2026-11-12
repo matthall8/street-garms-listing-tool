@@ -19,7 +19,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
-- **docker-image**
 
 ## Phase 1
 
@@ -96,18 +95,18 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **docker-image**: a Docker image of the Python side, with no catalogue
-  in it (ADR-0007, *Scope and storage*), running `uvicorn` with any
-  timeout set above the worst-case call (ADR-0008, *Build constraints*,
-  D1; CLAUDE.md, *Engineering constraints*). The frontend files join it
-  with **mvp-confirm** (ADR-0008, *Diagram*). With **deploy**
 - **deploy**: the early skeleton, with no real data (the real phone
   upload uses a non-trial label): the container on Cloud Run behind IAP, its policy naming the people in ADR-0009, D1
   (ADR-0008, D1). The after-deploy checks in ADR-0008, *Build
   constraints* (D1, D4), including D2's request held open for the full
   limit from a phone browser; D6's check is in **trial-records**, which
   creates those stores. The **deploy** bullet in ADR-0009,
-  *Consequences*, and logs kept 30 days (ADR-0009, *What's held where*). Terraform later (**mlops-stack**)
+  *Consequences*, and logs kept 30 days (ADR-0009, *What's held where*). Terraform later (**mlops-stack**).
+  Memory: neither ADR sets a size. Cloud Run defaults to 512 MiB, its
+  disk is in memory, and going over the limit kills the instance with a
+  500. Measured on 2026-11-12, under emulation so approximate: one read
+  of a 3 MB tagged photo peaked at about 365 MiB, upload included, under
+  the default with one read per instance (ADR-0008, D4). Set memory here
 - **phone-upload-size**: with **deploy**, a real upload from the staff
   member's phone arrives in a type the app accepts and within the API's
   per-image limit (ADR-0008, *Build constraints*, D9). `upright()`
@@ -142,7 +141,11 @@ Config; BASELINES.md, *Held-out test set*).
   `app/static/style.css`), the `jinja2` pin and the HTML route tests:
   `result.html` branches on `needs_review`, which ADR-0007 hides from
   staff. Can start alongside **trial-records** and **sheets-push** once
-  **trial-records** has its first endpoint (D5 fixes the API shape)
+  **trial-records** has its first endpoint (D5 fixes the API shape).
+  The frontend files join the Docker image (ADR-0008, *Diagram*): its
+  Node stage extends `.dockerignore`'s allowlist and `ALLOWED` in
+  `tests/test_docker_image.py`, and the CI `docker` job's checks of
+  `GET /` and `style.css` move to routes that remain
 - **upright-guidance**: capture guidance in the web UI: the photo must
   be upright (ADR-0002). With **mvp-confirm**
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
@@ -431,3 +434,10 @@ sort them into a section.
   change ADR-0008, D2 or D9
 - Reuse the upload-cap helper in `app/routes.py` for `POST /items`, with
   **trial-records**
+- Reword **web-hardening**'s "`uvicorn` timeouts": uvicorn has no request
+  timeout, only keep-alive and worker timeouts this image doesn't use
+- Add the git commit to the image, in the first branch that reads it
+  (**observability** wants it, and the image has no `.git`)
+- At **deploy**, if Cloud Build uploads the source, `.gcloudignore`
+  rather than `.dockerignore` probably governs that upload (unchecked).
+  Confirm it before any upload, so private files stay on the Mac

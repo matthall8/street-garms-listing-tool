@@ -46,9 +46,11 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | frontend types | in `frontend/`: `npm run typecheck` |
 | frontend lint | in `frontend/`: `npm run lint` |
 | frontend tests | in `frontend/`: `npm test` |
-| CI | `.github/workflows/tests.yml`, on push/PR to main — Python: `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs`, no catalogue, no key. Frontend: `npm ci`, build, type check, lint and tests, Node from `.nvmrc` |
+| CI | `.github/workflows/tests.yml`, on push/PR to main — Python: `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs`, no catalogue, no key. Frontend: `npm ci`, build, type check, lint and tests, Node from `.nvmrc`. Docker: builds the image, starts it on a non-default `PORT` and checks `GET /` and `style.css` |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/uvicorn --factory app:create_app` |
+| image build | `docker build --platform linux/amd64 -t listing-tool:local .` — the Python side, for Cloud Run; `.dockerignore` lets in only what `tests/test_docker_image.py` allows, so no catalogue |
+| image run | `docker run --rm --platform linux/amd64 -p 8080:8080 listing-tool:local` — `-e PORT=<n>` with a matching `-p` to change the port; add `--env-file .env` for a real read (one API call) |
 | privacy check | `.venv/bin/python hooks/check_private.py --range main...HEAD` — what the commit hooks run, over a branch; needs the private data to be complete |
 | parser score | `.venv/bin/python tests/report_art_number.py` |
 | split on truth | `.venv/bin/python tests/report_split_on_truth.py` — the split against the dev manifest's labels; prints shapes, never values |
