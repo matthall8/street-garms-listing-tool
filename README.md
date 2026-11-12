@@ -107,8 +107,9 @@ the decision rule for prompt changes
   stay in `CLAUDE.md` as instructions too, and the reviewer flags every change
   to `hooks/` or the settings for the maintainer.
 - **CI** (`.github/workflows/tests.yml`) runs `ruff check`, `pyright` and
-  `pytest -rs`, plus the frontend's build, type check, lint and tests, on
-  pushes and PRs to `main`, with no catalogue or API key.
+  `pytest -rs`, plus the frontend's build, type check, lint and tests, and
+  builds the Docker image and checks it serves, on pushes and PRs to `main`,
+  with no catalogue or API key.
 
 ## Running it
 
