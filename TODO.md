@@ -434,3 +434,10 @@ sort them into a section.
   change ADR-0008, D2 or D9
 - Reuse the upload-cap helper in `app/routes.py` for `POST /items`, with
   **trial-records**
+- Reword **web-hardening**'s "`uvicorn` timeouts": uvicorn has no request
+  timeout, only keep-alive and worker timeouts this image doesn't use
+- Add the git commit to the image, in the first branch that reads it
+  (**observability** wants it, and the image has no `.git`)
+- At **deploy**, if Cloud Build uploads the source, `.gcloudignore`
+  rather than `.dockerignore` probably governs that upload (unchecked).
+  Confirm it before any upload, so private files stay on the Mac
