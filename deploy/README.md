@@ -186,8 +186,8 @@ deploy/deploy.sh
 
 Deploy from `main`: merge the PR on GitHub, `git switch main && git pull`,
 then run it. Only a change to the image (`app/`, `labels/`, `pyproject.toml`,
-`uv.lock`, `Dockerfile`, `.dockerignore`) or to `lib.sh` needs a deploy; docs
-and scripts don't.
+`uv.lock`, `Dockerfile`, `.dockerignore`), to `lib.sh`, or to the flags in
+`deploy.sh`'s `deploy_service` needs a deploy; docs and `read-back.sh` don't.
 
 It refuses a dirty tree, untracked files included, and any commit not on
 `origin/main`, so every image is reviewed, through CI and its commit tag is

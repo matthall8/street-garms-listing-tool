@@ -446,3 +446,7 @@ sort them into a section.
   `deploy/config.env`'s values, so other people's emails can't be
   committed. Before **mvp-cutover** adds them to `IAP_MEMBERS`. A
   `hooks/` change, needs my sign-off
+- **ci-build-from-archive**: CI's `docker` job builds from the working
+  directory, but `deploy/deploy.sh` builds from `git archive HEAD`, so CI
+  doesn't exercise the deployed build path. Build from the archive there
+  too
