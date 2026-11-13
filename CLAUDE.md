@@ -51,6 +51,8 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | web | `.venv/bin/uvicorn --factory app:create_app` |
 | image build | `docker build --platform linux/amd64 -t listing-tool:local .` — the Python side, for Cloud Run; `.dockerignore` lets in only what `tests/test_docker_image.py` allows, so no catalogue |
 | image run | `docker run --rm --platform linux/amd64 -p 8080:8080 listing-tool:local` — `-e PORT=<n>` with a matching `-p` to change the port; add `--env-file .env` for a real read (one API call) |
+| deploy | `deploy/deploy.sh` — from `main` only, on a clean tree; builds, pushes and deploys to Cloud Run behind IAP. Needs `deploy/config.env` (gitignored); procedure in `deploy/README.md` |
+| read-back | `deploy/read-back.sh` — read-only; checks the deployed service against `deploy/lib.sh`, run after every deploy |
 | privacy check | `.venv/bin/python hooks/check_private.py --range main...HEAD` — what the commit hooks run, over a branch; needs the private data to be complete |
 | parser score | `.venv/bin/python tests/report_art_number.py` |
 | split on truth | `.venv/bin/python tests/report_split_on_truth.py` — the split against the dev manifest's labels; prints shapes, never values |
@@ -164,6 +166,7 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   | results, baselines and md5 ledgers | `evals/BASELINES.md` |
   | staff trial results, totals only (per-item records stay in the private store) | `evals/BASELINES.md` |
   | how the privacy hooks work | `hooks/README.md` |
+  | deploy procedure | `deploy/README.md` |
   | status and next steps | `TODO.md` |
 
   Elsewhere, link to the home instead of restating it; a one-line pointer
