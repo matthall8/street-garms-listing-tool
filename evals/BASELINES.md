@@ -387,6 +387,7 @@ concurrency 1, min instances 0, startup CPU boost on.
 | measure | value |
 |---|---|
 | cold start, `GET /` from zero instances | 13.4s (instance start to ready about 13.6s); warm `GET /` about 3ms |
-| phone upload (non-trial label, D9 check) | about 243 KB request, accepted type, read returned a result |
-| peak memory, that read | 246 MiB, 24% of 1 GiB (p99 of 1-minute samples, so a shorter spike can be missed) |
+| phone upload through the form's camera (non-trial label, D9 check) | about 243 KB request, accepted type, read returned a result |
+| phone upload from the photo library | about 3.0 MB request, read returned a result in 2.9s |
+| peak memory | 287 MiB, 28% of 1 GiB, with the 3 MB upload; 246 MiB with the camera upload (p99 of 1-minute samples, so a shorter spike can be missed) |
 | request held through IAP from a phone browser | 130s, completed (ADR-0008, D2 check) |
