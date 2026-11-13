@@ -1,6 +1,6 @@
 # ADR-0009: Trial data and privacy
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-11-13 (*Amendments*)
 - **Date:** 2026-11-09
 - **Depends on:** ADR-0007, ADR-0008
 - **Terms:** see `GLOSSARY.md`.
@@ -171,10 +171,20 @@ by someone not in the IAP policy can't be detected.
 ## Consequences
 
 - **deploy** uses London, creates the Anthropic workspace, key and spend limit,
-  puts the API key, the Sheet credential and any database credential in Secret
-  Manager and leaves IAP access logs off, all before the founder review.
+  puts the API key in Secret Manager and leaves IAP access logs off, all before
+  the founder review. **trial-records** and **sheets-push** put their own
+  credential in Secret Manager, if one exists (amended 2026-11-13).
 - **observability** records only what D3 allows.
 - The founder review includes D2's check and D1's Sheet-sharing check.
 - The project team's stage 3 decision also sets the deletion date.
 - ADR-0007's *Stop Rule* uses D7's definition.
 - The downtime log is a tab in the feedback Sheet.
+
+## Amendments
+
+- **2026-11-13:** **deploy** puts only the Anthropic key in Secret Manager. The
+  database and Sheet credentials go in with the branches that create them, and
+  only if they exist: the Cloud SQL connector with IAM authentication needs no
+  password, and a Sheet shared with the runtime service account needs no key
+  file. That is an inference for those branches to check. Placeholder secrets
+  now, to follow *Consequences* to the letter, were rejected.

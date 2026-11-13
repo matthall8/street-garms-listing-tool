@@ -245,3 +245,5 @@ docs/
 node_modules/
 !frontend/src/lib/
 
+# Deploy config: project ID, service URL, IAP members.
+deploy/config.env

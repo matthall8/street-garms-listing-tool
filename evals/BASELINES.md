@@ -375,3 +375,19 @@ the labels and the split, not the pipeline.
 
 No split problems and no edge whitespace on any line. Every checkable label agrees with ADR-0005's
 split, separator rule included; the labels predate the ADR.
+
+## Deploy measurements
+
+The deployed service on Cloud Run (`deploy/README.md`), measured from its
+request logs and Cloud Monitoring.
+
+**2026-11-13:** first deploy, image from commit `379746a`; 1 GiB memory,
+concurrency 1, min instances 0, startup CPU boost on.
+
+| measure | value |
+|---|---|
+| cold start, `GET /` from zero instances | 13.4s (instance start to ready about 13.6s); warm `GET /` about 3ms |
+| phone upload through the form's camera (non-trial label, D9 check) | about 243 KB request, accepted type, read returned a result |
+| phone upload from the photo library | about 3.0 MB request, read returned a result in 2.9s |
+| peak memory | 287 MiB, 28% of 1 GiB, with the 3 MB upload; 246 MiB with the camera upload (p99 of 1-minute samples, so a shorter spike can be missed) |
+| request held through IAP from a phone browser | 130s, completed (ADR-0008, D2 check) |

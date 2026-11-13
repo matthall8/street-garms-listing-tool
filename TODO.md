@@ -19,7 +19,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
-- **deploy**
 - **frontend-review-checks**
 - **trial-records**
 
@@ -30,25 +29,6 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **deploy**: the early skeleton, no real data (the phone upload uses a
-  non-trial label): the container on Cloud Run behind IAP, its policy
-  naming the people in ADR-0009, D1 (ADR-0008, D1); the after-deploy
-  checks in ADR-0008, *Build constraints* (D1, D4 and D2's phone
-  request; D6's is in **trial-records**, which creates those stores);
-  ADR-0009, *Consequences*, **deploy** bullet; logs kept 30 days
-  (ADR-0009, *What's held where*). Memory: no ADR sets it; Cloud Run's
-  default is 512 MiB, its disk is in memory, and going over kills the
-  instance with a 500. Measured 2026-11-12, under emulation so
-  approximate: one read of a 3 MB tagged photo peaked at about 365 MiB,
-  upload included, under the default with one read per instance
-  (ADR-0008, D4). Set memory here
-- **phone-upload-size**: the phone upload check (ADR-0008, *Build
-  constraints* and D9). `upright()` re-encodes a tagged photo, and `p04`
-  came out 16% larger. With **deploy**
-- **gcloudignore-check**: if Cloud Build uploads the source,
-  `.gcloudignore` rather than `.dockerignore` probably governs that
-  upload (unchecked); confirm it before any upload, so private files
-  stay on the Mac. With **deploy**
 - **frontend-review-checks**: `/open-pr` and the code-reviewer list only
   the Python checks, so every frontend PR comes back "Review incomplete".
   Add the frontend job's checks and how to select the pinned Node to
@@ -64,7 +44,8 @@ Config; BASELINES.md, *Held-out test set*).
   test database URL, with one real-Postgres test that stores a row (D8).
   Adds the Postgres driver and the Cloud Storage client to `API_CLIENTS`
   (D8); CLAUDE.md's API rule, *Flow* and CI command change with it
-  (ADR-0008, *Consequences*)
+  (ADR-0008, *Consequences*). Its credential, if any, goes into Secret
+  Manager (ADR-0009, *Amendments*)
 - **postgres-test-skips**: the real-Postgres tests (ADR-0008, D8) skip
   when no URL is set, but the reviewer requires 0 local skips
   (`.claude/agents/code-reviewer.md`); reconcile them. With
@@ -78,7 +59,8 @@ Config; BASELINES.md, *Held-out test set*).
 - **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`,
   appending to the field ADR-0007 sets (ADR-0008, D7 and its *Build
   constraints*), and the stuck-Sheet query (D7). Adds the Google Sheets
-  client to `API_CLIENTS` (D8). After **trial-confirm**
+  client to `API_CLIENTS` (D8). Its credential, if any, goes into Secret
+  Manager (ADR-0009, *Amendments*). After **trial-confirm**
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
   upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
   logged with the raw error hidden, `uvicorn` timeouts
@@ -114,7 +96,8 @@ Config; BASELINES.md, *Held-out test set*).
   (ADR-0008, *Diagram*): its Node stage extends `.dockerignore`'s
   allowlist and `ALLOWED` in `tests/test_docker_image.py`, and the CI
   `docker` job's checks of `GET /` and `style.css` move to routes that
-  remain. After **mvp-confirm**
+  remain. Then add the ADR-0009, D1 people to the IAP policy
+  (`IAP_MEMBERS`, `deploy/README.md`). After **mvp-confirm**
 - **observability**: minimal: one allowlisted record per read, only what
   ADR-0009, D3 allows: status, commit, prompt fingerprint, model,
   latency, request count and token usage per call, input size,
@@ -140,7 +123,9 @@ Config; BASELINES.md, *Held-out test set*).
 - **founder-review**: ADR-0007, *Stages*, stage 1. First the append to
   a copy of the real Sheet (ADR-0008, *Build constraints*, D7), then the
   Sheet-sharing check (ADR-0009, D1), both before its items; the phone
-  location check at the review (ADR-0009, D2). After every item above
+  location check at the review (ADR-0009, D2). Revisit min instances
+  (0) against the measured cold start (BASELINES.md, *Deploy
+  measurements*). After every item above
 - **staff-trial**: ADR-0007's team trial (*Stages*, *Gate*, *Stop
   Rule*); what's shown is in *Scope and storage*, Settings for the
   trial. After **founder-review**
@@ -457,3 +442,11 @@ sort them into a section.
   *Staff trial*'s were
 - **saturated-vs-later-run**. Decision: whether **adr-0006-saturated** and
   **later-run-rule**, now both in *Before the first*, overlap
+- **config-env-privacy**: `hooks/check_private.py` loads
+  `deploy/config.env`'s values, so other people's emails can't be
+  committed. Before **mvp-cutover** adds them to `IAP_MEMBERS`. A
+  `hooks/` change, needs my sign-off
+- **ci-build-from-archive**: CI's `docker` job builds from the working
+  directory, but `deploy/deploy.sh` builds from `git archive HEAD`, so CI
+  doesn't exercise the deployed build path. Build from the archive there
+  too
