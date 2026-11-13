@@ -124,8 +124,8 @@ Config; BASELINES.md, *Held-out test set*).
   a copy of the real Sheet (ADR-0008, *Build constraints*, D7), then the
   Sheet-sharing check (ADR-0009, D1), both before its items; the phone
   location check at the review (ADR-0009, D2). Revisit min instances
-  (0) against the measured cold start: 13.4s at first deploy. After
-  every item above
+  (0) against the measured cold start (BASELINES.md, *Deploy
+  measurements*). After every item above
 - **staff-trial**: ADR-0007's team trial (*Stages*, *Gate*, *Stop
   Rule*); what's shown is in *Scope and storage*, Settings for the
   trial. After **founder-review**
