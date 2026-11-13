@@ -111,6 +111,58 @@ outside the repo and never paste it anywhere.
 Check: an unauthenticated `curl -s -o /dev/null -w '%{http_code}' "$SERVICE_URL"`
 returns `302`, redirecting to `accounts.google.com`.
 
+### 5. Runtime service account
+
+The service runs as a dedicated account, `listing-tool-runtime`, never the
+default compute account (historically Editor on the whole project). Its email
+is `listing-tool-runtime@$PROJECT_ID.iam.gserviceaccount.com`.
+
+Created in *IAM & Admin → Service accounts* with **no project roles**: skip
+the *Grant this service account access to the project* step. Every role it
+gets is granted on one resource, never on the project. Never create a key for
+it: Cloud Run runs as the account directly. An account ID can't be renamed,
+so check the spelling before creating it.
+
+Check: `gcloud projects get-iam-policy "$PROJECT_ID"` lists no binding for it,
+and `gcloud iam service-accounts keys list --iam-account <its email> --managed-by=user`
+lists nothing.
+
+### 6. Anthropic key
+
+The developer does this, and no agent sees the key (ADR-0009, D5):
+
+1. In the Anthropic console, a workspace for the trial with a **$10 monthly
+   spend limit**, and a key in that workspace.
+2. In *Security → Secret Manager → Create secret*: name `anthropic-api-key`,
+   the key as its value, **replication manual, `europe-west2` only**
+   (ADR-0009, D6; replication can't be changed afterwards). No rotation,
+   expiry or notifications.
+
+The key lives nowhere else: not in `.env`, not in `config.env`.
+
+The service references a **pinned version number**, never `latest`. Rotating
+the key means adding a version, then redeploying with the new number.
+
+Check, without reading the value:
+`gcloud secrets describe anthropic-api-key --project "$PROJECT_ID"` shows
+`userManaged` replication in `europe-west2` only, and
+`gcloud secrets versions list anthropic-api-key --project "$PROJECT_ID"` shows
+the pinned version `enabled`.
+
+### 7. Secret access
+
+Secret Accessor on this one secret, never on the project. A project-level
+grant would also cover any secret added later:
+
+```
+gcloud secrets add-iam-policy-binding anthropic-api-key --project "$PROJECT_ID" \
+  --member="serviceAccount:listing-tool-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role=roles/secretmanager.secretAccessor
+```
+
+Check: `gcloud secrets get-iam-policy anthropic-api-key --project "$PROJECT_ID"`
+shows that one binding, and the project policy still shows none for the account.
+
 ## Running `gcloud` from a script
 
 - Pass `--quiet` and give it no stdin (`</dev/null`). Otherwise a prompt, such
