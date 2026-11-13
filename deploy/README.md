@@ -90,26 +90,41 @@ Deploy by the index digest, the one `docker push` prints.
 ### 4. IAP in a project with no organisation
 
 IAP's default, Google-managed OAuth client only admits users inside an
-organisation, and `gcloud` can't create an OAuth client. So the first IAP
-setup is in the console. Until it's done, a deploy with `--iap` succeeds but
-every request gets a 502, `Empty Google Account OAuth client ID(s)/secret(s)`.
+organisation, and `gcloud` can't create an OAuth client. So the project needs
+its own client, set once at the **project level**, which every service
+inherits. Without one, a deploy with `--iap` succeeds but every request gets
+a 502, `Empty Google Account OAuth client ID(s)/secret(s)`.
 
 1. *Google Auth Platform → Branding → Get started*: app name, support and
    contact email, audience **External**.
-2. *Security → Identity-Aware Proxy → Applications*, the service's row,
-   *⋮ → Settings → Custom OAuth → Auto Generate Credentials → Save*.
-3. Add principals in the service's *Security → IAP → Edit policy* dialog. The
-   developer only until **mvp-cutover** (`TODO.md`).
+2. Get a client: on any IAP-enabled service, *Security → Identity-Aware Proxy
+   → Applications*, the service's row, *⋮ → Settings → Custom OAuth → Auto
+   Generate Credentials*, then *Download credentials*. The client stays in
+   *Google Auth Platform → Clients* (check the project selector).
+3. Set it at the project level, in your own terminal, never through an agent.
+   Write a settings file **outside the repo** from the downloaded JSON's
+   `web.client_id` and `web.client_secret`:
 
-The client is attached at the level you generate it from. Generated from a
-service's settings, it belongs to that service and is lost when the service is
-deleted. A client set at the project level applies to every service.
+   ```yaml
+   accessSettings:
+     oauthSettings:
+       clientId: <client_id>
+       clientSecret: <client_secret>
+   ```
 
-If you download the credentials, the file holds the client secret. Keep it
-outside the repo and never paste it anywhere.
+   then `gcloud iap settings set <that file> --project "$PROJECT_ID"`, with
+   no `--resource-type`. `--project` must not be empty: an empty one fails
+   with `Could not parse IAP settings resource`. The command echoes the
+   secret, so clear the terminal. Then delete both files.
 
-Check: an unauthenticated `curl -s -o /dev/null -w '%{http_code}' "$SERVICE_URL"`
-returns `302`, redirecting to `accounts.google.com`.
+A client generated from one service's settings and never set at the project
+level stays attached to that service only.
+
+`deploy.sh` grants IAP access to `IAP_MEMBERS` after it checks sign-in works:
+the developer only until **mvp-cutover** (`TODO.md`).
+
+Check: `gcloud iap settings get --project "$PROJECT_ID"` shows `oauthSettings`
+(don't paste its output anywhere), and `read-back.sh` passes its IAP checks.
 
 ### 5. Runtime service account
 
@@ -162,6 +177,37 @@ gcloud secrets add-iam-policy-binding anthropic-api-key --project "$PROJECT_ID" 
 
 Check: `gcloud secrets get-iam-policy anthropic-api-key --project "$PROJECT_ID"`
 shows that one binding, and the project policy still shows none for the account.
+
+## Deploy
+
+```
+deploy/deploy.sh
+```
+
+It refuses a dirty tree, untracked files included. It then builds the image
+for `linux/amd64`, tags it with the full commit hash and pushes it. If this
+commit's image is already in the registry, it reuses it: tags are immutable,
+and a rebuild would give a different digest. It deploys by digest, checks that
+a request with no sign-in is redirected to Google sign-in, and grants IAP
+access to `IAP_MEMBERS` (adds only; remove someone in the console).
+
+The fixed settings (service name, runtime account, pinned secret version,
+memory, timeout, concurrency, instances) are in [`lib.sh`](lib.sh), tracked,
+so every change is a commit. To rotate the key: add a secret version, change
+`SECRET_VERSION`, commit, deploy.
+
+## Read-back
+
+```
+deploy/read-back.sh
+```
+
+Read-only. Reads the deployed service back and compares it with `lib.sh`:
+region, IAP, timeout, concurrency, instances, memory, runtime account, pinned
+secret, that the deployed digest is the one its commit tag points to, that a
+request with no sign-in is redirected to Google sign-in, log retention, and
+that IAP's Data Access logs are off. Exits 1 if any check fails. Run it after
+every deploy.
 
 ## Running `gcloud` from a script
 
