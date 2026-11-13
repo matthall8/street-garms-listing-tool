@@ -10,10 +10,10 @@ set -euo pipefail
 
 # --- Steps -------------------------------------------------------------------
 
-# Refuse a dirty tree, untracked files included: the build sends app/ and
-# labels/ from disk, so an untracked file there would reach the image without
-# being in the commit the image is tagged with. deploy/config.env is ignored,
-# so it doesn't count.
+# Refuse a dirty tree, untracked files included. The image is built from the
+# commit (git archive), but this script and the settings in lib.sh are read
+# from disk: an uncommitted edit to either would deploy something no commit
+# records. deploy/config.env is ignored, so it doesn't count.
 require_clean_tree() {
   if [ -n "$(git status --porcelain)" ]; then
     echo "working tree is not clean; commit or stash first:" >&2
@@ -51,7 +51,9 @@ build_and_push() {
     echo "image for this commit already pushed; reusing it"
   else
     docker info >/dev/null 2>&1 || { echo "Docker isn't running" >&2; exit 1; }
-    docker build --platform linux/amd64 -t "$IMAGE" .
+    # Build from the commit, not the disk: the context is exactly HEAD's
+    # tracked files, filtered by its .dockerignore.
+    git archive --format=tar HEAD | docker build --platform linux/amd64 -t "$IMAGE" -
     docker push "$IMAGE"
     DIGEST="$(registry_digest)"
   fi

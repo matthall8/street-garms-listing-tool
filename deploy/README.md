@@ -186,12 +186,15 @@ deploy/deploy.sh
 
 Deploy from `main`: merge the PR on GitHub, `git switch main && git pull`,
 then run it. Only a change to the image (`app/`, `labels/`, `pyproject.toml`,
-`uv.lock`) or to `lib.sh` needs a deploy; docs and scripts don't.
+`uv.lock`, `Dockerfile`, `.dockerignore`) or to `lib.sh` needs a deploy; docs
+and scripts don't.
 
 It refuses a dirty tree, untracked files included, and any commit not on
 `origin/main`, so every image is reviewed, through CI and its commit tag is
-on GitHub. It then builds the image
-for `linux/amd64`, tags it with the full commit hash and pushes it. If this
+on GitHub. The image is built from the commit itself (`git archive`), never
+from files on disk; the clean tree is for the script and `lib.sh`, which
+are read from disk. It builds for `linux/amd64`, tags the image with the
+full commit hash and pushes it. If this
 commit's image is already in the registry, it reuses it: tags are immutable,
 and a rebuild would give a different digest. It deploys by digest, checks that
 a request with no sign-in is redirected to Google sign-in, and grants IAP

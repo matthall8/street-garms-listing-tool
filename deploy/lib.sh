@@ -12,7 +12,8 @@ set -a; . "$CONFIG"; set +a
 
 for var in PROJECT_ID REGION AR_REPO IAP_MEMBERS; do
   value="${!var:-}"
-  if [ -z "$value" ] || [[ "$value" == *FILL-ME* ]] || [[ "$value" == your-* ]]; then
+  if [ -z "$value" ] || [[ "$value" == *FILL-ME* ]] || [[ "$value" == your-* ]] \
+    || [[ "$value" == *@example.com* ]]; then
     echo "$var is not set in $CONFIG" >&2
     exit 1
   fi
@@ -27,7 +28,7 @@ RUNTIME_SA="${RUNTIME_SA_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 SECRET_NAME=anthropic-api-key
 SECRET_ENV=ANTHROPIC_API_KEY
 SECRET_VERSION=1          # pinned, never "latest": a key rotation is a redeploy
-MEMORY=1Gi                # one read of a 3 MB photo measured about 365 MiB
+MEMORY=1Gi                # measured peaks: evals/BASELINES.md, Deploy measurements
 TIMEOUT=900               # above the worst-case model call, about 600s
 CONCURRENCY=1             # one read per instance
 MAX_INSTANCES=3           # two abandoned reads don't block a third upload
