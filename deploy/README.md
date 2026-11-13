@@ -184,7 +184,13 @@ shows that one binding, and the project policy still shows none for the account.
 deploy/deploy.sh
 ```
 
-It refuses a dirty tree, untracked files included. It then builds the image
+Deploy from `main`: merge the PR on GitHub, `git switch main && git pull`,
+then run it. Only a change to the image (`app/`, `labels/`, `pyproject.toml`,
+`uv.lock`) or to `lib.sh` needs a deploy; docs and scripts don't.
+
+It refuses a dirty tree, untracked files included, and any commit not on
+`origin/main`, so every image is reviewed, through CI and its commit tag is
+on GitHub. It then builds the image
 for `linux/amd64`, tags it with the full commit hash and pushes it. If this
 commit's image is already in the registry, it reuses it: tags are immutable,
 and a rebuild would give a different digest. It deploys by digest, checks that

@@ -10,10 +10,10 @@ set -euo pipefail
 
 # --- Steps -------------------------------------------------------------------
 
-# Refuse a dirty tree (decision 2), untracked files included: the build sends
-# app/ and labels/ from disk, so an untracked file there would reach the image
-# without being in the commit the image is tagged with. deploy/config.env is
-# ignored, so it doesn't count.
+# Refuse a dirty tree, untracked files included: the build sends app/ and
+# labels/ from disk, so an untracked file there would reach the image without
+# being in the commit the image is tagged with. deploy/config.env is ignored,
+# so it doesn't count.
 require_clean_tree() {
   if [ -n "$(git status --porcelain)" ]; then
     echo "working tree is not clean; commit or stash first:" >&2
@@ -23,6 +23,17 @@ require_clean_tree() {
   COMMIT="$(git rev-parse HEAD)"
   IMAGE="${REGISTRY}/${IMAGE_NAME}:${COMMIT}"
   echo "commit $COMMIT"
+}
+
+# Deploy only commits on origin/main: reviewed, through CI, and on GitHub, so
+# the image's commit tag always names a commit others can see.
+require_on_main() {
+  git fetch --quiet origin main
+  if ! git merge-base --is-ancestor HEAD origin/main; then
+    echo "commit is not on origin/main; merge the PR, then git switch main && git pull" >&2
+    exit 1
+  fi
+  echo "on origin/main"
 }
 
 # Digest of the image tagged with this commit, or empty if there is none yet.
@@ -95,6 +106,7 @@ check_iap() {
 
 main() {
   step "Checking working tree";   require_clean_tree
+  step "Checking commit";         require_on_main
   step "Image";                   build_and_push
   step "Deploying $SERVICE";      deploy_service
   # Check before granting: in a project with no organisation, users can only
