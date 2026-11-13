@@ -5,51 +5,8 @@
 # Usage: deploy/deploy.sh
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
-
-# --- Config (deploy/config.env, gitignored) ----------------------------------
-
-CONFIG=deploy/config.env
-[ -f "$CONFIG" ] || { echo "missing $CONFIG: copy deploy/config.example.env" >&2; exit 1; }
-set -a; . "$CONFIG"; set +a
-
-for var in PROJECT_ID REGION AR_REPO IAP_MEMBERS; do
-  value="${!var:-}"
-  if [ -z "$value" ] || [[ "$value" == *FILL-ME* ]] || [[ "$value" == your-* ]]; then
-    echo "$var is not set in $CONFIG" >&2
-    exit 1
-  fi
-done
-
-# --- Fixed settings (tracked, so every change is a commit) -------------------
-
-SERVICE=listing-tool
-IMAGE_NAME=listing-tool
-RUNTIME_SA="listing-tool-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
-SECRET_NAME=anthropic-api-key
-SECRET_VERSION=1          # pinned, never "latest" (decision 4)
-MEMORY=1Gi                # decision 6
-TIMEOUT=900               # decision 7
-CONCURRENCY=1             # decision 7
-MAX_INSTANCES=3           # decision 7
-MIN_INSTANCES=0           # decision 9
-
-REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}"
-
-# --- Helpers -----------------------------------------------------------------
-
-# Hide email addresses: gcloud's errors name the signed-in account.
-mask() { sed -E 's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]+/<email>/g'; }
-
-# Run gcloud with no prompts (a prompt would hang the script) and masked output.
-# Exits with gcloud's status, not sed's.
-run_gcloud() {
-  local status=0
-  gcloud --quiet --project "$PROJECT_ID" "$@" </dev/null 2> >(mask >&2) | mask || status=$?
-  return "$status"
-}
-
-step() { printf '\n== %s\n' "$*"; }
+# shellcheck source=deploy/lib.sh
+. "$(dirname "$0")/lib.sh"
 
 # --- Steps -------------------------------------------------------------------
 
@@ -101,7 +58,7 @@ deploy_service() {
     --no-allow-unauthenticated \
     --iap \
     --service-account "$RUNTIME_SA" \
-    --set-secrets "ANTHROPIC_API_KEY=${SECRET_NAME}:${SECRET_VERSION}" \
+    --set-secrets "${SECRET_ENV}=${SECRET_NAME}:${SECRET_VERSION}" \
     --memory "$MEMORY" \
     --timeout "$TIMEOUT" \
     --concurrency "$CONCURRENCY" \
