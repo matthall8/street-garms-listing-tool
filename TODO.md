@@ -442,3 +442,7 @@ sort them into a section.
   *Staff trial*'s were
 - **saturated-vs-later-run**. Decision: whether **adr-0006-saturated** and
   **later-run-rule**, now both in *Before the first*, overlap
+- **config-env-privacy**: `hooks/check_private.py` loads
+  `deploy/config.env`'s values, so other people's emails can't be
+  committed. Before **mvp-cutover** adds them to `IAP_MEMBERS`. A
+  `hooks/` change, needs my sign-off
