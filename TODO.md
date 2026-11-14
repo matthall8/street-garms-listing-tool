@@ -209,7 +209,7 @@ configuration and can be done during the trial.
   with **cost-capture** in place
 - **deps-update**, waits until after **staff-trial** (ADR-0007, frozen
   configuration): move to `pydantic-ai-slim` with only
-  the Anthropic extra and bump `certifi`, then upgrade `pydantic-ai` on
+  the Anthropic extra, then upgrade `pydantic-ai` on
   its own, with a replay and a run against the latest baseline
 
 ## Later
