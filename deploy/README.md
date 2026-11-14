@@ -288,8 +288,9 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 The project commands print the whole policy, account emails included: clear
 the terminal.
 
-Check: `read-back.sh`, *Runtime account's roles*: exactly these three, plus
-step 7's secret role, and no others.
+Check: `read-back.sh`, *Runtime account's roles*: on the project, the photo
+bucket and the secret, the account holds exactly these three plus step 7's
+secret role, and nothing else. It reads only those three policies.
 
 ## Deploy
 
@@ -335,8 +336,9 @@ secret, the environment variables, that the deployed digest is the one its
 commit tag points to, that a request with no sign-in is redirected to Google
 sign-in, log retention, and that IAP's Data Access logs are off. It also
 checks steps 8–11: the instance's settings, the database and its users, the
-bucket, and that the runtime account holds exactly its four roles. Exits 1
-if any check fails. Run it after every deploy.
+bucket, and that on the project, the photo bucket and the secret the runtime
+account holds exactly its four roles and nothing else. Exits 1 if any check
+fails. Run it after every deploy.
 
 ## Running `gcloud` from a script
 
