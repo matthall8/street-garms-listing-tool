@@ -451,3 +451,8 @@ sort them into a section.
   the local build in `deploy/README.md`, *Deploy*; absorbs
   **ci-build-from-archive**. When a second person deploys or deploys stop
   being rare
+- **ci-check-script**: one checks script that CI, `/open-pr` step 2 and
+  the reviewer's step 4 all call, so the list of checks has one home;
+  related to **open-pr-scripts**
+- **docker-local-checks**: whether the review runs the `docker` job
+  locally; revisit after **mvp-cutover** changes the job
