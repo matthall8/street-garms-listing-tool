@@ -450,3 +450,11 @@ sort them into a section.
   directory, but `deploy/deploy.sh` builds from `git archive HEAD`, so CI
   doesn't exercise the deployed build path. Build from the archive there
   too
+- **ci-deploy**: deploy from GitHub Actions on merge to main via Workload
+  Identity Federation, no keys; a deployer service account limited to the
+  one repo and service; project ID, URL and `IAP_MEMBERS` as masked
+  secrets (the repo's logs are public); a manual trigger or a
+  required-approval environment while ADR-0007's freeze holds. Replaces
+  the local build in `deploy/README.md`, *Deploy*; absorbs
+  **ci-build-from-archive**. When a second person deploys or deploys stop
+  being rare
