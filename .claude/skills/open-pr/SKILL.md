@@ -36,7 +36,7 @@ Run the checks CI runs, and note each exit status:
 `uv run --locked python -m pytest -rs`.
 If `git diff main...HEAD --name-only` touches `frontend/`, also run, from
 the repo root, as one command (it selects the Node `frontend/.nvmrc` pins):
-`cd frontend && nvm use && npm ci && npm run build && npm run typecheck && npm run lint && npm test`.
+`(cd frontend && nvm use && npm ci && npm run build && npm run typecheck && npm run lint && npm test)`.
 Any failure: stop and report it in one line.
 pytest must show 0 skips: the catalogue is present locally, and this is
 the only run where catalogue-dependent tests run. Any skip: stop and

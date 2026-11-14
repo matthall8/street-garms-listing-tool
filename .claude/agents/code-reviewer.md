@@ -177,7 +177,7 @@ and, only if `git diff main...HEAD --name-only` touches `frontend/`, the
 `frontend` job's checks, from the repo root, as one command (it selects
 the Node `frontend/.nvmrc` pins):
 
-`cd frontend && nvm use && npm ci && npm run build && npm run typecheck && npm run lint && npm test`
+`(cd frontend && nvm use && npm ci && npm run build && npm run typecheck && npm run lint && npm test)`
 
 The `docker` job runs in CI only; don't run it, and it isn't a gap.
 
