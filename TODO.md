@@ -269,6 +269,7 @@ configuration and can be done during the trial.
   anyone beyond the trial uses the app. The kill switch's manual-entry
   fallback needs rethinking: ADR-0007 makes the Sheet the only place to
   type a number.
+- **ci-deploy:** deploy from GitHub Actions on merge to main via Workload Identity Federation, no keys; a deployer service account limited to the one repo and service; project ID, URL and IAP_MEMBERS as masked secrets (the repo's logs are public); a manual trigger or a required-approval environment while ADR-0007's freeze holds. Replaces decision 2's local build; absorbs ci-build-from-archive. When a second person deploys or deploys stop being rare
 
 ### Backlog
 Not measured by the phase 1 gate, and blocking no milestone. Kept for when
