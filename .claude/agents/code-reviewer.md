@@ -173,7 +173,17 @@ checks, not its install steps). Today that is:
 
 `uv run --locked python -m pytest -rs`
 
-A ruff or pyright error fails CI, so it is a Must fix.
+and, only if `git diff main...HEAD --name-only` touches `frontend/`, the
+`frontend` job's checks, from the repo root, as one command (it selects
+the Node `frontend/.nvmrc` pins):
+
+`cd frontend && nvm use && npm ci && npm run build && npm run typecheck && npm run lint && npm test`
+
+The `docker` job runs in CI only; don't run it, and it isn't a gap.
+
+A ruff or pyright error fails CI, so it is a Must fix. So is any failure
+of the frontend command. When it ran and passed, list `npm build`,
+`npm typecheck`, `npm lint` and `npm test` on the Checked line.
 
 Don't add `-q`: `pytest.ini` already does, and doubling it hides the counts.
 Report the exit status and the passed, failed and skipped counts.
