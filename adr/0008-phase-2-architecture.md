@@ -1,6 +1,6 @@
 # ADR-0008: Phase 2 architecture
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-11-14 (*Amendments*)
 - **Date:** 2026-11-09
 - **Amends:** CLAUDE.md, *Flow*, *Commands* and *Engineering constraints* (D4,
   D8, D10)
@@ -438,3 +438,22 @@ and TypeScript is a major version behind until typescript-eslint catches up.
   and `labels/` imports no other client. CLAUDE.md's *Flow* changes with it.
 - D8: `.github/workflows/tests.yml` gains a Postgres service and the test
   database URL, and CLAUDE.md's *Commands* row for CI changes with it.
+
+## Amendments
+
+- **2026-11-14:** D6's "Cloud Run connects through its built-in Cloud SQL
+  connection" becomes: the app connects through the Cloud SQL Python
+  Connector with automatic IAM database authentication, and there is no
+  database password. Google's IAM authentication page for Postgres says
+  "Automatic IAM database authentication requires the use of a Cloud SQL
+  connector", and the built-in connection's samples log in with a user and
+  password. Rejected: the built-in connection with a password in Secret
+  Manager (more to store, pin and rotate, and a credential on ADR-0009, D7's
+  incident list), and with an IAM access token as the password (hand-written
+  token code, and Google strongly recommends automatic IAM authentication
+  over it). This confirms ADR-0009's 2026-11-13 amendment for the database:
+  no credential exists. The instance accepts only connector connections, and
+  the `postgres` password was generated at creation and never stored. The
+  driver is **trial-records**' choice; if the runtime account can't connect
+  at that branch's first deploy, it falls back to a password in Secret
+  Manager (ADR-0009, *Amendments*).
