@@ -37,6 +37,19 @@ LOG_RETENTION_DAYS=30     # ADR-0009, What's held where
 
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}"
 
+# Cloud SQL and the photo bucket (ADR-0008, D6). Names derive from PROJECT_ID,
+# so no project value is tracked; the bucket name must be globally unique.
+SQL_INSTANCE="${PROJECT_ID}-pg"
+SQL_CONNECTION="${PROJECT_ID}:${REGION}:${SQL_INSTANCE}"
+SQL_EDITION=ENTERPRISE
+SQL_TIER=db-f1-micro      # about 60 rows, at most MAX_INSTANCES connections
+SQL_BACKUPS_RETAINED=7
+SQL_LOG_DAYS=7            # point-in-time recovery; the Enterprise maximum
+DB_NAME=listing_tool
+DB_USER="${RUNTIME_SA_ID}@${PROJECT_ID}.iam"  # IAM database user: the account's email, less .gserviceaccount.com
+PHOTO_BUCKET="${PROJECT_ID}-photos"
+SOFT_DELETE_SECONDS=604800  # the bucket's default soft delete, 7 days, kept
+
 # --- Helpers -----------------------------------------------------------------
 
 # Hide email addresses: gcloud's errors name the signed-in account.
@@ -57,3 +70,9 @@ run_gcloud_for_parser() {
 }
 
 step() { printf '\n== %s\n' "$*"; }
+
+# The service's plain environment variables, NAME=value, comma-separated and
+# sorted by name. deploy.sh sets exactly these; read-back.sh compares them.
+service_env() {
+  echo "CLOUD_SQL_INSTANCE=${SQL_CONNECTION},DB_NAME=${DB_NAME},DB_USER=${DB_USER},PHOTO_BUCKET=${PHOTO_BUCKET}"
+}

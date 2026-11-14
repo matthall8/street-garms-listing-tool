@@ -52,10 +52,14 @@ Enabled in the console, *APIs & Services → Library*:
 | Cloud Resource Manager | `cloudresourcemanager.googleapis.com` |
 | Cloud Logging | `logging.googleapis.com` |
 | Cloud Monitoring | `monitoring.googleapis.com` |
+| Cloud SQL Admin | `sqladmin.googleapis.com` |
+| Cloud Storage | `storage.googleapis.com` |
 
 Cloud Resource Manager is easy to miss: `gcloud iap web get-iam-policy` and
 similar commands need it, and without it `gcloud` stops at a prompt to enable
-it. Not needed: Container Scanning (scanning is off) and Cloud Billing Budget
+it. Cloud SQL Admin is needed at runtime as well as for setup: the Cloud SQL
+connector calls it for the instance's address and a short-lived client
+certificate, and again to refresh the certificate. Not needed: Container Scanning (scanning is off) and Cloud Billing Budget
 (the budget alert is set in the console).
 
 Check: `gcloud services list --enabled --project "$PROJECT_ID"`.
@@ -134,12 +138,14 @@ is `listing-tool-runtime@$PROJECT_ID.iam.gserviceaccount.com`.
 
 Created in *IAM & Admin → Service accounts* with **no project roles**: skip
 the *Grant this service account access to the project* step. Every role it
-gets is granted on one resource, never on the project. Never create a key for
+gets is granted on one resource, never on the project, with one exception:
+the two Cloud SQL roles in step 11, because Cloud SQL accepts them only on
+the project. Never create a key for
 it: Cloud Run runs as the account directly. An account ID can't be renamed,
 so check the spelling before creating it.
 
-Check: `gcloud projects get-iam-policy "$PROJECT_ID"` lists no binding for it,
-and `gcloud iam service-accounts keys list --iam-account <its email> --managed-by=user`
+Check: `gcloud projects get-iam-policy "$PROJECT_ID"` lists no binding for it
+beyond step 11's, and `gcloud iam service-accounts keys list --iam-account <its email> --managed-by=user`
 lists nothing.
 
 ### 6. Anthropic key
@@ -176,7 +182,114 @@ gcloud secrets add-iam-policy-binding anthropic-api-key --project "$PROJECT_ID" 
 ```
 
 Check: `gcloud secrets get-iam-policy anthropic-api-key --project "$PROJECT_ID"`
-shows that one binding, and the project policy still shows none for the account.
+shows that one binding, and the project policy shows none for the account
+beyond step 11's.
+
+### 8. Cloud SQL instance
+
+One Postgres instance, `${PROJECT_ID}-pg`, created in the console (*SQL →
+Create instance → PostgreSQL*). The console's defaults are a large
+production instance in the US, so choose **Enterprise** first, then the
+**Sandbox** preset; the shared-core tiers only appear after that.
+
+| setting | value | why |
+|---|---|---|
+| edition, preset | Enterprise, Sandbox | |
+| version | PostgreSQL 18 (default) | |
+| region, availability | `europe-west2`, single zone | ADR-0009, D6; an outage is a failed read, which ADR-0007's downtime log covers |
+| machine | shared core, `db-f1-micro` | about 60 rows, at most 3 connections |
+| storage | 10 GB SSD, automatic increase on | a full disk stops every write; capacity can't shrink |
+| `postgres` password | *Generate*, never copied or stored | no credential to keep (ADR-0008, *Amendments*) |
+| connections | Public IP, no authorised networks, no private IP | ADR-0008, D6 |
+| SSL mode, server CA | SSL only, Google-managed CAS (defaults) | the CA mode can't be changed later |
+| automated backups | on, 7 retained, location `europe-west2` | ADR-0009, D6; the console defaults to multi-region `eu` |
+| point-in-time recovery | on, 7 days of logs (the Enterprise maximum) | the records are gate evidence |
+| retain backups on delete, final backup | **off** | ADR-0009, D1: no backup outlives the instance |
+| deletion protection | on | |
+| flag | `cloudsql.iam_authentication` = `on` | IAM database login |
+
+Connector enforcement isn't on the create page, and the Sandbox preset sets
+the backup location and the two backups on delete differently. Set all four
+once the instance is running:
+
+```
+gcloud sql instances patch "${PROJECT_ID}-pg" --project "$PROJECT_ID" \
+  --connector-enforcement=REQUIRED --backup-location=europe-west2 \
+  --no-retain-backups-on-delete --no-final-backup
+```
+
+`REQUIRED` accepts only Cloud SQL connector connections (the Auth Proxy and
+the language connectors). Cloud SQL Studio still works with it.
+
+Check: `read-back.sh`, *Cloud SQL instance*.
+
+### 9. Database and database users
+
+On the instance, in the console:
+
+1. *Databases → Create database*: `listing_tool`.
+2. *Users → Add user account → Google Cloud IAM*: the developer's Google
+   account, with the database role `cloudsqlsuperuser`. This is the only
+   admin login: the `postgres` password is unknown. If IAM login ever
+   breaks, reset the `postgres` password in the console.
+3. The same, for the runtime account's full email, with **no** database
+   roles. Its username drops `.gserviceaccount.com`. **trial-records**'
+   schema file grants it what it needs.
+
+Not *Workforce identity federation*: that is for an outside identity
+provider.
+
+Check: `read-back.sh`, *Database and users*, and the developer logs in to
+`listing_tool` as their IAM user in *Cloud SQL Studio* (IAM database
+authentication), where `SELECT current_user;` returns their account.
+
+### 10. Photo bucket
+
+One bucket, `${PROJECT_ID}-photos`, created in the console (*Cloud Storage →
+Buckets → Create*):
+
+| setting | value | why |
+|---|---|---|
+| location | region `europe-west2` | ADR-0009, D6 |
+| storage class | Standard, no Autoclass | |
+| hierarchical namespace, Rapid Cache | off | the namespace can't be changed later |
+| public access prevention | enforced | ADR-0008, D6 |
+| access control | uniform | roles only, no per-object ACLs |
+| soft delete | default, 7 days | **trial-data-deletion** allows for it |
+| object versioning, retention | off, none | |
+| encryption | Google-managed | |
+
+Check: `read-back.sh`, *Bucket*.
+
+### 11. Runtime account's database and bucket roles
+
+```
+SA="listing-tool-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
+
+gcloud storage buckets add-iam-policy-binding "gs://${PROJECT_ID}-photos" --project "$PROJECT_ID" \
+  --member="serviceAccount:$SA" --role=roles/storage.objectCreator
+
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:$SA" --role=roles/cloudsql.client --condition=None
+
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:$SA" --role=roles/cloudsql.instanceUser --condition=None
+```
+
+- **Object Creator, on the bucket only:** it can write photos but not read,
+  list or overwrite them.
+- **The two Cloud SQL roles, on the project:** the exception to step 5.
+  `gcloud sql instances` has no IAM policy commands, and the console says
+  database login must be granted "in the IAM policy of the instance's
+  project". Instance
+  User is that login. Client is granted because Google's pages disagree on
+  whether a connector needs it; **trial-records**' first deploy shows which.
+
+The project commands print the whole policy, account emails included: clear
+the terminal.
+
+Check: `read-back.sh`, *Runtime account's roles*: exactly these three, plus
+step 7's secret role, and no others.
 
 ## Deploy
 
@@ -201,9 +314,14 @@ a request with no sign-in is redirected to Google sign-in, and grants IAP
 access to `IAP_MEMBERS` (adds only; remove someone in the console).
 
 The fixed settings (service name, runtime account, pinned secret version,
-memory, timeout, concurrency, instances) are in [`lib.sh`](lib.sh), tracked,
-so every change is a commit. To rotate the key: add a secret version, change
-`SECRET_VERSION`, commit, deploy.
+memory, timeout, concurrency, instances, and the Cloud SQL and bucket
+settings) are in [`lib.sh`](lib.sh), tracked, so every change is a commit. To
+rotate the key: add a secret version, change `SECRET_VERSION`, commit, deploy.
+
+The service also gets four plain environment variables, for the app from
+**trial-records** on: `CLOUD_SQL_INSTANCE` (the instance connection name),
+`DB_NAME`, `DB_USER` (the runtime account's IAM database user) and
+`PHOTO_BUCKET`. None is a credential.
 
 ## Read-back
 
@@ -213,10 +331,12 @@ deploy/read-back.sh
 
 Read-only. Reads the deployed service back and compares it with `lib.sh`:
 region, IAP, timeout, concurrency, instances, memory, runtime account, pinned
-secret, that the deployed digest is the one its commit tag points to, that a
-request with no sign-in is redirected to Google sign-in, log retention, and
-that IAP's Data Access logs are off. Exits 1 if any check fails. Run it after
-every deploy.
+secret, the environment variables, that the deployed digest is the one its
+commit tag points to, that a request with no sign-in is redirected to Google
+sign-in, log retention, and that IAP's Data Access logs are off. It also
+checks steps 8–11: the instance's settings, the database and its users, the
+bucket, and that the runtime account holds exactly its four roles. Exits 1
+if any check fails. Run it after every deploy.
 
 ## Running `gcloud` from a script
 

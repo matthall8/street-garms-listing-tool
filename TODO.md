@@ -28,17 +28,22 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **trial-records**: Cloud SQL, the bucket and backups (ADR-0008, D6;
-  ADR-0009, D6); `app/db.py`, `app/photos.py` and `POST /items`, storing
-  the read-time fields ADR-0007, *Scope and storage* lists, behind the
-  response allowlist (D3). A failed read stores no row, with D5's one
-  exception (ADR-0007, *How items count*; D5). The D3 and D9 tests, D6's
-  after-deploy check; the real-Postgres setup, CI service and required
-  test database URL, with one real-Postgres test that stores a row (D8).
-  Adds the Postgres driver and the Cloud Storage client to `API_CLIENTS`
-  (D8); CLAUDE.md's API rule, *Flow* and CI command change with it
-  (ADR-0008, *Consequences*). Its credential, if any, goes into Secret
-  Manager (ADR-0009, *Amendments*)
+- **trial-records**: `app/db.py`, `app/photos.py` and `POST /items`,
+  storing the read-time fields ADR-0007, *Scope and storage* lists,
+  behind the response allowlist (D3). A failed read stores no row, with
+  D5's one exception (ADR-0007, *How items count*; D5). The schema file
+  and its `GRANT`s to the runtime database user, applied by the developer
+  at its first deploy (`deploy/README.md`, step 9). The D3 and D9 tests;
+  the real-Postgres setup, CI service and required test database URL,
+  with one real-Postgres test that stores a row (D8). Adds the Postgres
+  driver and the Cloud Storage client to `API_CLIENTS` (D8); CLAUDE.md's
+  API rule, *Flow* and CI command change with it (ADR-0008,
+  *Consequences*). No database password: the connector with IAM
+  authentication (ADR-0008, *Amendments*). Its first deploy proves the
+  runtime account's connection, falling back to a password in Secret
+  Manager if it fails (ADR-0009, *Amendments*), shows whether
+  `cloudsql.client` is needed (`deploy/README.md`, step 11), and passes
+  `deploy/read-back.sh`, including the environment variables
 - **postgres-test-skips**: the real-Postgres tests (ADR-0008, D8) skip
   when no URL is set, but the reviewer requires 0 local skips
   (`.claude/agents/code-reviewer.md`); reconcile them. With
@@ -130,7 +135,9 @@ Config; BASELINES.md, *Held-out test set*).
 - **trial-data-deletion**: delete trial data on the date the project
   team sets at stage 3, check it's gone, and keep what survives a fail:
   anything labelled for the eval set, copied there first, and the
-  failed-trial list (ADR-0009, D1). After **staff-trial**
+  failed-trial list (ADR-0009, D1). The bucket keeps deleted photos 7
+  days (soft delete), so the empty check allows for them. After
+  **staff-trial**
 
 ## After the trial
 
@@ -456,3 +463,6 @@ sort them into a section.
   related to **open-pr-scripts**
 - **docker-local-checks**: whether the review runs the `docker` job
   locally; revisit after **mvp-cutover** changes the job
+- **default-compute-editor**: the default compute service account holds
+  project Editor, which reaches the photo bucket through its legacy
+  project bindings (ADR-0009, D1). Review both in a separate branch

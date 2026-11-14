@@ -64,6 +64,10 @@ build_and_push() {
   echo "digest $DIGEST"
 }
 
+# The database and bucket settings are plain environment variables, read by the
+# app from trial-records on; an image before that ignores them. There is no
+# database password: the app logs in through the Cloud SQL connector with IAM
+# authentication (ADR-0008, Amendments).
 deploy_service() {
   run_gcloud run deploy "$SERVICE" \
     --region "$REGION" \
@@ -72,6 +76,7 @@ deploy_service() {
     --iap \
     --service-account "$RUNTIME_SA" \
     --set-secrets "${SECRET_ENV}=${SECRET_NAME}:${SECRET_VERSION}" \
+    --set-env-vars "$(service_env)" \
     --memory "$MEMORY" \
     --timeout "$TIMEOUT" \
     --concurrency "$CONCURRENCY" \
