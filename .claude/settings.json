@@ -9,6 +9,7 @@
       "Bash(uv run --locked ruff check .)",
       "Bash(uv run --locked pyright)",
       "Bash(uv run --locked python -m pytest -rs)",
+      "Bash((cd frontend && nvm use && npm ci && npm run build && npm run typecheck && npm run lint && npm test))",
       "Bash(.venv/bin/python hooks/check_private.py --file docs/pr-body.md)",
       "Bash(.venv/bin/python hooks/check_private.py --range main...HEAD)",
       "Bash(.venv/bin/python tests/report_art_number.py)",

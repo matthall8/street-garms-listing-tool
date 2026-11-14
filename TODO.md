@@ -19,7 +19,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
-- **frontend-review-checks**
 - **trial-records**
 
 ## Staff trial
@@ -29,12 +28,6 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **frontend-review-checks**: `/open-pr` and the code-reviewer list only
-  the Python checks, so every frontend PR comes back "Review incomplete".
-  Add the frontend job's checks and how to select the pinned Node to
-  `.claude/skills/open-pr/SKILL.md` and `.claude/agents/code-reviewer.md`,
-  on its own branch, before **mvp-scaffold**. The edits are under
-  `.claude/`, where agents need my approval, so I make or approve them
 - **trial-records**: Cloud SQL, the bucket and backups (ADR-0008, D6;
   ADR-0009, D6); `app/db.py`, `app/photos.py` and `POST /items`, storing
   the read-time fields ADR-0007, *Scope and storage* lists, behind the
@@ -458,3 +451,8 @@ sort them into a section.
   the local build in `deploy/README.md`, *Deploy*; absorbs
   **ci-build-from-archive**. When a second person deploys or deploys stop
   being rare
+- **ci-check-script**: one checks script that CI, `/open-pr` step 2 and
+  the reviewer's step 4 all call, so the list of checks has one home;
+  related to **open-pr-scripts**
+- **docker-local-checks**: whether the review runs the `docker` job
+  locally; revisit after **mvp-cutover** changes the job
