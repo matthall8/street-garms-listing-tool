@@ -191,9 +191,14 @@ fix. When it ran and passed, list `npm build`,
 Don't add `-q`: `pytest.ini` already does, and doubling it hides the counts.
 Report the exit status and the passed, failed and skipped counts.
 
-You run locally, where the private catalogue exists, so expect **0 skips**.
-Any skip means catalogue-dependent tests (including the gate tests) didn't
-run: list it under Validation gaps with the skip reasons.
+You run locally, where the private catalogue exists, so expect **0 skips**,
+with one exception: unless `TEST_DATABASE_URL` is set, the real-Postgres
+tests skip with exactly the reason
+`no TEST_DATABASE_URL: real-Postgres tests run in CI` (`PG_SKIP_REASON`,
+`tests/conftest.py`). That skip is allowed and isn't a gap: CI fails rather
+than skips those tests, so a full check is this run plus the PR's CI run.
+Any other skip means catalogue-dependent tests (including the gate tests)
+didn't run: list it under Validation gaps with the skip reasons.
 
 ## 5. Finding standards
 
@@ -293,6 +298,7 @@ Verdict rules:
   changes and nothing justifies Fix first: the SHA doesn't contain what
   was reviewed. Say "commit and re-run".
 - **Ready to merge** only if the tree is clean, there is no Must fix, the
-  tests passed with 0 skips, and every required check was performed.
+  tests passed with no skip other than the real-Postgres one (section 4),
+  and every required check was performed.
 - Inherited findings (section 5) never block Ready to merge, including
   an inherited correctness problem.

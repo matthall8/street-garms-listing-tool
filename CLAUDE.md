@@ -14,21 +14,24 @@ in-flight work; results are in `evals/BASELINES.md`.
 
 ```
 main.py  /  app/routes.py
-  └─ labels/pipeline.py    extract_bytes() = transcribe(), then from_reading()
-       ├─ labels/transcribe.py   1 vision call → LabelReading    (only module that calls an API)
-       │    └─ labels/photo.py        upright(): applies the EXIF orientation tag   (pure, no I/O)
-       └─ from_reading()         the only join point; no API call, so replays can run it on saved reads
-            ├─ labels/art_number.py   parse() → Art              (pure, no I/O)
-            └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
-                                          ↓
-                                      labels/schemas.py → Extraction
+  ├─ app/photos.py         POST /items only: the photo → Cloud Storage, first
+  ├─ labels/pipeline.py    extract_bytes() = transcribe(), then from_reading()
+  │    ├─ labels/transcribe.py   1 vision call → LabelReading    (the only module that calls the model)
+  │    │    └─ labels/photo.py        upright(): applies the EXIF orientation tag   (pure, no I/O)
+  │    └─ from_reading()         the only join point; no API call, so replays can run it on saved reads
+  │         ├─ labels/art_number.py   parse() → Art              (pure, no I/O)
+  │         └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
+  │                                       ↓
+  │                                   labels/schemas.py → Extraction
+  └─ app/db.py             POST /items only: the item's row → Postgres, last
 ```
 
 `schemas.py` is shared vocabulary and imports nothing of ours. `art_number.py`
 and `catalogue.py` don't know about each other — `pipeline.py` is where they
-meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
-`transcribe.py` imports an API client, are enforced by
-`tests/test_boundaries.py::TestImportGraph`.
+meet. Nothing imports `app/` or `main.py`. Only `transcribe.py` calls the
+model; each other external system has one module in `app/`, the only
+importer of its client, and `labels/` imports no other client (ADR-0008, D8).
+These boundaries are enforced by `tests/test_boundaries.py::TestImportGraph`.
 
 ## Commands
 
@@ -37,6 +40,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | install | `uv sync` — creates `.venv` from `uv.lock` with the dev group; add `--group explore` for the notebooks, or a plain `uv sync` removes them. Then `git config core.hooksPath hooks` once per clone, for the privacy hooks |
 | add a dependency | `uv add <pkg>==<version>` (`--group dev` for tools); commit `uv.lock` with it |
 | tests | `.venv/bin/python -m pytest` — offline, no API key |
+| real-Postgres tests | `docker run -d --rm --name listing-tool-pg -e POSTGRES_PASSWORD=test -p 127.0.0.1:5432:5432 postgres:18.7`, then the tests with `TEST_DATABASE_URL=postgresql://postgres:test@localhost:5432/postgres`; the same tag as CI's service |
 | lint | `.venv/bin/ruff check .` — rules in `pyproject.toml` |
 | types | `.venv/bin/pyright` — basic mode, config in `pyproject.toml` |
 | frontend install | in `frontend/`: `nvm use`, then `npm ci` — Node version from `.nvmrc` |
@@ -46,7 +50,7 @@ meet. Nothing imports `app/` or `main.py`. These boundaries, and that only
 | frontend types | in `frontend/`: `npm run typecheck` |
 | frontend lint | in `frontend/`: `npm run lint` |
 | frontend tests | in `frontend/`: `npm test` |
-| CI | `.github/workflows/tests.yml`, on push/PR to main — Python: `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs`, no catalogue, no key. Frontend: `npm ci`, build, type check, lint and tests, Node from `.nvmrc`. Docker: builds the image, starts it on a non-default `PORT` and checks `GET /` and `style.css` |
+| CI | `.github/workflows/tests.yml`, on push/PR to main — Python: `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs`, no catalogue, no key, with a `postgres:18.7` service and `TEST_DATABASE_URL` set, so the real-Postgres tests must run. Frontend: `npm ci`, build, type check, lint and tests, Node from `.nvmrc`. Docker: builds the image, checks the database and storage clients import in it, starts it on a non-default `PORT` and checks `GET /` and `style.css` |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/uvicorn --factory app:create_app` |
 | image build | `docker build --platform linux/amd64 -t listing-tool:local .` — the Python side, for Cloud Run; `.dockerignore` lets in only what `tests/test_docker_image.py` allows, so no catalogue |
@@ -109,8 +113,11 @@ manifest `id`, never by filename. Never quote a catalogue product name.
 
 ## Engineering constraints
 
-- `labels/transcribe.py` is the only module permitted to call an API. Everything
-  else is pure or reads local files — that's why the suite is offline and fast.
+- `labels/transcribe.py` is the only module permitted to call the model. Each
+  other external system has one module in `app/`, the only importer of its
+  client (`app/db.py`: Postgres; `app/photos.py`: Cloud Storage), and
+  `labels/` imports no other client (ADR-0008, D8). Everything else is pure
+  or reads local files — that's why the suite is offline and fast.
 - All model calls use the shared 60s timeout (`MODEL_SETTINGS`). Do not remove
   it. It applies per HTTP attempt, so retries multiply it. The Anthropic
   client's retries (`CLIENT_RETRIES`) and the agent's output retries
@@ -122,8 +129,10 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   60s is httpx's limit per phase. `tests/test_boundaries.py::TestSharedTimeout`
   checks the 60s value and that every `Agent(...)` passes `MODEL_SETTINGS`;
   `TestExplicitRetries` checks both retries are set.
-- Agents are built lazily and `@cache`d. Importing the module must not require
-  an API key.
+- Agents, the Cloud SQL connector and the storage client are built lazily and
+  `@cache`d. Importing a module or calling `create_app()` must not require an
+  API key or any configuration
+  (`tests/test_db.py::test_import_and_create_app_build_no_client`).
 - `Extraction` stays JSON-serialisable and `all_reads` stays plain dicts
   (`TestFieldMapping::test_extraction_is_json_serialisable` and
   `TestFieldMapping::test_ambiguous_characters_serialise_to_dicts` in
@@ -134,6 +143,10 @@ manifest `id`, never by filename. Never quote a catalogue product name.
 - A green test run without the private catalogue is not a full test run —
   catalogue-dependent tests skip, never fail (`tests/conftest.py:3-4`). CI is
   always such a run. Derive test codes from the `conftest.py` fixtures.
+- The real-Postgres tests skip with `PG_SKIP_REASON` when `TEST_DATABASE_URL`
+  is unset, and fail instead in CI (`tests/conftest.py`). That is the one
+  other skip the reviewer and `/open-pr` allow, so a full check is the local
+  run plus the PR's CI run, not either alone.
 
 ## Working rules
 

@@ -13,9 +13,16 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = sorted([*(ROOT / "labels").rglob("*.py"), *(ROOT / "app").rglob("*.py"), ROOT / "main.py"])
 
-API_CLIENTS = {
+# Each external client, and the one module allowed to import it (ADR-0008, D8).
+MODEL_CLIENTS = (
     "pydantic_ai", "anthropic", "openai", "httpx", "requests", "urllib.request",
     "urllib3", "http.client", "aiohttp",
+)
+API_CLIENTS = {
+    **dict.fromkeys(MODEL_CLIENTS, "labels/transcribe.py"),
+    "psycopg": "app/db.py",
+    "google.cloud.sql": "app/db.py",
+    "google.cloud.storage": "app/photos.py",
 }
 
 
@@ -71,12 +78,14 @@ class TestImportGraph:
         assert _source("main.py") in SOURCES
         assert any(path.parent.name == "app" for path in SOURCES)
 
-    def test_only_transcribe_imports_an_api_client(self):
-        others = [p for p in SOURCES if p != _source("labels/transcribe.py")]
-        bad = _violations(others, lambda name: any(_within(name, c) for c in API_CLIENTS))
+    @pytest.mark.parametrize("client, owner", sorted(API_CLIENTS.items()))
+    def test_each_client_is_imported_only_by_its_module(self, client, owner):
+        # ROOT / owner, not _source(owner): an owner may not exist yet, and
+        # until it does nothing may import its client.
+        others = [p for p in SOURCES if p != ROOT / owner]
+        bad = _violations(others, lambda name: _within(name, client))
         assert not bad, (
-            "CLAUDE.md, Engineering constraints: labels/transcribe.py is the only "
-            "module permitted to call an API.\n" + "\n".join(bad)
+            f"ADR-0008, D8: {owner} is the only importer of {client}.\n" + "\n".join(bad)
         )
 
     def test_schemas_imports_nothing_of_ours(self):

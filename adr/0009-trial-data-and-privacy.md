@@ -1,6 +1,6 @@
 # ADR-0009: Trial data and privacy
 
-- **Status:** Accepted; amended 2026-11-13 (*Amendments*)
+- **Status:** Accepted; amended 2026-11-13, 2026-11-18 (*Amendments*)
 - **Date:** 2026-11-09
 - **Depends on:** ADR-0007, ADR-0008
 - **Terms:** see `GLOSSARY.md`.
@@ -188,3 +188,6 @@ by someone not in the IAP policy can't be detected.
   password, and a Sheet shared with the runtime service account needs no key
   file. That is an inference for those branches to check. Placeholder secrets
   now, to follow *Consequences* to the letter, were rejected.
+- **2026-11-18:** *What's held where*: the Postgres row holds the Cloud Run
+  revision in place of the configuration (ADR-0008, *Amendments*,
+  2026-11-18).

@@ -233,15 +233,31 @@ On the instance, in the console:
    admin login: the `postgres` password is unknown. If IAM login ever
    breaks, reset the `postgres` password in the console.
 3. The same, for the runtime account's full email, with **no** database
-   roles. Its username drops `.gserviceaccount.com`. **trial-records**'
-   schema file grants it what it needs.
+   roles. Its username drops `.gserviceaccount.com`. It gets one table
+   grant, in 4.
+4. The table, at **trial-records-deploy**: in *Cloud SQL Studio*, logged
+   in to `listing_tool` as the developer's IAM user, run
+   `deploy/schema.sql` as it is, then:
+
+   ```sql
+   GRANT INSERT ON items TO "<DB_USER>";
+   ```
+
+   with `DB_USER`'s value from `deploy/lib.sh` typed in by hand: Studio
+   can't expand variables. `INSERT` only: the app only inserts, with no
+   `RETURNING` or `ON CONFLICT` (both need `SELECT`), and the developer
+   reads rows as their own user. No sequence grant: the ID is a UUID made
+   in the app. **trial-confirm** adds `SELECT` and a column-level `UPDATE`
+   at its own deploy; the columns already exist.
 
 Not *Workforce identity federation*: that is for an outside identity
 provider.
 
 Check: `read-back.sh`, *Database and users*, and the developer logs in to
 `listing_tool` as their IAM user in *Cloud SQL Studio* (IAM database
-authentication), where `SELECT current_user;` returns their account.
+authentication), where `SELECT current_user;` returns their account. After
+4, `SELECT privilege_type FROM information_schema.role_table_grants WHERE
+table_name = 'items' AND grantee = '<DB_USER>';` returns only `INSERT`.
 
 ### 10. Photo bucket
 

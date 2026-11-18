@@ -2,12 +2,20 @@
 
 The catalogue is gitignored, so every test that needs it skips rather than
 fails when it is absent. A fresh clone runs green.
+
+The real-Postgres tests skip with PG_SKIP_REASON when TEST_DATABASE_URL is
+unset, and fail instead when CI is set: CI always runs them.
 """
 
+import os
 import sys
+from collections.abc import Iterator
 from pathlib import Path
+from uuid import uuid4
 
+import psycopg
 import pytest
+from psycopg import sql
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -71,3 +79,27 @@ def misread_pair(catalogue) -> tuple[str, str]:
             if art_lookup(misread) is None and _parses_cleanly(misread):
                 return misread, code
     pytest.skip("no clean misread/real pair available")
+
+
+PG_SKIP_REASON = "no TEST_DATABASE_URL: real-Postgres tests run in CI"
+SCHEMA_SQL = Path(__file__).resolve().parent.parent / "deploy" / "schema.sql"
+
+
+@pytest.fixture()
+def pg_conn() -> Iterator[psycopg.Connection]:
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        if os.environ.get("CI"):
+            pytest.fail(
+                "TEST_DATABASE_URL is unset in CI: check the Postgres service "
+                "and env in .github/workflows/tests.yml"
+            )
+        pytest.skip(PG_SKIP_REASON)
+    with psycopg.connect(url, autocommit=True) as conn:
+        schema = sql.Identifier(f"test_{uuid4().hex}")
+        conn.execute(sql.SQL("CREATE SCHEMA {}").format(schema))
+        conn.execute(sql.SQL("SET search_path TO {}").format(schema))
+        conn.execute(SCHEMA_SQL.read_bytes())  # the file as-is, as deploy/README.md applies it
+        yield conn
+        conn.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(schema))
+
