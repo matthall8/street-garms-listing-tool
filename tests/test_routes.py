@@ -8,6 +8,7 @@ Every test here runs offline. Two guards keep it that way:
 - `no_real_extraction` makes any test that reaches the pipeline unpatched fail
   by name. It uses pytest.fail because the route's `except Exception` would
   swallow an ordinary exception into a normal-looking 502.
+- `no_real_stores` does the same for POST /items' photo store and database.
 
 The patch target is app.routes.extract_bytes, NOT labels.pipeline.extract_bytes
 — routes.py does `from labels.pipeline import extract_bytes`, which binds the
@@ -16,7 +17,9 @@ name at import time, so patching the source module would have no effect.
 
 import inspect
 import io
+import logging
 import os
+from contextlib import contextmanager
 
 import pytest
 from fastapi import FastAPI, UploadFile
@@ -24,7 +27,9 @@ from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
 
 from app import create_app, routes
-from labels.schemas import Extraction
+from labels.pipeline import from_reading
+from labels.schemas import AmbiguousCharacter, ArtNumberReading, Extraction
+from tests import synthetic as s
 
 
 @pytest.fixture
@@ -211,3 +216,183 @@ def test_no_route_handler_is_a_coroutine_function(client):
     assert handlers, "found no routes, so this test checked nothing"
     async_paths = [h.path for h in handlers if inspect.iscoroutinefunction(h.endpoint)]
     assert async_paths == []
+
+
+# POST /items. The photo store and the database are faked through the names
+# routes.py looks up at call time (photos.store_photo, db.connect,
+# db.insert_item). `no_real_stores` fails any test that reaches them unpatched,
+# with pytest.fail for the same reason as `no_real_extraction`.
+
+PHOTO = b"\xff\xd8 invented upload bytes"
+
+
+@pytest.fixture(autouse=True)
+def no_real_stores(monkeypatch):
+    def unpatched(*args, **kwargs):
+        pytest.fail("a photo store or database call was not patched")
+
+    monkeypatch.setattr(routes.photos, "store_photo", unpatched)
+    monkeypatch.setattr(routes.db, "connect", unpatched)
+    monkeypatch.setattr(routes.db, "insert_item", unpatched)
+
+
+@pytest.fixture
+def stored(monkeypatch):
+    """Fake photo store and database that succeed and record each call."""
+    calls = {"photo": [], "connect": 0, "insert": []}
+
+    def store_photo(item_id, data, media_type):
+        calls["photo"].append((item_id, data, media_type))
+
+    @contextmanager
+    def connect():
+        calls["connect"] += 1
+        yield "a connection"
+
+    def insert_item(conn, **row):
+        assert conn == "a connection"
+        calls["insert"].append(row)
+
+    monkeypatch.setattr(routes.photos, "store_photo", store_photo)
+    monkeypatch.setattr(routes.db, "connect", connect)
+    monkeypatch.setattr(routes.db, "insert_item", insert_item)
+    return calls
+
+
+def _photo(media_type: str = "image/jpeg") -> dict:
+    return {"art_photo": ("label.jpg", io.BytesIO(PHOTO), media_type)}
+
+
+def test_items_returns_only_the_id_and_the_value_shown(client, extract_calls, stored):
+    response = client.post("/items", files=_photo())
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"id", "value_shown"}  # ADR-0008, D3, D4
+    assert body["value_shown"] == "TESTCODE"
+
+    (item_id, _, _), = stored["photo"]
+    (row,) = stored["insert"]
+    assert body["id"] == str(item_id) == str(row["item_id"])
+    assert extract_calls[0]["source"] == str(item_id)  # never the filename
+
+
+def test_items_one_id_per_upload(client, extract_calls, stored):
+    first = client.post("/items", files=_photo()).json()["id"]
+    second = client.post("/items", files=_photo()).json()["id"]
+    assert first != second
+
+
+def test_items_sends_the_upload_unchanged_to_the_store_and_the_read(client, extract_calls, stored):
+    """D9: the bytes stored are the bytes read, and the object's content type
+    is the validated media type, not the client's header."""
+    client.post("/items", files=_photo("image/jpeg; charset=binary"))
+    ((_, data, media_type),) = stored["photo"]
+    assert (data, media_type) == (PHOTO, "image/jpeg")
+    assert extract_calls[0]["art"] == (PHOTO, "image/jpeg")
+
+
+def test_items_stores_the_row(client, extract_calls, stored):
+    client.post("/items", files=_photo())
+    (row,) = stored["insert"]
+    assert row["value_shown"] == "TESTCODE"
+    assert row["reading"] == {
+        "art_number_raw": "TESTCODE",
+        "art_legible": "clear",
+        "ambiguous_characters": [],
+    }
+    assert row["received_at"].tzinfo is not None
+    assert stored["connect"] == 1
+
+
+def test_items_empty_read_returns_null_and_stores_null(client, stored, monkeypatch):
+    empty = _extraction("")
+    empty.art_number_raw, empty.art_base, empty.legibility = None, None, "not_visible"
+    monkeypatch.setattr(routes, "extract_bytes", lambda art, source="": empty)
+
+    response = client.post("/items", files=_photo())
+    assert response.status_code == 200
+    assert response.json()["value_shown"] is None
+    (row,) = stored["insert"]
+    assert row["value_shown"] is None
+    assert row["reading"]["art_legible"] == "not_visible"
+
+
+@pytest.mark.parametrize(
+    "revision", ["listing-tool-00007-zzz", None], ids=["on Cloud Run", "off Cloud Run"]
+)
+def test_items_stores_the_revision(client, extract_calls, stored, monkeypatch, revision):
+    if revision is None:
+        monkeypatch.delenv("K_REVISION", raising=False)
+    else:
+        monkeypatch.setenv("K_REVISION", revision)
+    client.post("/items", files=_photo())
+    assert stored["insert"][0]["revision"] == revision
+
+
+@pytest.mark.parametrize(
+    "files, status, detail",
+    [
+        pytest.param({}, 400, routes.NO_PHOTO, id="no photo"),
+        pytest.param(
+            {"art_photo": ("a.gif", io.BytesIO(b"x"), "image/gif")},
+            400, routes.NOT_AN_IMAGE, id="wrong type",
+        ),
+        pytest.param(_upload_of(CAP + 1), 413, routes.TOO_LARGE, id="too large"),
+    ],
+)
+def test_items_rejected_upload_stores_nothing(client, extract_calls, stored, files, status, detail):
+    response = client.post("/items", files=files)
+    assert response.status_code == status
+    assert response.json() == {"detail": detail}  # fixed: never the client's media type
+    assert stored["photo"] == [] and extract_calls == [] and stored["insert"] == []
+
+
+RAW = "raw-error-text-that-must-not-leave"
+
+
+def _fails(*args, **kwargs):
+    raise TimeoutError(RAW)
+
+
+@pytest.mark.parametrize(
+    "step, target, detail",
+    [
+        ("photo", (routes.photos, "store_photo"), routes.PHOTO_NOT_SAVED),
+        ("read", (routes, "extract_bytes"), routes.READ_FAILED),
+        ("insert", (routes.db, "connect"), routes.READ_NOT_SAVED),
+        ("insert", (routes.db, "insert_item"), routes.READ_NOT_SAVED),
+    ],
+    ids=["photo store", "read", "connect", "insert"],
+)
+def test_items_failure_is_a_502_with_a_fixed_message_and_one_log_line(
+    client, extract_calls, stored, monkeypatch, caplog, step, target, detail
+):
+    monkeypatch.setattr(*target, _fails)
+    with caplog.at_level(logging.ERROR, logger=routes.logger.name):
+        response = client.post("/items", files=_photo())
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": detail}
+    assert RAW not in response.text
+
+    (record,) = [r for r in caplog.records if r.name == routes.logger.name]
+    assert record.getMessage() == f"POST /items failed: step={step} error=TimeoutError"
+    assert RAW not in caplog.text
+
+    # Decision order: nothing after the failed step runs.
+    if step == "photo":
+        assert extract_calls == []
+    if step in ("photo", "read"):
+        assert stored["insert"] == []
+
+
+def test_the_reading_rebuilt_from_an_extraction_is_the_reading_read():
+    """What the row stores replays: a reading through from_reading() and the
+    rebuild comes back as the same reading."""
+    original = ArtNumberReading(
+        art_number_raw=s.SPLIT_SI_9,
+        art_legible="partial",
+        ambiguous_characters=[AmbiguousCharacter(position=5, reading="Q", alternative="O")],
+    )
+    extraction = from_reading(original, source="zz-item")
+    assert ArtNumberReading.model_validate(routes._reading(extraction)) == original
