@@ -19,7 +19,6 @@ CLAUDE.md. Phase 1 gate: adr/0002. Baselines and md5 ledgers: evals/BASELINES.md
   section.
 
 ## Next
-- **trial-records**
 
 ## Staff trial
 Phase 2: the build for ADR-0007's trial, under ADR-0008 and ADR-0009.
@@ -28,32 +27,29 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **trial-records**: `app/db.py`, `app/photos.py` and `POST /items`,
-  storing the read-time fields ADR-0007, *Scope and storage* lists,
-  behind the response allowlist (D3). A failed read stores no row, with
-  D5's one exception (ADR-0007, *How items count*; D5). The schema file
-  and its `GRANT`s to the runtime database user, applied by the developer
-  at its first deploy (`deploy/README.md`, step 9). The D3 and D9 tests;
-  the real-Postgres setup, CI service and required test database URL,
-  with one real-Postgres test that stores a row (D8). Adds the Postgres
-  driver and the Cloud Storage client to `API_CLIENTS` (D8); CLAUDE.md's
-  API rule, *Flow* and CI command change with it (ADR-0008,
-  *Consequences*). No database password: the connector with IAM
-  authentication (ADR-0008, *Amendments*). Its first deploy proves the
-  runtime account's connection, falling back to a password in Secret
-  Manager if it fails (ADR-0009, *Amendments*), shows whether
-  `cloudsql.client` is needed (`deploy/README.md`, step 11), and passes
-  `deploy/read-back.sh`, including the environment variables
-- **postgres-test-skips**: the real-Postgres tests (ADR-0008, D8) skip
-  when no URL is set, but the reviewer requires 0 local skips
-  (`.claude/agents/code-reviewer.md`); reconcile them. With
-  **trial-records**
-- **upload-cap-reuse**: reuse the upload-cap helper in `app/routes.py`
-  for `POST /items`. With **trial-records**
+- **trial-records-deploy**: after **trial-records** merges: apply
+  `deploy/schema.sql`, then the `GRANT` (`deploy/README.md`, step 9);
+  deploy and `deploy/read-back.sh`; one real non-trial upload (one paid
+  read), noting its time. Records whether the runtime account connects by
+  IAM, falling back to a password in Secret Manager if not (ADR-0009,
+  *Amendments*); whether `cloudsql.client` is needed (if not, remove it
+  from step 11, read-back and `lib.sh`); that no `--add-cloudsql-instances`
+  is needed; what read-back shows for the runtime account's database roles,
+  and that the runtime user holds only `INSERT` on `items`
+  (`information_schema.role_table_grants` in Cloud SQL Studio; a table
+  `GRANT` may only show in SQL); the timeout constants sanity-checked
+  against the deploy's request log. Corrects steps 9.3 and 11 from what it
+  shows
 - **trial-confirm**: confirm, storing the confirm-time fields, and the
   confirms the server refuses (ADR-0008, D5); D5's tests and D8's three
   real-Postgres tests; the counted-item and stop-rule queries (D6).
-  After **trial-records**
+  At its deploy, `GRANT SELECT` and `GRANT UPDATE (final_value, outcome,
+  confirmed_at, sheet_status, sheet_updated_at)` on `items` to the
+  runtime user (`deploy/README.md`, step 9), checked in
+  `information_schema`; consider a real-Postgres test that runs the
+  app's SQL as a role holding only that grant, as a column-level
+  `UPDATE` is easier to get wrong than an `INSERT`. After
+  **trial-records**
 - **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`,
   appending to the field ADR-0007 sets (ADR-0008, D7 and its *Build
   constraints*), and the stuck-Sheet query (D7). Adds the Google Sheets

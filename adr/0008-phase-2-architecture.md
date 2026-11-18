@@ -457,3 +457,13 @@ and TypeScript is a major version behind until typescript-eslint catches up.
   driver is **trial-records**' choice; if the runtime account can't connect
   at that branch's first deploy, it falls back to a password in Secret
   Manager (ADR-0009, *Amendments*).
+- **2026-11-18:** D5's "the configuration [is] stored when the read is
+  made" becomes: the item's row stores the Cloud Run revision that served
+  the read (`K_REVISION`; `NULL` off Cloud Run), not the configuration.
+  Per-read fingerprints are computed in `tests/eval_transcription.py`,
+  which the app can't import, and moving them into `labels/` would fail
+  the gate check. A revision identifies one image and one set of settings,
+  so it identifies the configuration: each revision's commit is checked
+  against the gate when it first appears in the trial's data. So
+  ADR-0007's "the configuration that produced the read" still holds, and
+  ADR-0007 needs no amendment.

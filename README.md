@@ -44,13 +44,16 @@ those 10 would publish under the wrong title without review.
 
 ```
 main.py  /  app/routes.py
-  └─ labels/pipeline.py    extract_bytes() = transcribe(), then from_reading()
-       ├─ labels/transcribe.py   1 vision call → LabelReading    (only module that calls an API)
-       └─ from_reading()         the only join point; no API call, so replays can run it on saved reads
-            ├─ labels/art_number.py   parse() → Art              (pure, no I/O)
-            └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
-                                          ↓
-                                      labels/schemas.py → Extraction
+  ├─ app/photos.py         POST /items only: the photo → Cloud Storage, first
+  ├─ labels/pipeline.py    extract_bytes() = transcribe(), then from_reading()
+  │    ├─ labels/transcribe.py   1 vision call → LabelReading    (the only module that calls the model)
+  │    │    └─ labels/photo.py        upright(): applies the EXIF orientation tag   (pure, no I/O)
+  │    └─ from_reading()         the only join point; no API call, so replays can run it on saved reads
+  │         ├─ labels/art_number.py   parse() → Art              (pure, no I/O)
+  │         └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
+  │                                       ↓
+  │                                   labels/schemas.py → Extraction
+  └─ app/db.py             POST /items only: the item's row → Postgres, last
 ```
 
 Terms: [GLOSSARY.md](GLOSSARY.md).

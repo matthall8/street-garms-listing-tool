@@ -72,6 +72,7 @@ under a different product name may be exceptions.
 | main Sheet | The Google Sheet staff work from, which receives each final value (ADR-0007). |
 | feedback Sheet | The Google Sheet holding ad-hoc feedback and the trial's manual logs (ADR-0007, ADR-0009). |
 | configuration | What the trial freezes; a change restarts the count (ADR-0007, *Scope and storage*). |
+| revision | The Cloud Run revision that served an item's read (`K_REVISION`), stored on its row; it identifies the configuration (ADR-0008, *Amendments*, 2026-11-18). |
 | staff trial | Phase 2 as a whole: founder review, team trial and decision (ADR-0007). |
 | founder review | Stage 1 of the staff trial. About 10 items that don't count towards the gate (ADR-0007). |
 | team trial | Stage 2 of the staff trial, whose counted items decide the gate (ADR-0007). |
