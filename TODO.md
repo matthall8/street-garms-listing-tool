@@ -462,3 +462,21 @@ sort them into a section.
 - **default-compute-editor**: the default compute service account holds
   project Editor, which reaches the photo bucket through its legacy
   project bindings (ADR-0009, D1). Review both in a separate branch
+- **trial-count-start**: the trial's queries count only rows with
+  `received_at` after the team trial's start, so founder-review and test
+  rows (including **trial-records-deploy**'s upload) don't count. With
+  **trial-confirm**
+- **revision-gate-check**: the daily D6 query adds `GROUP BY revision`;
+  for a revision not seen before, run the gate check against its commit
+  (`labels/`, the locked dependencies, the fingerprints). A new revision
+  alone isn't a configuration change; a failed check is flagged to the
+  project team the next day (ADR-0007, *Stop Rule*;
+  **mid-trial-config-rule**). With **trial-confirm**
+- **trial-start-revision**: note the serving revision in the feedback
+  Sheet's trial-start entry. With **staff-trial**
+- **revision-summary**: BASELINES.md gets a summary of the daily revision
+  checks: each revision's commit and its check result. With
+  **trial-report**
+- **sheet-write-scope**. Decision: whether D7's Sheet write is
+  simplified or the full D7 design is built; settled before
+  **sheets-push** starts, as an ADR-0008 change on its own branch
