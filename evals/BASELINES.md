@@ -398,6 +398,6 @@ concurrency 1, min instances 0, startup CPU boost on.
 | measure | value |
 |---|---|
 | `POST /items` through IAP (non-trial labels, browser console) | 4 uploads, all 200; 1 empty read, 3 read a value |
-| latency, warm instance | 1.4–3.0s |
+| latency, warm instance | 1.4–3.0s; far inside the 60s model timeout per attempt and `TIMEOUT=900`, so the timeout constants are unchanged |
 | stored | 4 photos as `image/jpeg`, 4 rows |
 | peak memory | 324 MiB, 32% of 1 GiB (1-minute samples, so a shorter spike can be missed) |

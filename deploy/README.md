@@ -340,7 +340,8 @@ rotate the key: add a secret version, change `SECRET_VERSION`, commit, deploy.
 The service also gets four plain environment variables, for the app from
 **trial-records** on: `CLOUD_SQL_INSTANCE` (the instance connection name),
 `DB_NAME`, `DB_USER` (the runtime account's IAM database user) and
-`PHOTO_BUCKET`. None is a credential.
+`PHOTO_BUCKET`. None is a credential. The service needs no
+`--add-cloudsql-instances`: the app's connector reaches the instance itself.
 
 ## Read-back
 
