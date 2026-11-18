@@ -467,3 +467,7 @@ and TypeScript is a major version behind until typescript-eslint catches up.
   against the gate when it first appears in the trial's data. So
   ADR-0007's "the configuration that produced the read" still holds, and
   ADR-0007 needs no amendment.
+- **2026-11-18:** at **trial-records**' first deploy, the runtime account
+  connected through the connector with automatic IAM database
+  authentication, so the 2026-11-14 entry's fallback to a password in
+  Secret Manager wasn't needed.

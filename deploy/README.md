@@ -235,8 +235,8 @@ On the instance, in the console:
 3. The same, for the runtime account's full email, with **no** database
    roles. Its username drops `.gserviceaccount.com`. It gets one table
    grant, in 4.
-4. The table, at **trial-records-deploy**: in *Cloud SQL Studio*, logged
-   in to `listing_tool` as the developer's IAM user, run
+4. The table, before deploying an image that writes to it: in *Cloud SQL
+   Studio*, logged in to `listing_tool` as the developer's IAM user, run
    `deploy/schema.sql` as it is, then:
 
    ```sql
@@ -258,6 +258,8 @@ Check: `read-back.sh`, *Database and users*, and the developer logs in to
 authentication), where `SELECT current_user;` returns their account. After
 4, `SELECT privilege_type FROM information_schema.role_table_grants WHERE
 table_name = 'items' AND grantee = '<DB_USER>';` returns only `INSERT`.
+That query is the only check for the grant: read-back's *its database
+roles* line shows Cloud SQL user roles, not table grants.
 
 ### 10. Photo bucket
 
@@ -297,9 +299,9 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 - **The two Cloud SQL roles, on the project:** the exception to step 5.
   `gcloud sql instances` has no IAM policy commands, and the console says
   database login must be granted "in the IAM policy of the instance's
-  project". Instance
-  User is that login. Client is granted because Google's pages disagree on
-  whether a connector needs it; **trial-records**' first deploy shows which.
+  project". Instance User is that login. Client is granted because Google's
+  pages disagree on whether a connector needs it. Kept, untested: the first
+  connector deploy worked with it, and nobody tried without it.
 
 The project commands print the whole policy, account emails included: clear
 the terminal.
@@ -338,7 +340,8 @@ rotate the key: add a secret version, change `SECRET_VERSION`, commit, deploy.
 The service also gets four plain environment variables, for the app from
 **trial-records** on: `CLOUD_SQL_INSTANCE` (the instance connection name),
 `DB_NAME`, `DB_USER` (the runtime account's IAM database user) and
-`PHOTO_BUCKET`. None is a credential.
+`PHOTO_BUCKET`. None is a credential. The service needs no
+`--add-cloudsql-instances`: the app's connector reaches the instance itself.
 
 ## Read-back
 

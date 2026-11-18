@@ -391,3 +391,13 @@ concurrency 1, min instances 0, startup CPU boost on.
 | phone upload from the photo library | about 3.0 MB request, read returned a result in 2.9s |
 | peak memory | 287 MiB, 28% of 1 GiB, with the 3 MB upload; 246 MiB with the camera upload (p99 of 1-minute samples, so a shorter spike can be missed) |
 | request held through IAP from a phone browser | 130s, completed (ADR-0008, D2 check) |
+
+**2026-11-18:** **trial-records**' first deploy, image from commit
+`1a01987`; 1 GiB memory, concurrency 1, min instances 0.
+
+| measure | value |
+|---|---|
+| `POST /items` through IAP (non-trial labels, browser console) | 4 uploads, all 200; 1 empty read, 3 read a value |
+| latency, warm instance | 1.4–3.0s; far inside the 60s model timeout per attempt and `TIMEOUT=900`, so the timeout constants are unchanged |
+| stored | 4 photos as `image/jpeg`, 4 rows |
+| peak memory | 324 MiB, 32% of 1 GiB (1-minute samples, so a shorter spike can be missed) |
