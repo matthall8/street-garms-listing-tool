@@ -2,6 +2,9 @@
 
 The catalogue is gitignored, so every test that needs it skips rather than
 fails when it is absent. A fresh clone runs green.
+
+The real-Postgres tests skip with PG_SKIP_REASON when TEST_DATABASE_URL is
+unset, and fail instead when CI is set: CI always runs them.
 """
 
 import os
