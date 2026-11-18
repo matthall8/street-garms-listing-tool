@@ -27,19 +27,6 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **trial-records-deploy**: after **trial-records** merges: apply
-  `deploy/schema.sql`, then the `GRANT` (`deploy/README.md`, step 9);
-  deploy and `deploy/read-back.sh`; one real non-trial upload (one paid
-  read), noting its time. Records whether the runtime account connects by
-  IAM, falling back to a password in Secret Manager if not (ADR-0009,
-  *Amendments*); whether `cloudsql.client` is needed (if not, remove it
-  from step 11, read-back and `lib.sh`); that no `--add-cloudsql-instances`
-  is needed; what read-back shows for the runtime account's database roles,
-  and that the runtime user holds only `INSERT` on `items`
-  (`information_schema.role_table_grants` in Cloud SQL Studio; a table
-  `GRANT` may only show in SQL); the timeout constants sanity-checked
-  against the deploy's request log. Corrects steps 9.3 and 11 from what it
-  shows
 - **trial-confirm**: confirm, storing the confirm-time fields, and the
   confirms the server refuses (ADR-0008, D5); D5's tests and D8's three
   real-Postgres tests; the counted-item and stop-rule queries (D6).
@@ -464,7 +451,7 @@ sort them into a section.
   project bindings (ADR-0009, D1). Review both in a separate branch
 - **trial-count-start**: the trial's queries count only rows with
   `received_at` after the team trial's start, so founder-review and test
-  rows (including **trial-records-deploy**'s upload) don't count. With
+  rows (including the 2026-11-18 deploy check's uploads) don't count. With
   **trial-confirm**
 - **revision-gate-check**: the daily D6 query adds `GROUP BY revision`;
   for a revision not seen before, run the gate check against its commit
