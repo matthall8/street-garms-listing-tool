@@ -38,9 +38,9 @@ If `git diff main...HEAD --name-only` touches `frontend/`, also run, from
 the repo root, as one command (it selects the Node `frontend/.nvmrc` pins):
 `(cd frontend && nvm use && npm ci && npm run build && npm run typecheck && npm run lint && npm test)`.
 Any failure: stop and report it in one line.
-pytest must show 0 skips: the catalogue is present locally, and this is
-the only run where catalogue-dependent tests run. One skip is allowed:
-unless `TEST_DATABASE_URL` is set, the real-Postgres tests skip with
+pytest must show 0 skips, with one exception: the catalogue is present
+locally, and this is the only run where catalogue-dependent tests run. The
+exception: unless `TEST_DATABASE_URL` is set, the real-Postgres tests skip with
 exactly the reason `no TEST_DATABASE_URL: real-Postgres tests run in CI`
 (`PG_SKIP_REASON`, `tests/conftest.py`); CI fails rather than skips them,
 so they're checked on the PR's CI run. Any other skip: stop and report it

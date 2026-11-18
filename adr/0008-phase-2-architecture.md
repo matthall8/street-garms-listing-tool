@@ -1,6 +1,6 @@
 # ADR-0008: Phase 2 architecture
 
-- **Status:** Accepted; amended 2026-11-14 (*Amendments*)
+- **Status:** Accepted; amended 2026-11-14, 2026-11-18 (*Amendments*)
 - **Date:** 2026-11-09
 - **Amends:** CLAUDE.md, *Flow*, *Commands* and *Engineering constraints* (D4,
   D8, D10)

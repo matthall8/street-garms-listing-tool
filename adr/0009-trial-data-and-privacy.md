@@ -1,6 +1,6 @@
 # ADR-0009: Trial data and privacy
 
-- **Status:** Accepted; amended 2026-11-13 (*Amendments*)
+- **Status:** Accepted; amended 2026-11-13, 2026-11-18 (*Amendments*)
 - **Date:** 2026-11-09
 - **Depends on:** ADR-0007, ADR-0008
 - **Terms:** see `GLOSSARY.md`.
