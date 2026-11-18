@@ -15,6 +15,7 @@ dependencies = [
     "python-multipart==0.0.32",
     "psycopg[binary]==3.3.9",
     "cloud-sql-python-connector[psycopg]==1.24.0",
+    "google-cloud-storage==3.17.1",
 ]
 
 [dependency-groups]
