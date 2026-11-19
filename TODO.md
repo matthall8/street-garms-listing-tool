@@ -466,10 +466,11 @@ sort them into a section.
 - **revision-summary**: BASELINES.md gets a summary of the daily revision
   checks: each revision's commit and its check result. With
   **trial-report**
-- **sheet-columns-drop**: drop the two columns ADR-0008's 2026-11-19
-  amendment removes from the live `items` table, in Cloud SQL Studio as
-  your own IAM user (the table's owner): `ALTER TABLE items DROP COLUMN
-  …, DROP COLUMN …;`, which drops their `CHECK` too. Check that
-  `information_schema.columns` lists the eight remaining columns and
-  `pg_constraint` has no `items` constraint naming either. No deploy:
-  the app doesn't use them. Before **sheets-push**'s deploy
+- **sheet-columns-drop**: on the live table, in Cloud SQL Studio as
+  your own IAM user (the table's owner), run
+  `ALTER TABLE items DROP COLUMN sheet_status, DROP COLUMN sheet_updated_at;`,
+  which drops their `CHECK` too (ADR-0008, *Amendments*, 2026-11-19).
+  Check that `information_schema.columns` lists the eight remaining
+  columns and `pg_constraint` has no `items` constraint naming either
+  dropped column. No deploy: the app doesn't use them. Before
+  **sheets-push**'s deploy
