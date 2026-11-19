@@ -27,28 +27,22 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **trial-confirm**: confirm, storing the confirm-time fields, and the
-  confirms the server refuses (ADR-0008, D5) and a repeated confirm with
-  a different final value (compared as in D5), with a test; a repeated
-  confirm with the same value changes nothing (*Amendments*,
-  2026-11-19); D5's tests and D8's three real-Postgres tests; the
-  counted-item and stop-rule queries (D6).
-  At its deploy, `GRANT SELECT` and `GRANT UPDATE (final_value, outcome,
-  confirmed_at)` on `items` to the runtime user (`deploy/README.md`,
-  step 9), checked in `information_schema`; consider a real-Postgres
-  test that runs the app's SQL as a role holding only that grant, as a
-  column-level `UPDATE` is easier to get wrong than an `INSERT`. After
-  **trial-records**
 - **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`,
   appending to the field ADR-0007 sets (ADR-0008, D7 and its *Build
   constraints*, as amended in *Amendments*, 2026-11-19), and a test that
   a repeated confirm with the same final value makes no append and
   answers `unknown` (*Amendments*, 2026-11-19). Adds the Google Sheets
   client to `API_CLIENTS` (D8). Its credential, if any, goes into Secret
-  Manager (ADR-0009, *Amendments*). After **trial-confirm**
+  Manager (ADR-0009, *Amendments*). Decision for its brief: which Sheet
+  **sheets-push-deploy**'s hand check writes to. The real Sheet means
+  deleting the test row; a copy overlaps **founder-review**'s append to a
+  copy of the real Sheet
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
   upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
-  logged with the raw error hidden, `uvicorn` timeouts
+  logged with the raw error hidden, `uvicorn` timeouts. Of the errors,
+  only the log is left: validation errors are handled (**trial-confirm**),
+  and other unhandled exceptions already return Starlette's plain 500
+  with no detail, but uvicorn logs their full traceback, message included
 - **upload-cap-scope**. Decision: the 16MB check in `app/routes.py`
   covers only the photo field and runs once the body has arrived, so a
   large upload is stored before its 413 and a large extra file part is
@@ -458,13 +452,13 @@ sort them into a section.
 - **trial-count-start**: the trial's queries count only rows with
   `received_at` after the team trial's start, so founder-review and test
   rows (including the 2026-11-18 deploy check's uploads) don't count. With
-  **trial-confirm**
+  **trial-queries**
 - **revision-gate-check**: the daily D6 query adds `GROUP BY revision`;
   for a revision not seen before, run the gate check against its commit
   (`labels/`, the locked dependencies, the fingerprints). A new revision
   alone isn't a configuration change; a failed check is flagged to the
   project team the next day (ADR-0007, *Stop Rule*;
-  **mid-trial-config-rule**). With **trial-confirm**
+  **mid-trial-config-rule**). With **trial-queries**
 - **trial-start-revision**: note the serving revision in the feedback
   Sheet's trial-start entry. With **staff-trial**
 - **revision-summary**: BASELINES.md gets a summary of the daily revision
@@ -478,3 +472,25 @@ sort them into a section.
   columns and `pg_constraint` has no `items` constraint naming either
   dropped column. No deploy: the app doesn't use them. Before
   **sheets-push**'s deploy
+- **trial-queries**: the counted-item and stop-rule queries (ADR-0008,
+  D6) as a committed raw-SQL file, pasted into Cloud SQL Studio, with
+  D8's two real-Postgres tests (counted items selected correctly, edit
+  count correct), matching ART numbers with the confirm's comparison, the
+  same SQL expression as `_same_as` in `app/db.py`. Absorbs **trial-count-start** and
+  **revision-gate-check**. Open: how the trial start and any pauses get
+  into the query (literals at the top of the file, a `trial_periods`
+  table, or a local script; Studio can't expand variables); and, with
+  **mid-trial-config-rule**, an ADR-0007 question: does an ART number
+  confirmed before the start or during a pause use up its first entry,
+  and does `received_at` or `confirmed_at` decide the window? Before
+  **staff-trial**
+- **sheets-push-deploy**: one merged deploy, in order: (1)
+  **sheet-columns-drop**'s `ALTER` and its check; (2) the `SELECT` and
+  column `UPDATE` grants (`deploy/README.md`, step 9); (3) the Sheet ID as
+  configuration, and the Sheet shared with the runtime service account;
+  (4) `deploy/deploy.sh`, then `deploy/read-back.sh`; (5) step 9's
+  `column_privileges` check; (6) the hand check: confirm one non-trial
+  item twice, and see exactly one row in the Sheet. A real-Postgres test
+  running the app's SQL as a role holding only the grants was considered
+  and declined: (6) runs the real grant on the real table. After
+  **sheets-push**
