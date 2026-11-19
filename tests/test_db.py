@@ -80,3 +80,96 @@ def test_connect_is_lazy_iam_autocommit_with_timeouts(connector):
         autocommit=True,
         options=f"-c statement_timeout={db.STATEMENT_TIMEOUT_MS}",
     )
+
+
+# The confirm, against real Postgres (ADR-0008, D5, D7, D8).
+
+SELECT_CONFIRM = "SELECT final_value, outcome, confirmed_at FROM items WHERE id = %s"
+
+
+def _item(conn: psycopg.Connection, value_shown: str | None = s.SPLIT_SI_9):
+    """Insert an unconfirmed item; value_shown=None is an empty read."""
+    item_id = uuid4()
+    reading = (
+        READING
+        if value_shown
+        else ArtNumberReading(art_number_raw=None, art_legible="not_visible").model_dump()
+    )
+    db.insert_item(
+        conn,
+        item_id=item_id,
+        received_at=datetime.now(UTC),
+        revision=None,
+        reading=reading,
+        value_shown=value_shown,
+    )
+    return item_id
+
+
+def _stored(conn: psycopg.Connection, item_id) -> tuple:
+    row = conn.execute(SELECT_CONFIRM, (item_id,)).fetchone()
+    assert row is not None
+    return row
+
+
+def _confirm(conn: psycopg.Connection, item_id, final_value: str):
+    return db.confirm_item(
+        conn, item_id=item_id, final_value=final_value, confirmed_at=datetime.now(UTC)
+    )
+
+
+@pytest.mark.parametrize(
+    "final_value, outcome",
+    [
+        pytest.param(s.SPLIT_SI_9, "unchanged", id="as shown"),
+        pytest.param(f"  {s.SPLIT_SI_9.lower()} ", "unchanged", id="spaces and case"),
+        pytest.param(s.SPLIT_SI_8, "edited", id="different"),
+        pytest.param("0" + s.SPLIT_SI_9, "edited", id="a leading zero added"),
+        pytest.param(f"\t{s.SPLIT_SI_9}", "edited", id="a tab is not a space"),
+    ],
+)
+def test_confirm_stores_the_value_as_entered_and_the_outcome(
+    pg_conn: psycopg.Connection, final_value, outcome
+):
+    """D5: the outcome comes from the stored value shown, compared after
+    trimming spaces and uppercasing; the final value is stored as entered.
+    "as shown" also catches a comparison with the final_value column, which
+    SET reads as NULL, making every confirm edited."""
+    item_id = _item(pg_conn)
+    before = datetime.now(UTC)
+    assert _confirm(pg_conn, item_id, final_value) == "confirmed"
+    stored_value, stored_outcome, confirmed_at = _stored(pg_conn, item_id)
+    assert (stored_value, stored_outcome) == (final_value, outcome)
+    assert confirmed_at >= before
+
+
+@pytest.mark.parametrize(
+    "second, result",
+    [
+        pytest.param(s.SPLIT_SI_8, "repeated", id="same value"),
+        pytest.param(f" {s.SPLIT_SI_8.lower()}", "repeated", id="same under D5's comparison"),
+        pytest.param(s.SPLIT_SI_9, "conflict", id="different value"),
+    ],
+)
+def test_a_second_confirm_changes_nothing(pg_conn: psycopg.Connection, second, result):
+    """D7, D8: the first confirm stands, whatever the second sends."""
+    item_id = _item(pg_conn)
+    assert _confirm(pg_conn, item_id, s.SPLIT_SI_8) == "confirmed"
+    first = _stored(pg_conn, item_id)
+
+    assert _confirm(pg_conn, item_id, second) == result
+    assert _stored(pg_conn, item_id) == first
+
+
+def test_a_confirm_on_an_empty_read_changes_nothing(pg_conn: psycopg.Connection):
+    """D5: refused, and refused by the guard, not the schema's CHECK."""
+    item_id = _item(pg_conn, value_shown=None)
+    assert _confirm(pg_conn, item_id, s.SPLIT_SI_9) == "empty_read"
+    assert _stored(pg_conn, item_id) == (None, None, None)
+
+
+def test_a_confirm_on_an_unknown_id_changes_nothing(pg_conn: psycopg.Connection):
+    item_id = _item(pg_conn)
+    assert _confirm(pg_conn, uuid4(), s.SPLIT_SI_9) == "not_found"
+    assert pg_conn.execute("SELECT count(*) FROM items").fetchone() == (1,)
+    assert _stored(pg_conn, item_id) == (None, None, None)
