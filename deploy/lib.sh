@@ -74,5 +74,5 @@ step() { printf '\n== %s\n' "$*"; }
 # The service's plain environment variables, NAME=value, comma-separated and
 # sorted by name. deploy.sh sets exactly these; read-back.sh compares them.
 service_env() {
-  echo "CLOUD_SQL_INSTANCE=${SQL_CONNECTION},DB_NAME=${DB_NAME},DB_USER=${DB_USER},PHOTO_BUCKET=${PHOTO_BUCKET}"
+  echo "CLOUD_SQL_INSTANCE=${SQL_CONNECTION},DB_NAME=${DB_NAME},DB_USER=${DB_USER},PHOTO_BUCKET=${PHOTO_BUCKET},SHEET_ID=${SHEET_ID},SHEET_TAB_ID=${SHEET_TAB_ID}"
 }
