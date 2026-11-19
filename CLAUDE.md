@@ -23,7 +23,7 @@ main.py  /  app/routes.py
   │         └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
   │                                       ↓
   │                                   labels/schemas.py → Extraction
-  └─ app/db.py             POST /items only: the item's row → Postgres, last
+  └─ app/db.py             POST /items: the item's row → Postgres, last; its confirm updates the row
 ```
 
 `schemas.py` is shared vocabulary and imports nothing of ours. `art_number.py`

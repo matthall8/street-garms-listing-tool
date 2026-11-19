@@ -496,8 +496,8 @@ def test_a_refused_confirm_has_a_fixed_message(client, confirms, result, status,
 
 def test_the_empty_read_refusal_does_not_say_there_is_no_number():
     """ADR-0007, *Scope and storage*: an empty read must not tell staff that
-    no ART number exists; the photo may just not show it."""
-    assert routes.NOTHING_TO_CONFIRM == "There's no read to confirm. Upload the photo again."
+    no ART number exists; the photo may just not show it. The wording itself
+    is mvp-confirm's."""
     assert "ART number" not in routes.NOTHING_TO_CONFIRM
 
 
