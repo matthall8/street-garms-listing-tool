@@ -44,10 +44,13 @@ def test_import_and_create_app_build_no_client():
     code = (
         "from unittest import mock\n"
         "import google.cloud.sql.connector as c, google.cloud.storage as s\n"
+        "import google.auth as a, google.auth.transport.requests as r\n"
         "built = AssertionError('a client was built at import or in create_app()')\n"
         "with mock.patch.object(c, 'Connector', side_effect=built),"
-        " mock.patch.object(s, 'Client', side_effect=built):\n"
-        "    import app, app.db, app.photos\n"
+        " mock.patch.object(s, 'Client', side_effect=built),"
+        " mock.patch.object(a, 'default', side_effect=built),"
+        " mock.patch.object(r, 'AuthorizedSession', side_effect=built):\n"
+        "    import app, app.db, app.photos, app.sheet\n"
         "    app.create_app()\n"
     )
     result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)
@@ -173,3 +176,48 @@ def test_a_confirm_on_an_unknown_id_changes_nothing(pg_conn: psycopg.Connection)
     assert _confirm(pg_conn, uuid4(), s.SPLIT_SI_9) == "not_found"
     assert pg_conn.execute("SELECT count(*) FROM items").fetchone() == (1,)
     assert _stored(pg_conn, item_id) == (None, None, None)
+
+
+# Post to Sheet's read, against real Postgres (ADR-0008, D7, as amended).
+
+
+@pytest.mark.parametrize(
+    "final_value",
+    [
+        pytest.param(s.SPLIT_SI_9, id="as shown"),
+        pytest.param("0" + s.SPLIT_SI_9, id="edited, with a leading zero"),
+    ],
+)
+def test_a_confirmed_item_gives_its_stored_final_value(pg_conn: psycopg.Connection, final_value):
+    item_id = _item(pg_conn)
+    assert _confirm(pg_conn, item_id, final_value) == "confirmed"
+    assert db.confirmed_final_value(pg_conn, item_id=item_id) == ("confirmed", final_value)
+
+
+@pytest.mark.parametrize("second", [s.SPLIT_SI_8, s.SPLIT_SI_9], ids=["repeated", "conflict"])
+def test_the_value_is_the_first_confirm_s_after_a_second(pg_conn: psycopg.Connection, second):
+    item_id = _item(pg_conn)
+    assert _confirm(pg_conn, item_id, s.SPLIT_SI_8) == "confirmed"
+    _confirm(pg_conn, item_id, second)
+    assert db.confirmed_final_value(pg_conn, item_id=item_id) == ("confirmed", s.SPLIT_SI_8)
+
+
+@pytest.mark.parametrize("value_shown", [s.SPLIT_SI_9, None], ids=["unconfirmed", "empty read"])
+def test_an_unconfirmed_item_gives_no_value(pg_conn: psycopg.Connection, value_shown):
+    item_id = _item(pg_conn, value_shown=value_shown)
+    assert db.confirmed_final_value(pg_conn, item_id=item_id) == ("unconfirmed", None)
+
+
+def test_an_unknown_id_gives_no_value(pg_conn: psycopg.Connection):
+    item_id = _item(pg_conn)
+    _confirm(pg_conn, item_id, s.SPLIT_SI_9)
+    assert db.confirmed_final_value(pg_conn, item_id=uuid4()) == ("not_found", None)
+    assert db.confirmed_final_value(pg_conn, item_id=item_id) == ("confirmed", s.SPLIT_SI_9)
+
+
+def test_the_read_changes_nothing(pg_conn: psycopg.Connection):
+    item_id = _item(pg_conn)
+    _confirm(pg_conn, item_id, s.SPLIT_SI_8)
+    before = _stored(pg_conn, item_id)
+    db.confirmed_final_value(pg_conn, item_id=item_id)
+    assert _stored(pg_conn, item_id) == before

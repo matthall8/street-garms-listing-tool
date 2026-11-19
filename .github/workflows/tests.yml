@@ -76,7 +76,7 @@ jobs:
       - run: docker build --platform linux/amd64 -t listing-tool:ci .
       # Fails by name if a driver doesn't load in the image, whatever the app
       # happens to import at startup. Proves they load, not that they connect.
-      - run: docker run --rm listing-tool:ci python -c "import psycopg, google.cloud.storage, google.cloud.sql.connector"
+      - run: docker run --rm listing-tool:ci python -c "import psycopg, google.cloud.storage, google.cloud.sql.connector, google.auth.transport.requests"
       # A non-default PORT, as Cloud Run injects one. No key, no catalogue.
       - run: docker run -d --name app -e PORT=9090 -p 9090:9090 listing-tool:ci
       # Starting proves no file the app needs is missing from the image.

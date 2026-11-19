@@ -504,3 +504,20 @@ and TypeScript is a major version behind until typescript-eslint catches up.
   deleted by hand (ADR-0007), and a missing row is found only by the daily
   comparison. The gate is unaffected: it counts from Postgres plus the hand
   log (ADR-0007).
+- **2026-11-19:** D7's *Build constraints* line "before the founder review,
+  an append to a copy of the real Sheet …", and D8's "D7's check against a
+  copy of the real Sheet covers the real append", become: before the founder
+  review, a confirm sent through the deployed app appends to the real
+  Sheet's intake tab, and the row is deleted straight after. It checks what
+  the trial will run: the Sheet's sharing, the token's scope, the tab and
+  the column, with a leading-zero value intact. The procedure is in
+  `deploy/README.md`. Rejected: a copy of the real Sheet (its sharing and tab
+  are the copy's, not the trial's); a scratch Sheet (the same, and not the
+  real layout).
+- **2026-11-19:** *Consequences*' "D7: a Google Sheets client joins the
+  dependencies" becomes: `google-auth`, already locked through
+  `google-cloud-storage`, becomes a direct pin, and the app calls the Sheets
+  REST API through `google-auth`'s `AuthorizedSession`; no Sheets client
+  library is added. Rejected: `google-api-python-client` (a heavy new
+  dependency, whose timeout is awkward to set through `httplib2`); `gspread`
+  (a third-party layer over one call).

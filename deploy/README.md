@@ -54,6 +54,7 @@ Enabled in the console, *APIs & Services → Library*:
 | Cloud Monitoring | `monitoring.googleapis.com` |
 | Cloud SQL Admin | `sqladmin.googleapis.com` |
 | Cloud Storage | `storage.googleapis.com` |
+| Google Sheets | `sheets.googleapis.com` |
 
 Cloud Resource Manager is easy to miss: `gcloud iap web get-iam-policy` and
 similar commands need it, and without it `gcloud` stops at a prompt to enable
@@ -345,10 +346,12 @@ memory, timeout, concurrency, instances, and the Cloud SQL and bucket
 settings) are in [`lib.sh`](lib.sh), tracked, so every change is a commit. To
 rotate the key: add a secret version, change `SECRET_VERSION`, commit, deploy.
 
-The service also gets four plain environment variables, for the app from
-**trial-records** on: `CLOUD_SQL_INSTANCE` (the instance connection name),
-`DB_NAME`, `DB_USER` (the runtime account's IAM database user) and
-`PHOTO_BUCKET`. None is a credential. The service needs no
+The service also gets six plain environment variables: `CLOUD_SQL_INSTANCE`
+(the instance connection name), `DB_NAME`, `DB_USER` (the runtime account's
+IAM database user), `PHOTO_BUCKET`, `SHEET_ID` (the trial Sheet's ID) and
+`SHEET_TAB_ID` (its intake tab's numeric `gid`). None is a credential. The
+two Sheet values identify a business document and can't be derived from
+`PROJECT_ID`, so they're kept in `deploy/config.env`, not in `lib.sh`. The service needs no
 `--add-cloudsql-instances`: the app's connector reaches the instance itself.
 
 ## Read-back
@@ -366,6 +369,54 @@ checks steps 8–11: the instance's settings, the database and its users, the
 bucket, and that on the project, the photo bucket and the secret the runtime
 account holds exactly its four roles and nothing else. Exits 1 if any check
 fails. Run it after every deploy.
+
+## Sheet hand check
+
+Once, at **sheets-push-deploy**'s step 6 (TODO.md), before the founder
+review (ADR-0008, *Amendments*, 2026-11-19). It appends to the real Sheet's
+intake tab, so run it outside working hours, and delete the row straight
+after.
+
+1. Sign in to the service and open `/`. Choose a non-trial photo whose ART
+   number is readable in the form, but don't submit it. Sending it below
+   makes one read, one API call.
+2. In the browser's developer console:
+
+   ```js
+   const form = document.querySelector("form");
+   const item = await (await fetch("/items", { method: "POST", body: new FormData(form) })).json();
+   const value = prompt("An invented value starting with 0, never a real code");
+   const confirm = () =>
+     fetch(`/items/${item.id}/confirm`, {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ final_value: value }),
+     }).then((r) => r.json());
+   await confirm(); // {sheet: "sent"}
+   await confirm(); // {sheet: "unknown"}
+   ```
+
+3. Expect `sent`, then `unknown`, and exactly one new row in the intake tab:
+   the value in column B with its leading zero, and column A empty. Delete
+   the row.
+
+Other answers:
+
+- `{sheet: "failed"}` first: check the tab anyway, since a timed-out append
+  may have landed. The log has one line, `POST /items/{id}/confirm failed:
+  step=sheets error=<class>`. `HTTPError` is a refusal from the Sheets API,
+  most likely the Sheet's sharing, the token's scope or the tab ID;
+  `KeyError` or `ValueError` is `SHEET_ID` or `SHEET_TAB_ID` missing or not
+  a number. If the token lacks the `spreadsheets` scope, stop and ask
+  before any key goes into Secret Manager.
+- `item` is `{detail: …}`, or its `value_shown` is `null` and the confirm
+  answers `{detail: …}`: the read failed or found no ART number. Choose
+  another photo.
+- A sign-in page or an error instead of JSON: IAP refused the `fetch`. Don't
+  write a script around it; wait for **mvp-confirm**'s screen.
+
+The item stays in Postgres, confirmed. It isn't counted, because it predates
+the team trial's start (TODO.md, **trial-count-start**).
 
 ## Running `gcloud` from a script
 

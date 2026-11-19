@@ -54,6 +54,19 @@ CLASSIFY_MISS = f"""
 
 ConfirmResult = Literal["confirmed", "repeated", "conflict", "empty_read", "not_found"]
 
+# Post to Sheet's value: the stored final value, and only once confirmed
+# (ADR-0008, D7, as amended 2026-11-19). An empty read is never confirmed.
+CONFIRMED_FINAL_VALUE = """
+    SELECT final_value FROM items WHERE id = %(id)s AND confirmed_at IS NOT NULL
+"""
+
+# Why CONFIRMED_FINAL_VALUE matched no row.
+ITEM_EXISTS = "SELECT 1 FROM items WHERE id = %(id)s"
+
+FinalValueResult = (
+    tuple[Literal["confirmed"], str] | tuple[Literal["unconfirmed", "not_found"], None]
+)
+
 
 @cache
 def _connector() -> Connector:
@@ -115,3 +128,16 @@ def confirm_item(
     if empty_read:
         return "empty_read"
     return "repeated" if same else "conflict"
+
+
+def confirmed_final_value(conn: psycopg.Connection, *, item_id: UUID) -> FinalValueResult:
+    """A confirmed item's stored final value, as entered: ("confirmed",
+    value). Otherwise ("unconfirmed", None), empty reads included, or
+    ("not_found", None) if there is no such item. Reads only."""
+    params = {"id": item_id}
+    row = conn.execute(CONFIRMED_FINAL_VALUE, params).fetchone()
+    if row is not None:
+        return "confirmed", row[0]
+    if conn.execute(ITEM_EXISTS, params).fetchone() is None:
+        return "not_found", None
+    return "unconfirmed", None

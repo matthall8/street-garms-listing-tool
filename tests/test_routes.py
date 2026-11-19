@@ -8,7 +8,8 @@ Every test here runs offline. Two guards keep it that way:
 - `no_real_extraction` makes any test that reaches the pipeline unpatched fail
   by name. It uses pytest.fail because the route's `except Exception` would
   swallow an ordinary exception into a normal-looking 502.
-- `no_real_stores` does the same for POST /items' photo store and database.
+- `no_real_stores` does the same for the photo store, the database and the
+  Sheet.
 
 The patch target is app.routes.extract_bytes, NOT labels.pipeline.extract_bytes
 — routes.py does `from labels.pipeline import extract_bytes`, which binds the
@@ -230,12 +231,14 @@ PHOTO = b"\xff\xd8 invented upload bytes"
 @pytest.fixture(autouse=True)
 def no_real_stores(monkeypatch):
     def unpatched(*args, **kwargs):
-        pytest.fail("a photo store or database call was not patched")
+        pytest.fail("a photo store, database or Sheet call was not patched")
 
     monkeypatch.setattr(routes.photos, "store_photo", unpatched)
     monkeypatch.setattr(routes.db, "connect", unpatched)
     monkeypatch.setattr(routes.db, "insert_item", unpatched)
     monkeypatch.setattr(routes.db, "confirm_item", unpatched)
+    monkeypatch.setattr(routes.db, "confirmed_final_value", unpatched)
+    monkeypatch.setattr(routes.sheet, "add_to_sheet", unpatched)
 
 
 @pytest.fixture
@@ -408,8 +411,9 @@ ITEM_ID = "6f1c2a3b-0000-4000-8000-00000000c0f1"
 
 @pytest.fixture
 def confirms(monkeypatch):
-    """Fake database whose confirm_item answers `result`, recording each call."""
-    calls = {"connect": 0, "confirm": [], "result": "confirmed"}
+    """Fake database whose confirm_item answers `result`, and a fake Sheet
+    whose append succeeds, recording each call and each value appended."""
+    calls = {"connect": 0, "confirm": [], "result": "confirmed", "appended": []}
 
     @contextmanager
     def connect():
@@ -423,6 +427,7 @@ def confirms(monkeypatch):
 
     monkeypatch.setattr(routes.db, "connect", connect)
     monkeypatch.setattr(routes.db, "confirm_item", confirm_item)
+    monkeypatch.setattr(routes.sheet, "add_to_sheet", calls["appended"].append)
     return calls
 
 
@@ -430,10 +435,11 @@ def _confirm(client, body, item_id: str = ITEM_ID):
     return client.post(f"/items/{item_id}/confirm", json=body)
 
 
-def test_confirm_is_a_204_with_no_body(client, confirms):
+def test_a_first_confirm_appends_once_and_answers_sent(client, confirms):
     response = _confirm(client, {"final_value": s.SPLIT_SI_9})
-    assert response.status_code == 204
-    assert response.content == b""
+    assert response.status_code == 200
+    assert response.json() == {"sheet": "sent"}
+    assert confirms["appended"] == [s.SPLIT_SI_9]
 
     (call,) = confirms["confirm"]
     assert str(call["item_id"]) == ITEM_ID
@@ -442,10 +448,12 @@ def test_confirm_is_a_204_with_no_body(client, confirms):
 
 
 def test_confirm_sends_the_final_value_as_entered(client, confirms):
-    """D5: stored as entered; the trim and uppercase are only for the outcome."""
+    """D5: stored as entered, and appended as stored; the trim and uppercase
+    are only for the outcome."""
     entered = f" {s.SPLIT_SI_9.lower()}  "
     _confirm(client, {"final_value": entered})
     assert confirms["confirm"][0]["final_value"] == entered
+    assert confirms["appended"] == [entered]
 
 
 def test_the_confirm_request_carries_only_the_final_value():
@@ -492,6 +500,7 @@ def test_a_refused_confirm_has_a_fixed_message(client, confirms, result, status,
     assert response.status_code == status
     assert response.json() == {"detail": detail}
     assert s.SPLIT_SI_9 not in response.text
+    assert confirms["appended"] == []
 
 
 def test_the_empty_read_refusal_does_not_say_there_is_no_number():
@@ -501,12 +510,32 @@ def test_the_empty_read_refusal_does_not_say_there_is_no_number():
     assert "ART number" not in routes.NOTHING_TO_CONFIRM
 
 
-def test_a_repeat_with_the_same_value_succeeds_as_the_first_did(client, confirms):
-    """D7, as amended: a lost response followed by a retap."""
+def test_a_repeat_with_the_same_value_makes_no_append_and_answers_unknown(client, confirms):
+    """D7, as amended: a lost response followed by a retap. The first confirm
+    may or may not have reached the Sheet, so the repeat says neither."""
     first = _confirm(client, {"final_value": s.SPLIT_SI_9})
     confirms["result"] = "repeated"
     second = _confirm(client, {"final_value": s.SPLIT_SI_9})
-    assert (second.status_code, second.content) == (first.status_code, first.content)
+    assert (first.status_code, first.json()) == (200, {"sheet": "sent"})
+    assert (second.status_code, second.json()) == (200, {"sheet": "unknown"})
+    assert confirms["appended"] == [s.SPLIT_SI_9]
+
+
+def test_a_failed_append_answers_failed_and_logs_one_line(client, confirms, monkeypatch, caplog):
+    """D7, as amended: the confirm stands, so a 200; the screen handles
+    `failed`. The log line has the step and the class, never the value."""
+    monkeypatch.setattr(routes.sheet, "add_to_sheet", _fails)
+    with caplog.at_level(logging.ERROR, logger=routes.logger.name):
+        response = _confirm(client, {"final_value": s.SPLIT_SI_9})
+
+    assert (response.status_code, response.json()) == (200, {"sheet": "failed"})
+    assert len(confirms["confirm"]) == 1
+    (record,) = [r for r in caplog.records if r.name == routes.logger.name]
+    assert record.getMessage() == (
+        "POST /items/{id}/confirm failed: step=sheets error=TimeoutError"
+    )
+    for leak in (RAW, s.SPLIT_SI_9, ITEM_ID):
+        assert leak not in caplog.text
 
 
 @pytest.mark.parametrize("target", ["connect", "confirm_item"])
@@ -526,6 +555,129 @@ def test_confirm_database_failure_is_a_502_with_a_fixed_message_and_one_log_line
         "POST /items/{id}/confirm failed: step=confirm error=TimeoutError"
     )
     assert RAW not in caplog.text and ITEM_ID not in caplog.text
+    assert confirms["appended"] == []
+
+
+# POST /items/{id}/post-to-sheet. The read is faked; what it returns for each
+# kind of row is tested against real Postgres in tests/test_db.py.
+
+STORED = "0" + s.SPLIT_SI_9  # a leading zero, as staff might type it
+
+
+@pytest.fixture
+def posts(monkeypatch):
+    """Fake database whose confirmed_final_value answers `result`, and a fake
+    Sheet whose append succeeds, recording each call and each value appended."""
+    calls = {"connect": 0, "load": [], "result": ("confirmed", STORED), "appended": []}
+
+    @contextmanager
+    def connect():
+        calls["connect"] += 1
+        yield "a connection"
+
+    def confirmed_final_value(conn, **kwargs):
+        assert conn == "a connection"
+        calls["load"].append(kwargs)
+        return calls["result"]
+
+    monkeypatch.setattr(routes.db, "connect", connect)
+    monkeypatch.setattr(routes.db, "confirmed_final_value", confirmed_final_value)
+    monkeypatch.setattr(routes.sheet, "add_to_sheet", calls["appended"].append)
+    return calls
+
+
+def _post(client, item_id: str = ITEM_ID, **kwargs):
+    return client.post(f"/items/{item_id}/post-to-sheet", **kwargs)
+
+
+def test_post_to_sheet_appends_the_stored_value_and_answers_sent(client, posts):
+    response = _post(client)
+    assert (response.status_code, response.json()) == (200, {"sheet": "sent"})
+    (call,) = posts["load"]
+    assert str(call["item_id"]) == ITEM_ID
+    assert posts["appended"] == [STORED]
+
+
+def test_post_to_sheet_takes_no_body():
+    """D7's build constraint, as amended: no value from the request can reach
+    the Sheet, because the route takes none."""
+    assert list(inspect.signature(routes.post_to_sheet).parameters) == ["item_id"]
+
+
+def test_post_to_sheet_ignores_a_value_sent_anyway(client, posts):
+    response = _post(client, json={"final_value": s.SPLIT_SI_8})
+    assert (response.status_code, response.json()) == (200, {"sheet": "sent"})
+    assert posts["appended"] == [STORED]
+
+
+def test_post_to_sheet_never_refuses_a_second_append(client, posts):
+    """It checks no Sheet state: staff check the Sheet first (mvp-confirm)."""
+    assert [_post(client).json() for _ in range(2)] == [{"sheet": "sent"}] * 2
+    assert posts["appended"] == [STORED, STORED]
+
+
+def test_post_to_sheet_failed_append_answers_failed_and_logs_one_line(
+    client, posts, monkeypatch, caplog
+):
+    monkeypatch.setattr(routes.sheet, "add_to_sheet", _fails)
+    with caplog.at_level(logging.ERROR, logger=routes.logger.name):
+        response = _post(client)
+
+    assert (response.status_code, response.json()) == (200, {"sheet": "failed"})
+    (record,) = [r for r in caplog.records if r.name == routes.logger.name]
+    assert record.getMessage() == (
+        "POST /items/{id}/post-to-sheet failed: step=sheets error=TimeoutError"
+    )
+    for leak in (RAW, STORED, ITEM_ID):
+        assert leak not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "result, status, detail",
+    [
+        pytest.param(("unconfirmed", None), 409, routes.NOT_CONFIRMED, id="unconfirmed or empty read"),
+        pytest.param(("not_found", None), 404, routes.ITEM_NOT_FOUND, id="unknown ID"),
+    ],
+)
+def test_post_to_sheet_refusal_has_a_fixed_message_and_makes_no_append(
+    client, posts, result, status, detail
+):
+    posts["result"] = result
+    response = _post(client)
+    assert (response.status_code, response.json()) == (status, {"detail": detail})
+    assert posts["appended"] == []
+
+
+def test_the_not_confirmed_refusal_does_not_say_there_is_no_number():
+    """As the confirm's empty-read refusal: an empty read lands here too."""
+    assert "ART number" not in routes.NOT_CONFIRMED
+
+
+@pytest.mark.parametrize("target", ["connect", "confirmed_final_value"])
+def test_post_to_sheet_database_failure_is_a_502_with_one_log_line(
+    client, posts, monkeypatch, caplog, target
+):
+    monkeypatch.setattr(routes.db, target, _fails)
+    with caplog.at_level(logging.ERROR, logger=routes.logger.name):
+        response = _post(client)
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": routes.FINAL_VALUE_NOT_LOADED}
+    assert RAW not in response.text
+    (record,) = [r for r in caplog.records if r.name == routes.logger.name]
+    assert record.getMessage() == (
+        "POST /items/{id}/post-to-sheet failed: step=load error=TimeoutError"
+    )
+    assert RAW not in caplog.text and ITEM_ID not in caplog.text
+    assert posts["appended"] == []
+
+
+def test_post_to_sheet_on_an_id_that_is_not_a_uuid_is_a_400(client, posts):
+    response = _post(client, item_id=f"zz-{s.SPLIT_SI_9}")
+    assert response.status_code == 400
+    assert response.json() == {"detail": routes.INVALID_REQUEST}
+    assert s.SPLIT_SI_9 not in response.text
+    assert posts["connect"] == 0
 
 
 # Validation errors, app-wide: 400 with a fixed message, never FastAPI's 422,
@@ -582,3 +734,15 @@ def test_the_openapi_schema_documents_4xx_and_no_422(client):
     error_body = schema["components"]["schemas"]["ErrorBody"]
     assert error_body["properties"] == {"detail": {"type": "string", "title": "Detail"}}
     assert error_body["required"] == ["detail"]
+
+
+def test_the_openapi_schema_documents_the_sheet_outcome_on_both_routes(client):
+    """mvp-confirm's types come from this: `sheet` and its three values."""
+    schema = client.app.openapi()
+    for path in ("/items/{item_id}/confirm", "/items/{item_id}/post-to-sheet"):
+        (content,) = schema["paths"][path]["post"]["responses"]["200"]["content"].values()
+        assert content["schema"] == {"$ref": "#/components/schemas/SheetOutcome"}
+    assert "requestBody" not in schema["paths"]["/items/{item_id}/post-to-sheet"]["post"]
+    outcome = schema["components"]["schemas"]["SheetOutcome"]
+    assert outcome["properties"]["sheet"]["enum"] == ["sent", "failed", "unknown"]
+    assert outcome["required"] == ["sheet"]

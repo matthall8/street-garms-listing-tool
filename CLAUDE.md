@@ -23,7 +23,8 @@ main.py  /  app/routes.py
   │         └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
   │                                       ↓
   │                                   labels/schemas.py → Extraction
-  └─ app/db.py             POST /items: the item's row → Postgres, last; its confirm updates the row
+  ├─ app/db.py             POST /items: the item's row → Postgres, last; its confirm updates the row
+  └─ app/sheet.py          the confirm and Post to Sheet: the final value → the Sheet, after the row
 ```
 
 `schemas.py` is shared vocabulary and imports nothing of ours. `art_number.py`
@@ -50,7 +51,7 @@ These boundaries are enforced by `tests/test_boundaries.py::TestImportGraph`.
 | frontend types | in `frontend/`: `npm run typecheck` |
 | frontend lint | in `frontend/`: `npm run lint` |
 | frontend tests | in `frontend/`: `npm test` |
-| CI | `.github/workflows/tests.yml`, on push/PR to main — Python: `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs`, no catalogue, no key, with a `postgres:18.7` service and `TEST_DATABASE_URL` set, so the real-Postgres tests must run. Frontend: `npm ci`, build, type check, lint and tests, Node from `.nvmrc`. Docker: builds the image, checks the database and storage clients import in it, starts it on a non-default `PORT` and checks `GET /` and `style.css` |
+| CI | `.github/workflows/tests.yml`, on push/PR to main — Python: `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs`, no catalogue, no key, with a `postgres:18.7` service and `TEST_DATABASE_URL` set, so the real-Postgres tests must run. Frontend: `npm ci`, build, type check, lint and tests, Node from `.nvmrc`. Docker: builds the image, checks the database, storage and Sheets clients import in it, starts it on a non-default `PORT` and checks `GET /` and `style.css` |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/uvicorn --factory app:create_app` |
 | image build | `docker build --platform linux/amd64 -t listing-tool:local .` — the Python side, for Cloud Run; `.dockerignore` lets in only what `tests/test_docker_image.py` allows, so no catalogue |
@@ -115,7 +116,8 @@ manifest `id`, never by filename. Never quote a catalogue product name.
 
 - `labels/transcribe.py` is the only module permitted to call the model. Each
   other external system has one module in `app/`, the only importer of its
-  client (`app/db.py`: Postgres; `app/photos.py`: Cloud Storage), and
+  client (`app/db.py`: Postgres; `app/photos.py`: Cloud Storage;
+  `app/sheet.py`: the Google Sheet), and
   `labels/` imports no other client (ADR-0008, D8). Everything else is pure
   or reads local files — that's why the suite is offline and fast.
 - All model calls use the shared 60s timeout (`MODEL_SETTINGS`). Do not remove
@@ -129,7 +131,8 @@ manifest `id`, never by filename. Never quote a catalogue product name.
   60s is httpx's limit per phase. `tests/test_boundaries.py::TestSharedTimeout`
   checks the 60s value and that every `Agent(...)` passes `MODEL_SETTINGS`;
   `TestExplicitRetries` checks both retries are set.
-- Agents, the Cloud SQL connector and the storage client are built lazily and
+- Agents, the Cloud SQL connector, the storage client and the Sheets session
+  are built lazily and
   `@cache`d. Importing a module or calling `create_app()` must not require an
   API key or any configuration
   (`tests/test_db.py::test_import_and_create_app_build_no_client`).
