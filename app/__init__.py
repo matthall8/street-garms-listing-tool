@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
 
@@ -13,8 +14,9 @@ def create_app() -> FastAPI:
 
     app = FastAPI()
 
-    from app.routes import router
+    from app.routes import invalid_request, router
 
     app.include_router(router)
+    app.add_exception_handler(RequestValidationError, invalid_request)
     app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"))
     return app

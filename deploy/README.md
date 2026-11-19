@@ -233,22 +233,26 @@ On the instance, in the console:
    admin login: the `postgres` password is unknown. If IAM login ever
    breaks, reset the `postgres` password in the console.
 3. The same, for the runtime account's full email, with **no** database
-   roles. Its username drops `.gserviceaccount.com`. It gets one table
-   grant, in 4.
+   roles. Its username drops `.gserviceaccount.com`. It gets the table
+   grants in 4.
 4. The table, before deploying an image that writes to it: in *Cloud SQL
    Studio*, logged in to `listing_tool` as the developer's IAM user, run
    `deploy/schema.sql` as it is, then:
 
    ```sql
    GRANT INSERT ON items TO "<DB_USER>";
+   GRANT SELECT ON items TO "<DB_USER>";
+   GRANT UPDATE (final_value, outcome, confirmed_at) ON items TO "<DB_USER>";
    ```
 
    with `DB_USER`'s value from `deploy/lib.sh` typed in by hand: Studio
-   can't expand variables. `INSERT` only: the app only inserts, with no
-   `RETURNING` or `ON CONFLICT` (both need `SELECT`), and the developer
-   reads rows as their own user. No sequence grant: the ID is a UUID made
-   in the app. **trial-confirm** adds `SELECT` and a column-level `UPDATE`
-   at its own deploy; the columns already exist.
+   can't expand variables. `INSERT` stores a read. `SELECT` because
+   Postgres requires it on any column a `WHERE` reads, and the confirm's
+   `UPDATE` reads its guard columns; the confirm's `SELECT` after a miss
+   needs it too. `UPDATE` on only the three columns a confirm sets. No
+   sequence grant: the ID is a UUID made in the app. On the live table,
+   the `SELECT` and `UPDATE` grants are **sheets-push-deploy**'s
+   (TODO.md).
 
 Not *Workforce identity federation*: that is for an outside identity
 provider.
@@ -257,9 +261,13 @@ Check: `read-back.sh`, *Database and users*, and the developer logs in to
 `listing_tool` as their IAM user in *Cloud SQL Studio* (IAM database
 authentication), where `SELECT current_user;` returns their account. After
 4, `SELECT privilege_type FROM information_schema.role_table_grants WHERE
-table_name = 'items' AND grantee = '<DB_USER>';` returns only `INSERT`.
-That query is the only check for the grant: read-back's *its database
-roles* line shows Cloud SQL user roles, not table grants.
+table_name = 'items' AND grantee = '<DB_USER>';` returns only `INSERT` and
+`SELECT`, and `SELECT column_name FROM information_schema.column_privileges
+WHERE table_name = 'items' AND grantee = '<DB_USER>' AND privilege_type =
+'UPDATE';` returns exactly `final_value`, `outcome` and `confirmed_at`
+(`role_table_grants` doesn't show column grants). These queries are the
+only check for the grants: read-back's *its database roles* line shows
+Cloud SQL user roles, not table grants.
 
 ### 10. Photo bucket
 

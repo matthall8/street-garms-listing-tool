@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app import db, photos
 from labels.pipeline import ACCEPTED, UnsupportedImageType, extract_bytes
@@ -33,8 +33,30 @@ PHOTO_NOT_SAVED = "The photo couldn't be saved. Try again."
 READ_FAILED = "The label couldn't be read. Try again."
 READ_NOT_SAVED = "The read couldn't be saved. Try again."
 
+# POST /items/{id}/confirm failure bodies: fixed, never the value sent.
+FINAL_VALUE_BLANK = "Enter the ART number."
+FINAL_VALUE_UNREADABLE = "Replace each ? with the character on the label."
+NOTHING_TO_CONFIRM = "There's no read to confirm. Upload the photo again."
+ITEM_NOT_FOUND = "That item wasn't found. Upload the photo again."
+ALREADY_CONFIRMED = "This item was already confirmed with a different ART number."
+CONFIRM_NOT_SAVED = "The confirm couldn't be saved. Try again."
+
+# Any route's malformed request: FastAPI's default 422 echoes the input.
+INVALID_REQUEST = "The request wasn't valid."
+
+
+class ErrorBody(BaseModel):
+    """An error response's whole body: one fixed message."""
+
+    detail: str
+
+
 logger = logging.getLogger(__name__)
-router = APIRouter()
+# "4XX" also drops FastAPI's 422 from the schema: the handler below answers
+# 400 (fastapi/openapi/utils.py adds a 422 only when a route has none of
+# "422", "4XX" or "default"). GET / and POST / answer HTML, not this body,
+# until mvp-cutover deletes them.
+router = APIRouter(responses={"4XX": {"model": ErrorBody}})
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 
@@ -108,10 +130,11 @@ class ItemCreated(BaseModel):
     value_shown: str | None
 
 
-def _log_failure(step: str, exc: Exception) -> None:
-    """One line per failed POST /items: the step and the exception's class,
-    never its message, which can carry values (ADR-0009, D3)."""
-    logger.error("POST /items failed: step=%s error=%s", step, type(exc).__name__)
+def _log_failure(route: str, step: str, exc: Exception) -> None:
+    """One line per failed request: the route's template (never the item ID),
+    the step and the exception's class, never its message, which can carry
+    values (ADR-0009, D3)."""
+    logger.error("%s failed: step=%s error=%s", route, step, type(exc).__name__)
 
 
 def _reading(extraction: Extraction) -> dict:
@@ -149,14 +172,14 @@ def create_item(art_photo: Annotated[UploadFile | None, File()] = None):
     try:
         photos.store_photo(item_id, data, media_type)
     except Exception as exc:
-        _log_failure("photo", exc)
+        _log_failure("POST /items", "photo", exc)
         raise HTTPException(status_code=502, detail=PHOTO_NOT_SAVED) from None
 
     try:
         extraction = extract_bytes(art=(data, media_type), source=str(item_id))
         reading = _reading(extraction)
     except Exception as exc:
-        _log_failure("read", exc)
+        _log_failure("POST /items", "read", exc)
         raise HTTPException(status_code=502, detail=READ_FAILED) from None
 
     try:
@@ -170,8 +193,57 @@ def create_item(art_photo: Annotated[UploadFile | None, File()] = None):
                 value_shown=extraction.art_base,
             )
     except Exception as exc:
-        _log_failure("insert", exc)  # the photo stays, orphaned (ADR-0008, D5)
+        _log_failure("POST /items", "insert", exc)  # the photo stays, orphaned (ADR-0008, D5)
         raise HTTPException(status_code=502, detail=READ_NOT_SAVED) from None
 
     return ItemCreated(id=item_id, value_shown=extraction.art_base)
 
+
+class ConfirmRequest(BaseModel):
+    """POST /items/{id}/confirm's whole request: the final value as entered.
+    The value shown is never taken from the client (ADR-0008, D5)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    final_value: str
+
+
+@router.post("/items/{item_id}/confirm", status_code=204, response_class=Response)
+def confirm_item(item_id: UUID, body: ConfirmRequest) -> None:
+    """Record the final value; the server works out unchanged or edited
+    (ADR-0008, D5). A repeat with the same final value succeeds again, after
+    a lost response; with a different one it is refused, and changes nothing
+    (D7, as amended 2026-11-19)."""
+    final_value = body.final_value
+    # Before any database call. strip() trims more than D5's spaces: stricter
+    # here is fine, and the outcome uses D5's comparison, in app/db.py.
+    if not final_value.strip():
+        raise HTTPException(status_code=400, detail=FINAL_VALUE_BLANK)
+    if "?" in final_value:
+        raise HTTPException(status_code=400, detail=FINAL_VALUE_UNREADABLE)
+
+    try:
+        with db.connect() as conn:
+            result = db.confirm_item(
+                conn, item_id=item_id, final_value=final_value, confirmed_at=datetime.now(UTC)
+            )
+    except Exception as exc:
+        _log_failure("POST /items/{id}/confirm", "confirm", exc)
+        raise HTTPException(status_code=502, detail=CONFIRM_NOT_SAVED) from None
+
+    match result:
+        case "confirmed" | "repeated":
+            return None
+        case "empty_read":
+            raise HTTPException(status_code=400, detail=NOTHING_TO_CONFIRM)
+        case "not_found":
+            raise HTTPException(status_code=404, detail=ITEM_NOT_FOUND)
+        case "conflict":
+            raise HTTPException(status_code=409, detail=ALREADY_CONFIRMED)
+
+
+def invalid_request(request: Request, exc: Exception) -> JSONResponse:
+    """Every route's RequestValidationError: a 400 with a fixed message, never
+    FastAPI's 422, whose body echoes what was sent. Registered in
+    create_app()."""
+    return JSONResponse(status_code=400, content={"detail": INVALID_REQUEST})
