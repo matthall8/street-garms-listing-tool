@@ -488,9 +488,8 @@ sort them into a section.
   `SHEET_TAB_ID` in `deploy/config.env`, and the Sheet shared with the
   runtime service account; (4) `deploy/deploy.sh`, then
   `deploy/read-back.sh`; (5) step 9's `column_privileges` check; (6) the
-  real-Sheet hand check (`deploy/README.md`, *Sheet hand check*). If the
-  token lacks the `spreadsheets` scope, stop and ask before any key goes
-  into Secret Manager; (7) if (6) passes, an ADR-0009 amendment recording
+  real-Sheet hand check (`deploy/README.md`, *Sheet hand check*); (7) if
+  (6) passes, an ADR-0009 amendment recording
   that no Sheet credential exists, as ADR-0008's 2026-11-18 entry did for
   the database. A real-Postgres test running the app's SQL as a role
   holding only the grants was considered and declined: (6) runs the real
