@@ -23,6 +23,7 @@ API_CLIENTS = {
     "psycopg": "app/db.py",
     "google.cloud.sql": "app/db.py",
     "google.cloud.storage": "app/photos.py",
+    "google.auth": "app/sheet.py",
 }
 
 
