@@ -14,12 +14,10 @@ EMPTY_READING = ArtNumberReading(art_number_raw=None, art_legible="not_visible")
 SELECT_STORED = "SELECT value_shown, reading FROM items WHERE id = %s"
 
 NOW = datetime.now(UTC)
-CONFIRMED_SENT = {
+CONFIRMED = {
     "final_value": s.SPLIT_SI_8,
     "outcome": "edited",
     "confirmed_at": NOW,
-    "sheet_status": "sent",
-    "sheet_updated_at": NOW,
 }
 
 
@@ -53,34 +51,27 @@ def test_an_empty_read_stores(pg_conn: psycopg.Connection):
     assert pg_conn.execute(SELECT_STORED, (item_id,)).fetchone() == (None, EMPTY_READING)
 
 
-def test_a_confirmed_sent_row_stores(pg_conn: psycopg.Connection):
-    item_id = _insert(pg_conn, **CONFIRMED_SENT)
+def test_a_confirmed_row_stores(pg_conn: psycopg.Connection):
+    item_id = _insert(pg_conn, **CONFIRMED)
     stored = pg_conn.execute(
-        "SELECT final_value, outcome, confirmed_at, sheet_status, sheet_updated_at"
-        " FROM items WHERE id = %s",
+        "SELECT final_value, outcome, confirmed_at FROM items WHERE id = %s",
         (item_id,),
     ).fetchone()
-    assert stored == tuple(CONFIRMED_SENT.values())
+    assert stored == tuple(CONFIRMED.values())
 
 
 # Each row breaks exactly one rule in deploy/schema.sql and is otherwise valid,
 # so a refusal can only come from the rule it names.
 BAD_ROWS = [
     pytest.param({"value_shown": ""}, id="value_shown is the empty string"),
-    pytest.param({**CONFIRMED_SENT, "outcome": None}, id="confirm without outcome"),
-    pytest.param({**CONFIRMED_SENT, "final_value": None}, id="confirm without final_value"),
+    pytest.param({**CONFIRMED, "outcome": None}, id="confirm without outcome"),
+    pytest.param({**CONFIRMED, "final_value": None}, id="confirm without final_value"),
     pytest.param({"final_value": s.SPLIT_SI_8, "outcome": "edited"}, id="confirm without confirmed_at"),
     pytest.param(
-        {**CONFIRMED_SENT, "reading": EMPTY_READING, "value_shown": None},
+        {**CONFIRMED, "reading": EMPTY_READING, "value_shown": None},
         id="confirm on an empty read",
     ),
-    pytest.param({"sheet_status": "pending", "sheet_updated_at": NOW}, id="Sheet state without a confirm"),
-    pytest.param(
-        {**CONFIRMED_SENT, "sheet_status": None, "sheet_updated_at": None},
-        id="confirm without Sheet state",
-    ),
-    pytest.param({**CONFIRMED_SENT, "outcome": "approved"}, id="outcome outside its list"),
-    pytest.param({**CONFIRMED_SENT, "sheet_status": "queued"}, id="sheet_status outside its list"),
+    pytest.param({**CONFIRMED, "outcome": "approved"}, id="outcome outside its list"),
 ]
 
 

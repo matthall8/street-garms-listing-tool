@@ -32,10 +32,10 @@ def test_insert_item_stores_the_read(pg_conn: psycopg.Connection, revision):
     )
     stored = pg_conn.execute(
         "SELECT received_at, revision, reading, value_shown, final_value, outcome,"
-        " confirmed_at, sheet_status, sheet_updated_at FROM items WHERE id = %s",
+        " confirmed_at FROM items WHERE id = %s",
         (item_id,),
     ).fetchone()
-    assert stored == (received_at, revision, READING, s.SPLIT_SI_9, None, None, None, None, None)
+    assert stored == (received_at, revision, READING, s.SPLIT_SI_9, None, None, None)
 
 
 def test_import_and_create_app_build_no_client():

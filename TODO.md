@@ -28,18 +28,22 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 Config; BASELINES.md, *Held-out test set*).
 
 - **trial-confirm**: confirm, storing the confirm-time fields, and the
-  confirms the server refuses (ADR-0008, D5); D5's tests and D8's three
-  real-Postgres tests; the counted-item and stop-rule queries (D6).
+  confirms the server refuses (ADR-0008, D5) and a repeated confirm with
+  a different final value (compared as in D5), with a test; a repeated
+  confirm with the same value changes nothing (*Amendments*,
+  2026-11-19); D5's tests and D8's three real-Postgres tests; the
+  counted-item and stop-rule queries (D6).
   At its deploy, `GRANT SELECT` and `GRANT UPDATE (final_value, outcome,
-  confirmed_at, sheet_status, sheet_updated_at)` on `items` to the
-  runtime user (`deploy/README.md`, step 9), checked in
-  `information_schema`; consider a real-Postgres test that runs the
-  app's SQL as a role holding only that grant, as a column-level
-  `UPDATE` is easier to get wrong than an `INSERT`. After
+  confirmed_at)` on `items` to the runtime user (`deploy/README.md`,
+  step 9), checked in `information_schema`; consider a real-Postgres
+  test that runs the app's SQL as a role holding only that grant, as a
+  column-level `UPDATE` is easier to get wrong than an `INSERT`. After
   **trial-records**
 - **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`,
   appending to the field ADR-0007 sets (ADR-0008, D7 and its *Build
-  constraints*), and the stuck-Sheet query (D7). Adds the Google Sheets
+  constraints*, as amended in *Amendments*, 2026-11-19), and a test that
+  a repeated confirm with the same final value makes no append and
+  answers `unknown` (*Amendments*, 2026-11-19). Adds the Google Sheets
   client to `API_CLIENTS` (D8). Its credential, if any, goes into Secret
   Manager (ADR-0009, *Amendments*). After **trial-confirm**
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
@@ -66,8 +70,10 @@ Config; BASELINES.md, *Held-out test set*).
   **mvp-scaffold**
 - **mvp-confirm**: the confirm-or-edit screen, upload again, the
   empty-read screen (ADR-0007, *Scope and storage*), the failed-read
-  screen (ADR-0008, D5), Post to Sheet (D7), and D2's test that a read
-  past the limit offers upload again. After **mvp-scaffold**
+  screen (ADR-0008, D5), Post to Sheet (D7), its button disabled while
+  its request is in flight, one screen for both `failed` and `unknown`
+  (*Amendments*, 2026-11-19), and D2's test that a read past the limit
+  offers upload again. After **mvp-scaffold**
 - **upright-guidance**: capture guidance in the web UI: the photo must
   be upright (ADR-0002). With **mvp-confirm**
 - **mvp-cutover**: deletes the Jinja form, `GET /` and `POST /`
@@ -464,6 +470,11 @@ sort them into a section.
 - **revision-summary**: BASELINES.md gets a summary of the daily revision
   checks: each revision's commit and its check result. With
   **trial-report**
-- **sheet-write-scope**. Decision: whether D7's Sheet write is
-  simplified or the full D7 design is built; settled before
-  **sheets-push** starts, as an ADR-0008 change on its own branch
+- **sheet-columns-drop**: on the live table, in Cloud SQL Studio as
+  your own IAM user (the table's owner), run
+  `ALTER TABLE items DROP COLUMN sheet_status, DROP COLUMN sheet_updated_at;`,
+  which drops their `CHECK` too (ADR-0008, *Amendments*, 2026-11-19).
+  Check that `information_schema.columns` lists the eight remaining
+  columns and `pg_constraint` has no `items` constraint naming either
+  dropped column. No deploy: the app doesn't use them. Before
+  **sheets-push**'s deploy
