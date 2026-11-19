@@ -220,8 +220,9 @@ def test_no_route_handler_is_a_coroutine_function(client):
 
 # POST /items. The photo store and the database are faked through the names
 # routes.py looks up at call time (photos.store_photo, db.connect,
-# db.insert_item). `no_real_stores` fails any test that reaches them unpatched,
-# with pytest.fail for the same reason as `no_real_extraction`.
+# db.insert_item, db.confirm_item). `no_real_stores` fails any test that
+# reaches them unpatched, with pytest.fail for the same reason as
+# `no_real_extraction`.
 
 PHOTO = b"\xff\xd8 invented upload bytes"
 
@@ -234,6 +235,7 @@ def no_real_stores(monkeypatch):
     monkeypatch.setattr(routes.photos, "store_photo", unpatched)
     monkeypatch.setattr(routes.db, "connect", unpatched)
     monkeypatch.setattr(routes.db, "insert_item", unpatched)
+    monkeypatch.setattr(routes.db, "confirm_item", unpatched)
 
 
 @pytest.fixture
@@ -396,3 +398,180 @@ def test_the_reading_rebuilt_from_an_extraction_is_the_reading_read():
     )
     extraction = from_reading(original, source="zz-item")
     assert ArtNumberReading.model_validate(routes._reading(extraction)) == original
+
+
+# POST /items/{id}/confirm. The database is faked as for POST /items; what the
+# confirm does to a row is tested against real Postgres in tests/test_db.py.
+
+ITEM_ID = "6f1c2a3b-0000-4000-8000-00000000c0f1"
+
+
+@pytest.fixture
+def confirms(monkeypatch):
+    """Fake database whose confirm_item answers `result`, recording each call."""
+    calls = {"connect": 0, "confirm": [], "result": "confirmed"}
+
+    @contextmanager
+    def connect():
+        calls["connect"] += 1
+        yield "a connection"
+
+    def confirm_item(conn, **kwargs):
+        assert conn == "a connection"
+        calls["confirm"].append(kwargs)
+        return calls["result"]
+
+    monkeypatch.setattr(routes.db, "connect", connect)
+    monkeypatch.setattr(routes.db, "confirm_item", confirm_item)
+    return calls
+
+
+def _confirm(client, body, item_id: str = ITEM_ID):
+    return client.post(f"/items/{item_id}/confirm", json=body)
+
+
+def test_confirm_is_a_204_with_no_body(client, confirms):
+    response = _confirm(client, {"final_value": s.SPLIT_SI_9})
+    assert response.status_code == 204
+    assert response.content == b""
+
+    (call,) = confirms["confirm"]
+    assert str(call["item_id"]) == ITEM_ID
+    assert call["final_value"] == s.SPLIT_SI_9
+    assert call["confirmed_at"].tzinfo is not None
+
+
+def test_confirm_sends_the_final_value_as_entered(client, confirms):
+    """D5: stored as entered; the trim and uppercase are only for the outcome."""
+    entered = f" {s.SPLIT_SI_9.lower()}  "
+    _confirm(client, {"final_value": entered})
+    assert confirms["confirm"][0]["final_value"] == entered
+
+
+def test_the_confirm_request_carries_only_the_final_value():
+    """D5's build constraint: the value shown never comes from the client."""
+    assert set(routes.ConfirmRequest.model_fields) == {"final_value"}
+
+
+def test_an_extra_field_is_refused(client, confirms):
+    response = _confirm(client, {"final_value": s.SPLIT_SI_9, "value_shown": s.SPLIT_SI_8})
+    assert response.status_code == 400
+    assert response.json() == {"detail": routes.INVALID_REQUEST}
+    assert confirms["connect"] == 0
+
+
+@pytest.mark.parametrize(
+    "final_value, detail",
+    [
+        pytest.param("", routes.FINAL_VALUE_BLANK, id="empty"),
+        pytest.param(" \t ", routes.FINAL_VALUE_BLANK, id="whitespace only"),
+        pytest.param(s.GATE_UNREADABLE_MARK, routes.FINAL_VALUE_UNREADABLE, id="a ?"),
+        pytest.param("?" + s.SPLIT_SI_9, routes.FINAL_VALUE_UNREADABLE, id="a leading ?"),
+    ],
+)
+def test_a_blank_or_unreadable_final_value_is_refused_before_the_database(
+    client, final_value, detail
+):
+    """D5. `no_real_stores` fails the test if the database is reached."""
+    response = _confirm(client, {"final_value": final_value})
+    assert response.status_code == 400
+    assert response.json() == {"detail": detail}
+
+
+@pytest.mark.parametrize(
+    "result, status, detail",
+    [
+        pytest.param("empty_read", 400, routes.NOTHING_TO_CONFIRM, id="empty read"),
+        pytest.param("not_found", 404, routes.ITEM_NOT_FOUND, id="unknown ID"),
+        pytest.param("conflict", 409, routes.ALREADY_CONFIRMED, id="repeat, different value"),
+    ],
+)
+def test_a_refused_confirm_has_a_fixed_message(client, confirms, result, status, detail):
+    confirms["result"] = result
+    response = _confirm(client, {"final_value": s.SPLIT_SI_9})
+    assert response.status_code == status
+    assert response.json() == {"detail": detail}
+    assert s.SPLIT_SI_9 not in response.text
+
+
+def test_a_repeat_with_the_same_value_succeeds_as_the_first_did(client, confirms):
+    """D7, as amended: a lost response followed by a retap."""
+    first = _confirm(client, {"final_value": s.SPLIT_SI_9})
+    confirms["result"] = "repeated"
+    second = _confirm(client, {"final_value": s.SPLIT_SI_9})
+    assert (second.status_code, second.content) == (first.status_code, first.content)
+
+
+@pytest.mark.parametrize("target", ["connect", "confirm_item"])
+def test_confirm_database_failure_is_a_502_with_a_fixed_message_and_one_log_line(
+    client, confirms, monkeypatch, caplog, target
+):
+    monkeypatch.setattr(routes.db, target, _fails)
+    with caplog.at_level(logging.ERROR, logger=routes.logger.name):
+        response = _confirm(client, {"final_value": s.SPLIT_SI_9})
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": routes.CONFIRM_NOT_SAVED}
+    assert RAW not in response.text
+
+    (record,) = [r for r in caplog.records if r.name == routes.logger.name]
+    assert record.getMessage() == (
+        "POST /items/{id}/confirm failed: step=confirm error=TimeoutError"
+    )
+    assert RAW not in caplog.text and ITEM_ID not in caplog.text
+
+
+# Validation errors, app-wide: 400 with a fixed message, never FastAPI's 422,
+# whose body echoes the input.
+
+SENT = s.SPLIT_SI_9
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        pytest.param({"json": {"value": SENT}}, id="missing field"),
+        pytest.param({"json": {"final_value": [SENT]}}, id="wrong type"),
+        pytest.param(
+            {"content": f'{{"final_value": "{SENT}"', "headers": {"Content-Type": "application/json"}},
+            id="not JSON",
+        ),
+    ],
+)
+def test_a_malformed_confirm_is_a_400_that_echoes_nothing(client, confirms, kwargs):
+    response = client.post(f"/items/{ITEM_ID}/confirm", **kwargs)
+    assert response.status_code == 400
+    assert response.json() == {"detail": routes.INVALID_REQUEST}
+    assert SENT not in response.text
+    assert confirms["connect"] == 0
+
+
+def test_a_confirm_on_an_id_that_is_not_a_uuid_is_a_400(client, confirms):
+    response = _confirm(client, {"final_value": SENT}, item_id=f"zz-{SENT}")
+    assert response.status_code == 400
+    assert response.json() == {"detail": routes.INVALID_REQUEST}
+    assert SENT not in response.text
+
+
+def test_a_text_field_for_the_photo_is_a_400_that_echoes_nothing(client, extract_calls, stored):
+    """POST /items takes a form upload: a plain text art_photo fails validation."""
+    response = client.post("/items", data={"art_photo": SENT})
+    assert response.status_code == 400
+    assert response.json() == {"detail": routes.INVALID_REQUEST}
+    assert SENT not in response.text
+    assert stored["photo"] == [] and extract_calls == [] and stored["insert"] == []
+
+
+def test_the_openapi_schema_documents_4xx_and_no_422(client):
+    """mvp-scaffold generates types from this schema: it must describe what
+    the server returns."""
+    schema = client.app.openapi()
+    operations = [op for ops in schema["paths"].values() for op in ops.values()]
+    assert operations, "found no operations, so this test checked nothing"
+    for op in operations:
+        assert "422" not in op["responses"]
+        (content,) = op["responses"]["4XX"]["content"].values()
+        assert content["schema"] == {"$ref": "#/components/schemas/ErrorBody"}
+    error_body = schema["components"]["schemas"]["ErrorBody"]
+    assert error_body["properties"] == {"detail": {"type": "string", "title": "Detail"}}
+    assert error_body["required"] == ["detail"]
