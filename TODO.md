@@ -28,8 +28,11 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 Config; BASELINES.md, *Held-out test set*).
 
 - **trial-confirm**: confirm, storing the confirm-time fields, and the
-  confirms the server refuses (ADR-0008, D5); D5's tests and D8's three
-  real-Postgres tests; the counted-item and stop-rule queries (D6).
+  confirms the server refuses (ADR-0008, D5) and a repeated confirm with
+  a different final value (compared as in D5), with a test; a repeated
+  confirm with the same value changes nothing (*Amendments*,
+  2026-11-19); D5's tests and D8's three real-Postgres tests; the
+  counted-item and stop-rule queries (D6).
   At its deploy, `GRANT SELECT` and `GRANT UPDATE (final_value, outcome,
   confirmed_at)` on `items` to the runtime user (`deploy/README.md`,
   step 9), checked in `information_schema`; consider a real-Postgres
@@ -38,10 +41,11 @@ Config; BASELINES.md, *Held-out test set*).
   **trial-records**
 - **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`,
   appending to the field ADR-0007 sets (ADR-0008, D7 and its *Build
-  constraints*, as amended in *Amendments*, 2026-11-19). Adds the
-  Google Sheets client to `API_CLIENTS` (D8). Its credential, if any,
-  goes into Secret Manager (ADR-0009, *Amendments*). After
-  **trial-confirm**
+  constraints*, as amended in *Amendments*, 2026-11-19), and a test that
+  a repeated confirm with the same final value makes no append and
+  answers `unknown` (*Amendments*, 2026-11-19). Adds the Google Sheets
+  client to `API_CLIENTS` (D8). Its credential, if any, goes into Secret
+  Manager (ADR-0009, *Amendments*). After **trial-confirm**
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
   upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
   logged with the raw error hidden, `uvicorn` timeouts
