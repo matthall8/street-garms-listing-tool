@@ -36,7 +36,7 @@ READ_NOT_SAVED = "The read couldn't be saved. Try again."
 # POST /items/{id}/confirm failure bodies: fixed, never the value sent.
 FINAL_VALUE_BLANK = "Enter the ART number."
 FINAL_VALUE_UNREADABLE = "Replace each ? with the character on the label."
-NOTHING_TO_CONFIRM = "This item has no ART number to confirm. Upload the photo again."
+NOTHING_TO_CONFIRM = "There's no read to confirm. Upload the photo again."
 ITEM_NOT_FOUND = "That item wasn't found. Upload the photo again."
 ALREADY_CONFIRMED = "This item was already confirmed with a different ART number."
 CONFIRM_NOT_SAVED = "The confirm couldn't be saved. Try again."
@@ -197,7 +197,6 @@ def create_item(art_photo: Annotated[UploadFile | None, File()] = None):
         raise HTTPException(status_code=502, detail=READ_NOT_SAVED) from None
 
     return ItemCreated(id=item_id, value_shown=extraction.art_base)
-
 
 
 class ConfirmRequest(BaseModel):

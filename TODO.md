@@ -476,14 +476,14 @@ sort them into a section.
   D6) as a committed raw-SQL file, pasted into Cloud SQL Studio, with
   D8's two real-Postgres tests (counted items selected correctly, edit
   count correct), matching ART numbers with the confirm's comparison, the
-  same SQL expression as `_same_as` in `app/db.py`. Absorbs **trial-count-start** and
-  **revision-gate-check**. Open: how the trial start and any pauses get
-  into the query (literals at the top of the file, a `trial_periods`
-  table, or a local script; Studio can't expand variables); and, with
-  **mid-trial-config-rule**, an ADR-0007 question: does an ART number
-  confirmed before the start or during a pause use up its first entry,
-  and does `received_at` or `confirmed_at` decide the window? Before
-  **staff-trial**
+  same SQL expression as `_same_as` in `app/db.py`. Absorbs
+  **trial-count-start** and **revision-gate-check**. Open: how the trial
+  start and any pauses get into the query (literals at the top of the
+  file, a `trial_periods` table, or a local script; Studio can't expand
+  variables); and, with **mid-trial-config-rule**, an ADR-0007
+  question: does an ART number confirmed before the start or during a
+  pause use up its first entry, and does `received_at` or
+  `confirmed_at` decide the window? Before **staff-trial**
 - **sheets-push-deploy**: one merged deploy, in order: (1)
   **sheet-columns-drop**'s `ALTER` and its check; (2) the `SELECT` and
   column `UPDATE` grants (`deploy/README.md`, step 9); (3) the Sheet ID as

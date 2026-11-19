@@ -67,10 +67,9 @@ def connect() -> psycopg.Connection:
 
     Autocommit: each request makes one write. A confirm's SELECT after it
     only explains a miss, and needs no transaction: the app never undoes a
-    confirm or changes a value shown. The real-Postgres
-    tests' connection is autocommit too, so what they pass is what production
-    does.
-    The caller closes it.
+    confirm or changes a value shown. The real-Postgres tests' connection
+    is autocommit too, so what they pass is what production does. The
+    caller closes it.
     """
     return _connector().connect(
         os.environ["CLOUD_SQL_INSTANCE"],

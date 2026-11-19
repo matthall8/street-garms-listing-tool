@@ -494,6 +494,13 @@ def test_a_refused_confirm_has_a_fixed_message(client, confirms, result, status,
     assert s.SPLIT_SI_9 not in response.text
 
 
+def test_the_empty_read_refusal_does_not_say_there_is_no_number():
+    """ADR-0007, *Scope and storage*: an empty read must not tell staff that
+    no ART number exists; the photo may just not show it."""
+    assert routes.NOTHING_TO_CONFIRM == "There's no read to confirm. Upload the photo again."
+    assert "ART number" not in routes.NOTHING_TO_CONFIRM
+
+
 def test_a_repeat_with_the_same_value_succeeds_as_the_first_did(client, confirms):
     """D7, as amended: a lost response followed by a retap."""
     first = _confirm(client, {"final_value": s.SPLIT_SI_9})
