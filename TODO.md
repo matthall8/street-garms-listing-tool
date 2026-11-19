@@ -27,16 +27,6 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **sheets-push**: `app/sheet.py` and `POST /items/{id}/post-to-sheet`,
-  appending to the field ADR-0007 sets (ADR-0008, D7 and its *Build
-  constraints*, as amended in *Amendments*, 2026-11-19), and a test that
-  a repeated confirm with the same final value makes no append and
-  answers `unknown` (*Amendments*, 2026-11-19). Adds the Google Sheets
-  client to `API_CLIENTS` (D8). Its credential, if any, goes into Secret
-  Manager (ADR-0009, *Amendments*). Decision for its brief: which Sheet
-  **sheets-push-deploy**'s hand check writes to. The real Sheet means
-  deleting the test row; a copy overlaps **founder-review**'s append to a
-  copy of the real Sheet
 - **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
   upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
   logged with the raw error hidden, `uvicorn` timeouts. Of the errors,
@@ -55,8 +45,8 @@ Config; BASELINES.md, *Held-out test set*).
   OpenAPI schema (ADR-0008, D3, D4); the original file uploaded (D9);
   the 2-minute limit (D2), its `AbortController` in the submit handler
   rather than a `useEffect`, and a test that the request aborts; the
-  flow as a discriminated union in `useReducer`. After **sheets-push**
-  and **web-hardening**, so the API, its rejections included, is
+  flow as a discriminated union in `useReducer`. After **web-hardening**,
+  so the API, its rejections included, is
   complete when the types are generated
 - **generated-types-check**: the CI check that the committed types match
   a fresh generation (ADR-0008, D10). With **mvp-scaffold**
@@ -101,9 +91,10 @@ Config; BASELINES.md, *Held-out test set*).
   configuration change with a restart, but ADR-0006 is phase 1 only and
   **later-run-rule** comes after the trial, so no rule judges that
   change. Say which rule applies, or that it's a project team decision
-- **founder-review**: ADR-0007, *Stages*, stage 1. First the append to
-  a copy of the real Sheet (ADR-0008, *Build constraints*, D7), then the
-  Sheet-sharing check (ADR-0009, D1), both before its items; the phone
+- **founder-review**: ADR-0007, *Stages*, stage 1. First the
+  Sheet-sharing check (ADR-0009, D1), before its items (the real-Sheet
+  append is **sheets-push-deploy**'s, ADR-0008, *Amendments*,
+  2026-11-19); the phone
   location check at the review (ADR-0009, D2). Revisit min instances
   (0) against the measured cold start (BASELINES.md, *Deploy
   measurements*). After every item above
@@ -411,6 +402,9 @@ a quiet moment.
 ## Inbox
 Where new items land, from `/open-pr`'s *Follow-ups* or anywhere else. I
 sort them into a section.
+- **brand-code-autofill**. Decision: the app also filling column A,
+  "Brand Code", of the Sheet's intake tab. It changes ADR-0007's Sheet
+  field (one field, `art_base`), so it's a product decision
 - **adr-0008-consequences-names**: ADR-0008, *Consequences* names
   a `docker-image` item and gunicorn lines in **web-hardening**; TODO.md has
   neither. Reword it on a docs branch
@@ -471,7 +465,7 @@ sort them into a section.
   Check that `information_schema.columns` lists the eight remaining
   columns and `pg_constraint` has no `items` constraint naming either
   dropped column. No deploy: the app doesn't use them. Before
-  **sheets-push**'s deploy
+  **sheets-push-deploy**
 - **trial-queries**: the counted-item and stop-rule queries (ADR-0008,
   D6) as a committed raw-SQL file, pasted into Cloud SQL Studio, with
   D8's two real-Postgres tests (counted items selected correctly, edit
@@ -486,11 +480,18 @@ sort them into a section.
   `confirmed_at` decide the window? Before **staff-trial**
 - **sheets-push-deploy**: one merged deploy, in order: (1)
   **sheet-columns-drop**'s `ALTER` and its check; (2) the `SELECT` and
-  column `UPDATE` grants (`deploy/README.md`, step 9); (3) the Sheet ID as
-  configuration, and the Sheet shared with the runtime service account;
-  (4) `deploy/deploy.sh`, then `deploy/read-back.sh`; (5) step 9's
-  `column_privileges` check; (6) the hand check: confirm one non-trial
-  item twice, and see exactly one row in the Sheet. A real-Postgres test
-  running the app's SQL as a role holding only the grants was considered
-  and declined: (6) runs the real grant on the real table. After
-  **sheets-push**
+  column `UPDATE` grants (`deploy/README.md`, step 9); (3) first, enable
+  `sheets.googleapis.com` (step 2), and check the Sheet with its
+  day-to-day editor: new items always go on the intake tab, and no
+  formulas are filled down any of its columns ahead of the data, since
+  `appendCells` would land below them; then `SHEET_ID` and
+  `SHEET_TAB_ID` in `deploy/config.env`, and the Sheet shared with the
+  runtime service account; (4) `deploy/deploy.sh`, then
+  `deploy/read-back.sh`; (5) step 9's `column_privileges` check; (6) the
+  real-Sheet hand check (`deploy/README.md`, *Sheet hand check*). If the
+  token lacks the `spreadsheets` scope, stop and ask before any key goes
+  into Secret Manager; (7) if (6) passes, an ADR-0009 amendment recording
+  that no Sheet credential exists, as ADR-0008's 2026-11-18 entry did for
+  the database. A real-Postgres test running the app's SQL as a role
+  holding only the grants was considered and declined: (6) runs the real
+  grant on the real table
