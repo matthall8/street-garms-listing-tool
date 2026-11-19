@@ -10,7 +10,7 @@ CONFIG=deploy/config.env
 [ -f "$CONFIG" ] || { echo "missing $CONFIG: copy deploy/config.example.env" >&2; exit 1; }
 set -a; . "$CONFIG"; set +a
 
-for var in PROJECT_ID REGION AR_REPO IAP_MEMBERS; do
+for var in PROJECT_ID REGION AR_REPO IAP_MEMBERS SHEET_ID SHEET_TAB_ID; do
   value="${!var:-}"
   if [ -z "$value" ] || [[ "$value" == *FILL-ME* ]] || [[ "$value" == your-* ]] \
     || [[ "$value" == *@example.com* ]]; then
