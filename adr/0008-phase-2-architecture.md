@@ -1,6 +1,6 @@
 # ADR-0008: Phase 2 architecture
 
-- **Status:** Accepted; amended 2026-11-14, 2026-11-18 (*Amendments*)
+- **Status:** Accepted; amended 2026-11-14, 2026-11-18, 2026-11-19 (*Amendments*)
 - **Date:** 2026-11-09
 - **Amends:** CLAUDE.md, *Flow*, *Commands* and *Engineering constraints* (D4,
   D8, D10)
@@ -471,3 +471,35 @@ and TypeScript is a major version behind until typescript-eslint catches up.
   connected through the connector with automatic IAM database
   authentication, so the 2026-11-14 entry's fallback to a password in
   Secret Manager wasn't needed.
+- **2026-11-19:** D7's steps 1–3 become: the Sheet write keeps no state in
+  Postgres. Confirm updates the row only if the item is still unconfirmed,
+  and only when that update confirmed it does it make one Sheet append, as
+  raw text with a short timeout and no automatic retries; the response says
+  `sent` or `failed`. A repeated confirm on a confirmed item changes nothing
+  and makes no append. With the same final value (compared as in D5), it
+  says `unknown`, because the server can't know whether the first append
+  landed; with a different value, it is refused. `failed` and `unknown` show
+  step 3's screen. Post to Sheet refuses an unconfirmed item and appends the
+  stored final value, never one from the request, with the same append
+  settings. It checks no Sheet state, so it can't refuse a second append;
+  its button is disabled while its request is in flight. The stuck-Sheet
+  query goes: the daily comparison of the Sheet with Postgres stays, and is
+  the only backstop for a missing row, including after the page was closed.
+  `deploy/schema.sql` drops `sheet_status`, `sheet_updated_at` and their
+  `CHECK`. This entry fixes only the three outcomes; field names and status
+  codes are left to the code. D7's second *Build constraints* line becomes:
+  a test that Post to Sheet refuses an unconfirmed item and appends the
+  stored final value, not one from the request. Rejected: full D7, a stored
+  status with an atomic takeover (two columns and their grants, a second
+  write after the append, the takeover `UPDATE` and a race test, mostly to
+  feed a stuck-Sheet query the daily comparison already covers, for about 60
+  items and one staff member); a stored status without the takeover (the
+  same columns and second write, for the same query); a plain success for a
+  repeated confirm (a confirm that committed but whose response was lost
+  would be reported as reaching the Sheet when it may not have); no button,
+  with staff typing the value into the Sheet (the button sends the stored
+  value, so it can't introduce a typo, for one small route). Accepted cost:
+  a duplicate row from Post to Sheet is possible (two tabs, or a timed-out
+  append that landed) and is deleted by hand (ADR-0007), and a missing row
+  is found only by the daily comparison. The gate is unaffected: it counts
+  from Postgres plus the hand log (ADR-0007).
