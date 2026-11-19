@@ -44,10 +44,13 @@ def test_import_and_create_app_build_no_client():
     code = (
         "from unittest import mock\n"
         "import google.cloud.sql.connector as c, google.cloud.storage as s\n"
+        "import google.auth as a, google.auth.transport.requests as r\n"
         "built = AssertionError('a client was built at import or in create_app()')\n"
         "with mock.patch.object(c, 'Connector', side_effect=built),"
-        " mock.patch.object(s, 'Client', side_effect=built):\n"
-        "    import app, app.db, app.photos\n"
+        " mock.patch.object(s, 'Client', side_effect=built),"
+        " mock.patch.object(a, 'default', side_effect=built),"
+        " mock.patch.object(r, 'AuthorizedSession', side_effect=built):\n"
+        "    import app, app.db, app.photos, app.sheet\n"
         "    app.create_app()\n"
     )
     result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)
