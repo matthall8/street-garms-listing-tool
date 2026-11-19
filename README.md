@@ -53,7 +53,8 @@ main.py  /  app/routes.py
   │         └─ labels/catalogue.py    resolve() → Resolution     (reads the private CSV)
   │                                       ↓
   │                                   labels/schemas.py → Extraction
-  └─ app/db.py             POST /items: the item's row → Postgres, last; its confirm updates the row
+  ├─ app/db.py             POST /items: the item's row → Postgres, last; its confirm updates the row
+  └─ app/sheet.py          the confirm and Post to Sheet: the final value → the Sheet, after the row
 ```
 
 Terms: [GLOSSARY.md](GLOSSARY.md).
