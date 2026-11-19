@@ -7,12 +7,8 @@ CREATE TABLE items (
   final_value       text,                  -- as entered; trim/uppercase only for the outcome comparison
   outcome           text CHECK (outcome IN ('unchanged', 'edited')),
   confirmed_at      timestamptz,
-  sheet_status      text CHECK (sheet_status IN ('pending', 'sent', 'failed')),
-  sheet_updated_at  timestamptz,
   CHECK (value_shown <> ''),                                  -- one form of empty
   CHECK ((final_value IS NULL) = (confirmed_at IS NULL)
      AND (outcome IS NULL) = (confirmed_at IS NULL)),         -- a confirm is all or nothing
-  CHECK (confirmed_at IS NULL OR value_shown IS NOT NULL),    -- an empty read can't be confirmed
-  CHECK ((sheet_status IS NULL) = (confirmed_at IS NULL)
-     AND (sheet_updated_at IS NULL) = (confirmed_at IS NULL)) -- D7 state only after a confirm
+  CHECK (confirmed_at IS NULL OR value_shown IS NOT NULL)     -- an empty read can't be confirmed
 );
