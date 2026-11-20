@@ -81,7 +81,7 @@ check "  in this project" "yes"             "$S_SA_IN_PROJECT"
 check "secret (pinned)"   "${SECRET_NAME}:${SECRET_VERSION}" "$S_SECRET"
 # The values name the project and the runtime account, so only the verdict
 # is printed.
-check "env (database, bucket)" "as lib.sh" \
+check "plain env vars" "as lib.sh" \
   "$([ "$S_ENV" = "$(service_env)" ] && echo 'as lib.sh' || echo 'differs from lib.sh')"
 check "latest revision serving" "yes"       "$S_REVISION_OK"
 
