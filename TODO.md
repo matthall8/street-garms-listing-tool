@@ -27,27 +27,11 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **web-hardening**: what the trial needs (ADR-0009, *Threat model*):
-  upload checks (Pillow `verify()`, `MAX_IMAGE_PIXELS`), error type
-  logged with the raw error hidden, `uvicorn` timeouts. Of the errors,
-  only the log is left: validation errors are handled (**trial-confirm**),
-  and other unhandled exceptions already return Starlette's plain 500
-  with no detail, but uvicorn logs their full traceback, message included
-- **upload-cap-scope**. Decision: the 16MB check in `app/routes.py`
-  covers only the photo field and runs once the body has arrived, so a
-  large upload is stored before its 413 and a large extra file part is
-  parsed, then ignored. Decide whether **web-hardening** needs a
-  request-level limit. With **web-hardening**
-- **uvicorn-timeouts-wording**: reword **web-hardening**'s "`uvicorn`
-  timeouts": uvicorn has no request timeout, only keep-alive and worker
-  timeouts this image doesn't use. With **web-hardening**
 - **mvp-scaffold**: the TypeScript app, with types generated from the
   OpenAPI schema (ADR-0008, D3, D4); the original file uploaded (D9);
   the 2-minute limit (D2), its `AbortController` in the submit handler
   rather than a `useEffect`, and a test that the request aborts; the
-  flow as a discriminated union in `useReducer`. After **web-hardening**,
-  so the API, its rejections included, is
-  complete when the types are generated
+  flow as a discriminated union in `useReducer`
 - **generated-types-check**: the CI check that the committed types match
   a fresh generation (ADR-0008, D10). With **mvp-scaffold**
 - **missing-photo-check**: frontend validation for a missing photo. With
@@ -236,8 +220,8 @@ configuration and can be done during the trial.
 - **reviewer-eval**: plant known defects on a scratch branch and count
   what the reviewer catches; shares setup with **mutation-test**
 - **post-trial-hardening**: CSRF, rate limits, security headers, a kill
-  switch, request IDs, cost per read and alerts, the items removed from
-  **web-hardening** and **observability** for the trial. Revisit before
+  switch, request IDs, cost per read and alerts, the items left out of
+  the trial's web hardening and **observability**. Revisit before
   anyone beyond the trial uses the app. The kill switch's manual-entry
   fallback needs rethinking: ADR-0007 makes the Sheet the only place to
   type a number.
@@ -473,3 +457,8 @@ sort them into a section.
   database and bucket settings, but `service_env` (`deploy/lib.sh`) also
   sets `SHEET_ID` and `SHEET_TAB_ID`. Fix it the next time `deploy.sh`
   changes
+- **log-route-spelling**: the unhandled-error line (`app/errors.py`)
+  names a route by its template, `/items/{item_id}/...`, but
+  `_log_failure`'s callers (`app/routes.py`) write `/items/{id}/...`, so
+  a log search for one misses the other. Use one spelling. With
+  **observability**

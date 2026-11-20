@@ -9,6 +9,7 @@ import logging
 import os
 from dataclasses import asdict
 from datetime import UTC, datetime
+from io import BytesIO
 from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID, uuid4
@@ -16,19 +17,37 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from PIL import Image
 from pydantic import BaseModel, ConfigDict
 
 from app import db, photos, sheet
 from labels.pipeline import ACCEPTED, UnsupportedImageType, extract_bytes
 from labels.schemas import ArtNumberReading, Extraction
 
-MAX_UPLOAD_BYTES = 16 * 1024 * 1024  # phone photos are big
+# The Claude API's per-image limits, from Anthropic's vision docs, *Request
+# limits* (https://platform.claude.com/docs/en/build-with-claude/vision,
+# checked 2026-11-20). "10 MB (base64-encoded)", read strictly as 10,000,000
+# bytes: 7,500,000 raw bytes is exactly that once base64 adds a third.
+# "The maximum dimensions for each image are 8000x8000 px." Below that, the
+# API downscales a long edge over 2576 px rather than rejecting it, so there's
+# no lower cap.
+MAX_UPLOAD_BYTES = 7_500_000
+MAX_SIDE_PX = 8000
+
+# Pillow's format -> the media type it must be declared as. Pillow opens many
+# iPhone JPEGs as MPO (labels/photo.py, _SAVE_AS).
+_DECLARED_AS = {
+    "JPEG": "image/jpeg",
+    "MPO": "image/jpeg",
+    "PNG": "image/png",
+    "WEBP": "image/webp",
+}
 
 # POST /items failure bodies: fixed, never the raw error or the client's
 # media type (ADR-0008, D3).
 NO_PHOTO = "Add a photo of the label showing the ART number."
 NOT_AN_IMAGE = "That file isn't a photo we can read. Use a JPEG, PNG or WebP."
-TOO_LARGE = "That photo is too large. The limit is 16MB."
+TOO_LARGE = "That photo is too large. Take it again at the camera's standard resolution."
 PHOTO_NOT_SAVED = "The photo couldn't be saved. Try again."
 READ_FAILED = "The label couldn't be read. Try again."
 READ_NOT_SAVED = "The read couldn't be saved. Try again."
@@ -70,22 +89,56 @@ class UploadTooLarge(Exception):
     pass
 
 
+class NotAnImage(Exception):
+    pass
+
+
 def _too_large(f: UploadFile) -> bool:
-    """Whether an upload is over the cap. An unknown size counts as over."""
+    """Whether an upload is over the byte cap. An unknown size counts as over."""
     return f.size is None or f.size > MAX_UPLOAD_BYTES
 
 
+def _check_image(data: bytes, media_type: str) -> None:
+    """Raise unless the bytes are an image of the declared type within the
+    API's pixel limit. Reads only: the bytes stored and read are the bytes
+    uploaded (ADR-0008, D9).
+
+    The format match does most of the work. Format and size come from the
+    header, without decoding pixels; verify() runs last, since the image
+    can't be used after it, and checks little for JPEG.
+    """
+    try:
+        img = Image.open(BytesIO(data))
+    except Image.DecompressionBombError:  # over about 179M px
+        raise UploadTooLarge(TOO_LARGE) from None
+    except Exception:
+        raise NotAnImage(NOT_AN_IMAGE) from None
+    with img:
+        if _DECLARED_AS.get(img.format or "") != media_type:
+            raise NotAnImage(NOT_AN_IMAGE)
+        if max(img.size) > MAX_SIDE_PX:
+            raise UploadTooLarge(TOO_LARGE)
+        try:
+            img.verify()
+        except Exception:
+            raise NotAnImage(NOT_AN_IMAGE) from None
+
+
 def _read(f: UploadFile | None):
-    """Pull the upload off the form. Returns ((bytes, media_type), name) or None."""
+    """Pull the upload off the form and check it, before anything is stored.
+    Returns ((bytes, media_type), name) or None."""
     if f is None or not f.filename:
         return None
-    if _too_large(f):
+    if _too_large(f):  # first, before Pillow
         raise UploadTooLarge(TOO_LARGE)
     # content_type is the raw header, which can carry parameters after a `;`.
+    # None is taken as JPEG; a different real format is then NotAnImage.
     media_type = (f.content_type or "").split(";")[0].strip().lower() or "image/jpeg"
     if media_type not in ACCEPTED:
         raise UnsupportedImageType(f"Unsupported image type: {media_type}")
-    return (f.file.read(), media_type), f.filename
+    data = f.file.read()
+    _check_image(data, media_type)
+    return (data, media_type), f.filename
 
 
 def _form_error(request: Request, message: str, status_code: int):
@@ -103,7 +156,7 @@ def index(request: Request):
 def capture(request: Request, art_photo: Annotated[UploadFile | None, File()] = None):
     try:
         art = _read(art_photo)
-    except UnsupportedImageType as exc:
+    except (UnsupportedImageType, NotAnImage) as exc:
         return _form_error(request, str(exc), 400)
     except UploadTooLarge as exc:
         return _form_error(request, str(exc), 413)
@@ -187,7 +240,7 @@ def create_item(art_photo: Annotated[UploadFile | None, File()] = None):
     received_at = datetime.now(UTC)
     try:
         art = _read(art_photo)
-    except UnsupportedImageType:
+    except (UnsupportedImageType, NotAnImage):
         raise HTTPException(status_code=400, detail=NOT_AN_IMAGE) from None
     except UploadTooLarge:
         raise HTTPException(status_code=413, detail=TOO_LARGE) from None

@@ -20,14 +20,19 @@ import inspect
 import io
 import logging
 import os
+import struct
+import zlib
 from contextlib import contextmanager
 
 import pytest
 from fastapi import FastAPI, UploadFile
 from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
+from markupsafe import escape
+from PIL import Image
 
 from app import create_app, routes
+from app.errors import SERVER_ERROR
 from labels.pipeline import from_reading
 from labels.schemas import AmbiguousCharacter, ArtNumberReading, Extraction
 from tests import synthetic as s
@@ -88,8 +93,22 @@ def _extraction(source: str) -> Extraction:
     )
 
 
+def _image(fmt: str, size: tuple[int, int] = (4, 4), mode: str = "RGB", **options) -> bytes:
+    """A real image, built at runtime as tests/test_photo.py does."""
+    out = io.BytesIO()
+    Image.new(mode, size).save(out, format=fmt, **options)
+    return out.getvalue()
+
+
+# One real tiny image per accepted type: the upload checks open every upload.
+IMAGES = {"image/jpeg": _image("JPEG"), "image/png": _image("PNG"), "image/webp": _image("WEBP")}
+
+
 def _upload(filename: str, media_type: str) -> dict:
-    return {"art_photo": (filename, io.BytesIO(b"x"), media_type)}
+    """A real image of the declared type; fake bytes for a type the checks
+    refuse before opening it."""
+    data = IMAGES.get(media_type.split(";")[0], b"x")
+    return {"art_photo": (filename, io.BytesIO(data), media_type)}
 
 
 def test_no_photo_is_a_400(client):
@@ -115,6 +134,14 @@ def test_heic_and_heif_are_rejected(client, extract_calls, media_type):
     assert extract_calls == []
 
 
+def test_bytes_that_are_not_an_image_are_a_400(client, extract_calls):
+    files = {"art_photo": ("label.jpg", io.BytesIO(b"x"), "image/jpeg")}
+    response = client.post("/", files=files)
+    assert response.status_code == 400
+    assert str(escape(routes.NOT_AN_IMAGE)).encode() in response.content
+    assert extract_calls == []
+
+
 def test_failed_extraction_is_a_502(client, monkeypatch):
     monkeypatch.setattr(routes, "extract_bytes", failing_extract)
     files = _upload("a.png", "image/png")
@@ -131,7 +158,7 @@ def test_supported_type_reaches_the_pipeline(client, extract_calls, media_type):
     response = client.post("/", files=files)
     assert response.status_code == 200
     assert extract_calls == [
-        {"art": (b"x", media_type), "source": filename}
+        {"art": (IMAGES[media_type], media_type), "source": filename}
     ]
     assert b"Test Jacket" in response.content
 
@@ -143,7 +170,7 @@ def test_a_stray_second_photo_is_ignored(client, extract_calls):
     files["details_photo"] = ("b.png", io.BytesIO(b"y"), "image/png")
     response = client.post("/", files=files)
     assert response.status_code == 200
-    assert extract_calls == [{"art": (b"x", "image/png"), "source": "a.png"}]
+    assert extract_calls == [{"art": (IMAGES["image/png"], "image/png"), "source": "a.png"}]
 
 
 def test_a_second_photo_alone_is_a_400(client, extract_calls):
@@ -174,21 +201,36 @@ def test_empty_file_field_is_a_400(client, extract_calls):
 def test_parameters_on_the_content_type_are_ignored(client, extract_calls):
     response = client.post("/", files=_upload("label.jpg", "image/jpeg; charset=binary"))
     assert response.status_code == 200
-    assert extract_calls == [{"art": (b"x", "image/jpeg"), "source": "label.jpg"}]
+    assert extract_calls == [{"art": (IMAGES["image/jpeg"], "image/jpeg"), "source": "label.jpg"}]
 
 
-CAP = 16 * 1024 * 1024
+CAP = 7_500_000  # the API's 10,000,000 base64 bytes, as raw bytes
 
 
 def _upload_of(size: int) -> dict:
+    """Fake bytes: the size check runs before anything opens them."""
     return {"art_photo": ("a.png", io.BytesIO(b"x" * size), "image/png")}
 
 
+def _chunk(kind: bytes, data: bytes) -> bytes:
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+
+def _png_of(size: int) -> bytes:
+    """A real PNG of exactly `size` bytes: a tiny one, padded before IEND with
+    a private ancillary chunk with a correct CRC, so it passes verify()."""
+    png = _image("PNG")
+    body, iend = png[:-12], png[-12:]  # IEND is the last 12 bytes
+    padding = size - len(png) - 12  # a chunk's length, type and CRC
+    return body + _chunk(b"paDd", b"\0" * padding) + iend
+
+
 def test_upload_at_the_cap_reaches_the_pipeline(client, extract_calls):
-    response = client.post("/", files=_upload_of(CAP))
+    photo = _png_of(CAP)
+    assert len(photo) == CAP
+    response = client.post("/", files={"art_photo": ("a.png", io.BytesIO(photo), "image/png")})
     assert response.status_code == 200
-    assert len(extract_calls) == 1
-    assert len(extract_calls[0]["art"][0]) == CAP
+    assert extract_calls == [{"art": (photo, "image/png"), "source": "a.png"}]
 
 
 def test_upload_over_the_cap_is_a_413(client, extract_calls):
@@ -225,7 +267,7 @@ def test_no_route_handler_is_a_coroutine_function(client):
 # reaches them unpatched, with pytest.fail for the same reason as
 # `no_real_extraction`.
 
-PHOTO = b"\xff\xd8 invented upload bytes"
+PHOTO = _image("JPEG", size=(6, 5))  # differs from IMAGES' JPEG
 
 
 @pytest.fixture(autouse=True)
@@ -264,8 +306,8 @@ def stored(monkeypatch):
     return calls
 
 
-def _photo(media_type: str = "image/jpeg") -> dict:
-    return {"art_photo": ("label.jpg", io.BytesIO(PHOTO), media_type)}
+def _photo(media_type: str = "image/jpeg", data: bytes = PHOTO) -> dict:
+    return {"art_photo": ("label.jpg", io.BytesIO(data), media_type)}
 
 
 def test_items_returns_only_the_id_and_the_value_shown(client, extract_calls, stored):
@@ -350,6 +392,111 @@ def test_items_rejected_upload_stores_nothing(client, extract_calls, stored, fil
     assert response.status_code == status
     assert response.json() == {"detail": detail}  # fixed: never the client's media type
     assert stored["photo"] == [] and extract_calls == [] and stored["insert"] == []
+
+
+def _broken_png() -> bytes:
+    """A PNG that opens but fails verify(): IDAT's CRC is wrong, and opening
+    reads only up to IDAT."""
+    png = bytearray(_image("PNG"))
+    at = png.index(b"IDAT")
+    (length,) = struct.unpack(">I", png[at - 4 : at])
+    png[at + 4 + length] ^= 0xFF
+    return bytes(png)
+
+
+def test_the_broken_png_opens_and_fails_verify():
+    """Guards the rejection test below: it's verify() that refuses it."""
+    with Image.open(io.BytesIO(_broken_png())) as img:
+        assert img.format == "PNG"
+        with pytest.raises(SyntaxError):
+            img.verify()
+
+
+def _mpo() -> bytes:
+    data = _image("MPO", save_all=True, append_images=[Image.new("RGB", (4, 4))])
+    with Image.open(io.BytesIO(data)) as img:
+        assert img.format == "MPO"
+    return data
+
+
+def _without_content_type(data: bytes) -> dict:
+    """Multipart kwargs for a photo part with no Content-Type header. Built by
+    hand because httpx fills one in."""
+    body = (
+        b"--b\r\n"
+        b'Content-Disposition: form-data; name="art_photo"; filename="label"\r\n\r\n'
+        + data
+        + b"\r\n--b--\r\n"
+    )
+    return {"content": body, "headers": {"Content-Type": "multipart/form-data; boundary=b"}}
+
+
+@pytest.mark.parametrize(
+    "data, media_type, status, detail",
+    [
+        pytest.param(
+            _image("PNG", size=(8001, 1), mode="1"), "image/png", 413, routes.TOO_LARGE,
+            id="wider than 8000 px",
+        ),
+        pytest.param(
+            _image("PNG", size=(1, 8001), mode="1"), "image/png", 413, routes.TOO_LARGE,
+            id="taller than 8000 px",
+        ),
+        pytest.param(_broken_png(), "image/png", 400, routes.NOT_AN_IMAGE, id="fails verify"),
+        pytest.param(
+            IMAGES["image/png"], "image/jpeg", 400, routes.NOT_AN_IMAGE, id="png declared jpeg"
+        ),
+        pytest.param(
+            IMAGES["image/jpeg"], "image/webp", 400, routes.NOT_AN_IMAGE, id="jpeg declared webp"
+        ),
+        pytest.param(b"x", "image/jpeg", 400, routes.NOT_AN_IMAGE, id="not an image"),
+    ],
+)
+def test_items_image_check_rejects_and_stores_nothing(
+    client, extract_calls, stored, data, media_type, status, detail
+):
+    response = client.post("/items", files=_photo(media_type, data))
+    assert response.status_code == status
+    assert response.json() == {"detail": detail}
+    assert stored["photo"] == [] and extract_calls == [] and stored["insert"] == []
+
+
+def test_items_decompression_bomb_is_a_413_and_stores_nothing(
+    client, extract_calls, stored, monkeypatch
+):
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 10)  # PHOTO's 30 px > 2x the limit
+    response = client.post("/items", files=_photo())
+    assert response.status_code == 413
+    assert response.json() == {"detail": routes.TOO_LARGE}
+    assert stored["photo"] == [] and extract_calls == [] and stored["insert"] == []
+
+
+@pytest.mark.parametrize(
+    "data, media_type",
+    [
+        pytest.param(_mpo(), "image/jpeg", id="mpo declared jpeg"),
+        pytest.param(_image("PNG", size=(8000, 1), mode="1"), "image/png", id="8000 px wide"),
+        pytest.param(_image("PNG", size=(1, 8000), mode="1"), "image/png", id="8000 px tall"),
+    ],
+)
+def test_items_image_check_accepts(client, extract_calls, stored, data, media_type):
+    response = client.post("/items", files=_photo(media_type, data))
+    assert response.status_code == 200
+    assert stored["photo"][0][1:] == (data, media_type)
+    assert extract_calls[0]["art"] == (data, media_type)
+
+
+def test_items_no_content_type_is_taken_as_jpeg(client, extract_calls, stored):
+    response = client.post("/items", **_without_content_type(PHOTO))
+    assert response.status_code == 200
+    assert extract_calls[0]["art"] == (PHOTO, "image/jpeg")
+
+
+def test_items_no_content_type_on_another_format_is_not_an_image(client, extract_calls, stored):
+    response = client.post("/items", **_without_content_type(IMAGES["image/png"]))
+    assert response.status_code == 400
+    assert response.json() == {"detail": routes.NOT_AN_IMAGE}
+    assert stored["photo"] == [] and extract_calls == []
 
 
 RAW = "raw-error-text-that-must-not-leave"
@@ -536,6 +683,31 @@ def test_a_failed_append_answers_failed_and_logs_one_line(client, confirms, monk
     )
     for leak in (RAW, s.SPLIT_SI_9, ITEM_ID):
         assert leak not in caplog.text
+
+
+def test_an_unhandled_exception_is_a_json_500_and_one_log_line(client, confirms, monkeypatch, caplog):
+    """app/errors.py: _append runs outside any try in confirm_item, so its
+    exception is unhandled. One record, with the route's template and the
+    class: no traceback, message, value or item ID, from any logger."""
+
+    def raises(route, final_value):
+        raise RuntimeError(f"{RAW} {ITEM_ID} {final_value}")
+
+    monkeypatch.setattr(routes, "_append", raises)
+    unraised = TestClient(client.app, raise_server_exceptions=False)
+    # WARNING: the test client's own httpx line, at INFO, has the raw path.
+    with caplog.at_level(logging.WARNING):
+        response = _confirm(unraised, {"final_value": s.SPLIT_SI_9})
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": SERVER_ERROR}
+    (record,) = caplog.records
+    assert record.name == "app.errors"
+    assert record.getMessage() == "POST /items/{item_id}/confirm failed: error=RuntimeError"
+    assert record.exc_info is None and record.exc_text is None
+    for leak in (RAW, s.SPLIT_SI_9, ITEM_ID, "Traceback"):
+        assert leak not in caplog.text
+        assert leak not in response.text
 
 
 @pytest.mark.parametrize("target", ["connect", "confirm_item"])
