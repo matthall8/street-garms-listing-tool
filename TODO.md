@@ -468,3 +468,8 @@ sort them into a section.
   question: does an ART number confirmed before the start or during a
   pause use up its first entry, and does `received_at` or
   `confirmed_at` decide the window? Before **staff-trial**
+- **deploy-env-comment**: the comment above `deploy_service`
+  (`deploy/deploy.sh`) calls the plain environment variables the
+  database and bucket settings, but `service_env` (`deploy/lib.sh`) also
+  sets `SHEET_ID` and `SHEET_TAB_ID`. Fix it the next time `deploy.sh`
+  changes
