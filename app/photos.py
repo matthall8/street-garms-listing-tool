@@ -7,7 +7,7 @@ from uuid import UUID
 from google.cloud import storage
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-# One attempt at one upload of at most 16MB, Cloud Run to a same-region
+# One attempt at one upload of at most 7.5MB, Cloud Run to a same-region
 # bucket: normally a second or two, so an attempt still going after this is hung.
 UPLOAD_TIMEOUT_S = 20
 # All attempts together, so a transient error gets a retry or two; with the
