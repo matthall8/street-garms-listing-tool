@@ -1,6 +1,6 @@
 # ADR-0009: Trial data and privacy
 
-- **Status:** Accepted; amended 2026-11-13, 2026-11-18 (*Amendments*)
+- **Status:** Accepted; amended 2026-11-13, 2026-11-18, 2026-11-20 (*Amendments*)
 - **Date:** 2026-11-09
 - **Depends on:** ADR-0007, ADR-0008
 - **Terms:** see `GLOSSARY.md`.
@@ -191,3 +191,11 @@ by someone not in the IAP policy can't be detected.
 - **2026-11-18:** *What's held where*: the Postgres row holds the Cloud Run
   revision in place of the configuration (ADR-0008, *Amendments*,
   2026-11-18).
+- **2026-11-20:** at **sheets-push**'s deploy, a confirm through the deployed
+  app appended to the real Sheet's intake tab as the runtime service
+  account, with the Sheet shared with that account and no key file: the
+  real-Sheet hand check (`deploy/README.md`, *Sheet hand check*) answered
+  `sent`, then `unknown`, with one row, its value's leading zero intact.
+  So the 2026-11-13 entry's inference holds for the Sheet as it did for the
+  database (ADR-0008, *Amendments*, 2026-11-18): no Sheet credential exists,
+  and Secret Manager holds only the Anthropic key.

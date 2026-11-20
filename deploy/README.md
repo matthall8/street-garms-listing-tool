@@ -251,9 +251,7 @@ On the instance, in the console:
    Postgres requires it on any column a `WHERE` reads, and the confirm's
    `UPDATE` reads its guard columns; the confirm's `SELECT` after a miss
    needs it too. `UPDATE` on only the three columns a confirm sets. No
-   sequence grant: the ID is a UUID made in the app. On the live table,
-   the `SELECT` and `UPDATE` grants are **sheets-push-deploy**'s
-   (TODO.md).
+   sequence grant: the ID is a UUID made in the app.
 
 Not *Workforce identity federation*: that is for an outside identity
 provider.
@@ -372,10 +370,9 @@ fails. Run it after every deploy.
 
 ## Sheet hand check
 
-Once, at **sheets-push-deploy**'s step 6 (TODO.md), before the founder
-review (ADR-0008, *Amendments*, 2026-11-19). It appends to the real Sheet's
-intake tab, so run it outside working hours, and delete the row straight
-after.
+Once, before the founder review (ADR-0008, *Amendments*, 2026-11-19); its
+result is in ADR-0009, *Amendments*. It appends to the real Sheet's intake
+tab, so run it outside working hours, and delete the row straight after.
 
 1. Sign in to the service and open `/`. Choose a non-trial photo whose ART
    number is readable in the form, but don't submit it. Sending it below
@@ -383,18 +380,24 @@ after.
 2. In the browser's developer console:
 
    ```js
-   const form = document.querySelector("form");
-   const item = await (await fetch("/items", { method: "POST", body: new FormData(form) })).json();
-   const value = prompt("An invented value starting with 0, never a real code");
-   const confirm = () =>
-     fetch(`/items/${item.id}/confirm`, {
-       method: "POST",
-       headers: { "Content-Type": "application/json" },
-       body: JSON.stringify({ final_value: value }),
-     }).then((r) => r.json());
-   await confirm(); // {sheet: "sent"}
-   await confirm(); // {sheet: "unknown"}
+   (async () => {
+     const f = document.querySelector("form");
+     const item = await (await fetch("/items", { method: "POST", body: new FormData(f) })).json();
+     if (!item.id || item.value_shown === null) { console.log("read failed or empty:", item.detail ?? "no ART number"); return; }
+     const value = prompt("An invented value starting with 0, never a real code");
+     const send = () =>
+       fetch(`/items/${item.id}/confirm`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ final_value: value }),
+       }).then((r) => r.json());
+     console.log(await send()); // {sheet: "sent"}
+     console.log(await send()); // {sheet: "unknown"}
+   })();
    ```
+
+   Wrapped in a function: the page's own script declares `form`, and a
+   top-level `const` in the console clashes with it.
 
 3. Expect `sent`, then `unknown`, and exactly one new row in the intake tab:
    the value in column B with its leading zero, and column A empty. Delete
@@ -409,9 +412,8 @@ Other answers:
   `KeyError` or `ValueError` is `SHEET_ID` or `SHEET_TAB_ID` missing or not
   a number. If the token lacks the `spreadsheets` scope, stop and ask
   before any key goes into Secret Manager.
-- `item` is `{detail: …}`, or its `value_shown` is `null` and the confirm
-  answers `{detail: …}`: the read failed or found no ART number. Choose
-  another photo.
+- `read failed or empty`: the read failed or found no ART number, and
+  nothing was confirmed. Choose another photo.
 - A sign-in page or an error instead of JSON: IAP refused the `fetch`. Don't
   write a script around it; wait for **mvp-confirm**'s screen.
 

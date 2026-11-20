@@ -92,9 +92,7 @@ Config; BASELINES.md, *Held-out test set*).
   **later-run-rule** comes after the trial, so no rule judges that
   change. Say which rule applies, or that it's a project team decision
 - **founder-review**: ADR-0007, *Stages*, stage 1. First the
-  Sheet-sharing check (ADR-0009, D1), before its items (the real-Sheet
-  append is **sheets-push-deploy**'s, ADR-0008, *Amendments*,
-  2026-11-19); the phone
+  Sheet-sharing check (ADR-0009, D1), before its items; the phone
   location check at the review (ADR-0009, D2). Revisit min instances
   (0) against the measured cold start (BASELINES.md, *Deploy
   measurements*). After every item above
@@ -458,14 +456,6 @@ sort them into a section.
 - **revision-summary**: BASELINES.md gets a summary of the daily revision
   checks: each revision's commit and its check result. With
   **trial-report**
-- **sheet-columns-drop**: on the live table, in Cloud SQL Studio as
-  your own IAM user (the table's owner), run
-  `ALTER TABLE items DROP COLUMN sheet_status, DROP COLUMN sheet_updated_at;`,
-  which drops their `CHECK` too (ADR-0008, *Amendments*, 2026-11-19).
-  Check that `information_schema.columns` lists the eight remaining
-  columns and `pg_constraint` has no `items` constraint naming either
-  dropped column. No deploy: the app doesn't use them. Before
-  **sheets-push-deploy**
 - **trial-queries**: the counted-item and stop-rule queries (ADR-0008,
   D6) as a committed raw-SQL file, pasted into Cloud SQL Studio, with
   D8's two real-Postgres tests (counted items selected correctly, edit
@@ -478,19 +468,3 @@ sort them into a section.
   question: does an ART number confirmed before the start or during a
   pause use up its first entry, and does `received_at` or
   `confirmed_at` decide the window? Before **staff-trial**
-- **sheets-push-deploy**: one merged deploy, in order: (1)
-  **sheet-columns-drop**'s `ALTER` and its check; (2) the `SELECT` and
-  column `UPDATE` grants (`deploy/README.md`, step 9); (3) first, enable
-  `sheets.googleapis.com` (step 2), and check the Sheet with its
-  day-to-day editor: new items always go on the intake tab, and no
-  formulas are filled down any of its columns ahead of the data, since
-  `appendCells` would land below them; then `SHEET_ID` and
-  `SHEET_TAB_ID` in `deploy/config.env`, and the Sheet shared with the
-  runtime service account; (4) `deploy/deploy.sh`, then
-  `deploy/read-back.sh`; (5) step 9's `column_privileges` check; (6) the
-  real-Sheet hand check (`deploy/README.md`, *Sheet hand check*); (7) if
-  (6) passes, an ADR-0009 amendment recording
-  that no Sheet credential exists, as ADR-0008's 2026-11-18 entry did for
-  the database. A real-Postgres test running the app's SQL as a role
-  holding only the grants was considered and declined: (6) runs the real
-  grant on the real table
