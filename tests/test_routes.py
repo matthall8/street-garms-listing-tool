@@ -28,6 +28,7 @@ import pytest
 from fastapi import FastAPI, UploadFile
 from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
+from markupsafe import escape
 from PIL import Image
 
 from app import create_app, routes
@@ -133,6 +134,14 @@ def test_heic_and_heif_are_rejected(client, extract_calls, media_type):
     assert extract_calls == []
 
 
+def test_bytes_that_are_not_an_image_are_a_400(client, extract_calls):
+    files = {"art_photo": ("label.jpg", io.BytesIO(b"x"), "image/jpeg")}
+    response = client.post("/", files=files)
+    assert response.status_code == 400
+    assert str(escape(routes.NOT_AN_IMAGE)).encode() in response.content
+    assert extract_calls == []
+
+
 def test_failed_extraction_is_a_502(client, monkeypatch):
     monkeypatch.setattr(routes, "extract_bytes", failing_extract)
     files = _upload("a.png", "image/png")
@@ -221,7 +230,7 @@ def test_upload_at_the_cap_reaches_the_pipeline(client, extract_calls):
     assert len(photo) == CAP
     response = client.post("/", files={"art_photo": ("a.png", io.BytesIO(photo), "image/png")})
     assert response.status_code == 200
-    assert extract_calls[0]["art"] == (photo, "image/png")
+    assert extract_calls == [{"art": (photo, "image/png"), "source": "a.png"}]
 
 
 def test_upload_over_the_cap_is_a_413(client, extract_calls):
