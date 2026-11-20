@@ -457,3 +457,8 @@ sort them into a section.
   database and bucket settings, but `service_env` (`deploy/lib.sh`) also
   sets `SHEET_ID` and `SHEET_TAB_ID`. Fix it the next time `deploy.sh`
   changes
+- **log-route-spelling**: the unhandled-error line (`app/errors.py`)
+  names a route by its template, `/items/{item_id}/...`, but
+  `_log_failure`'s callers (`app/routes.py`) write `/items/{id}/...`, so
+  a log search for one misses the other. Use one spelling. With
+  **observability**
