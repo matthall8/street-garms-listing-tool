@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { captureReducer, initialCapture, type CaptureAction, type CaptureModel } from './state'
 
-// Invented values: not a real item or a real read. The ID is made at runtime,
-// since code-shaped literals stay out of tracked files (CLAUDE.md).
 const ID = crypto.randomUUID()
 const VALUE = 'NOT-A-REAL-VALUE'
 

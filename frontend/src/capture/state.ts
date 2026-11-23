@@ -1,6 +1,6 @@
 import type { components } from "../api-schema";
 
-type ItemCreated = components['schemas']["ItemCreated"]
+export type ItemCreated = components['schemas']["ItemCreated"]
 
 export type CaptureState =
   | { status: "idle" }
