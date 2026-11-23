@@ -1,0 +1,317 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Index",
+        "operationId": "index__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Capture",
+        "operationId": "capture__post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_capture__post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items": {
+      "post": {
+        "summary": "Create Item",
+        "description": "Validate, store the photo, read, then insert the row. A rejected upload\nstores nothing; a failure at any later step is a failed read, a 502\n(ADR-0008, D5).",
+        "operationId": "create_item_items_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_item_items_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemCreated"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{item_id}/confirm": {
+      "post": {
+        "summary": "Confirm Item",
+        "description": "Record the final value; the server works out unchanged or edited\n(ADR-0008, D5). Then append it to the Sheet: `sent` or `failed`. A repeat\nwith the same final value succeeds again, after a lost response, but makes\nno append and answers `unknown`; with a different one it is refused, and\nchanges nothing (D7, as amended 2026-11-19).",
+        "operationId": "confirm_item_items__item_id__confirm_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SheetOutcome"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Client Error"
+          }
+        }
+      }
+    },
+    "/items/{item_id}/post-to-sheet": {
+      "post": {
+        "summary": "Post To Sheet",
+        "description": "Append a confirmed item's stored final value to the Sheet again: `sent`\nor `failed`. No body, so no value from the request can reach the Sheet. It\nchecks no Sheet state, so it never refuses a second append (ADR-0008, D7,\nas amended 2026-11-19).",
+        "operationId": "post_to_sheet_items__item_id__post_to_sheet_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SheetOutcome"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Client Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_capture__post": {
+        "properties": {
+          "art_photo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art Photo"
+          }
+        },
+        "type": "object",
+        "title": "Body_capture__post"
+      },
+      "Body_create_item_items_post": {
+        "properties": {
+          "art_photo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art Photo"
+          }
+        },
+        "type": "object",
+        "title": "Body_create_item_items_post"
+      },
+      "ConfirmRequest": {
+        "properties": {
+          "final_value": {
+            "type": "string",
+            "title": "Final Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "final_value"
+        ],
+        "title": "ConfirmRequest",
+        "description": "POST /items/{id}/confirm's whole request: the final value as entered.\nThe value shown is never taken from the client (ADR-0008, D5)."
+      },
+      "ErrorBody": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorBody",
+        "description": "An error response's whole body: one fixed message."
+      },
+      "ItemCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "value_shown": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Shown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "value_shown"
+        ],
+        "title": "ItemCreated",
+        "description": "POST /items' whole response: anything else the read found stays on the\nserver (ADR-0008, D3, D4). value_shown is None for an empty read."
+      },
+      "SheetOutcome": {
+        "properties": {
+          "sheet": {
+            "type": "string",
+            "enum": [
+              "sent",
+              "failed",
+              "unknown"
+            ],
+            "title": "Sheet"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sheet"
+        ],
+        "title": "SheetOutcome",
+        "description": "The whole response of a confirm and of Post to Sheet (ADR-0008, D7):\n`sent` when the append succeeded, `failed` when it raised or wasn't 2xx\n(a timed-out one may still have landed), `unknown` for a repeated\nconfirm, which makes no append."
+      }
+    }
+  }
+}
