@@ -1,6 +1,7 @@
 import type { CaptureAction, ItemCreated } from "./state"
 
 export const FALLBACK_MESSAGE = "Something went wrong. Please try again."
+export const UPLOAD_TIMEOUT_MS = 120000
 
 export const uploadPhoto = async (file: File, abortSignal: AbortSignal): Promise<CaptureAction> => {
   const formData = new FormData()
