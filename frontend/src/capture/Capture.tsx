@@ -9,8 +9,8 @@ export function Capture() {
     const [missingPhoto, setMissingPhoto] = useState(false)
     const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault()
-        const formData = new FormData(event.currentTarget)
-        const image = formData.get("productImage")
+        const input = event.currentTarget.elements.namedItem("productImage")
+        const image = input instanceof HTMLInputElement ? input.files?.[0] : undefined
         if (!(image instanceof File) || image.size === 0) {
             setMissingPhoto(true)
             return 
