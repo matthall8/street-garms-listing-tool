@@ -461,3 +461,5 @@ sort them into a section.
   frontend as a network error (the sign-in redirect is cross-origin;
   unverified), so it lands in the failed state. Verify it, and word that
   screen for it. With **mvp-confirm**
+- **prettier**: add Prettier to `frontend/` on its own branch, with its
+  format check beside lint in CI
