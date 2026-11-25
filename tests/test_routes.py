@@ -33,6 +33,7 @@ from PIL import Image
 
 from app import create_app, routes
 from app.errors import SERVER_ERROR
+from generate_openapi import SCHEMA_PATH, create_schema
 from labels.pipeline import from_reading
 from labels.schemas import AmbiguousCharacter, ArtNumberReading, Extraction
 from tests import synthetic as s
@@ -891,6 +892,17 @@ def test_a_text_field_for_the_photo_is_a_400_that_echoes_nothing(client, extract
     assert response.json() == {"detail": routes.INVALID_REQUEST}
     assert SENT not in response.text
     assert stored["photo"] == [] and extract_calls == [] and stored["insert"] == []
+
+
+def test_the_openapi_schema_is_fresh(client):
+    """The committed frontend/openapi.json is what the app describes now, so
+    the frontend's types aren't generated from a stale schema. `client` keeps
+    create_schema()'s create_app() from loading .env."""
+    generated_schema = create_schema()
+    assert generated_schema == SCHEMA_PATH.read_text(), (
+        "frontend/openapi.json is stale: run `python tests/generate_openapi.py`, "
+        "then regenerate the types (`node scripts/generate-api-types.ts` in frontend/)"
+    )
 
 
 def test_the_openapi_schema_documents_4xx_and_no_422(client):

@@ -2,10 +2,10 @@ import { render, screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import App from './App.tsx'
 
-it('shows the h1 tag', () => {
+it('shows the header and the capture screen', () => {
   render(<App />)
 
-  const h1 = screen.getByRole('heading', {name: 'Hello World' })
-
-  expect(h1).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: 'Street Garms' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1, name: 'Photograph the label' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Read label' })).toBeInTheDocument()
 })

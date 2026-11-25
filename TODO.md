@@ -27,21 +27,12 @@ repeats the gate check: fingerprints, `labels/` unchanged, and the
 `pydantic-ai` and `anthropic` locks (ADR-0007, *Scope and storage*,
 Config; BASELINES.md, *Held-out test set*).
 
-- **mvp-scaffold**: the TypeScript app, with types generated from the
-  OpenAPI schema (ADR-0008, D3, D4); the original file uploaded (D9);
-  the 2-minute limit (D2), its `AbortController` in the submit handler
-  rather than a `useEffect`, and a test that the request aborts; the
-  flow as a discriminated union in `useReducer`
-- **generated-types-check**: the CI check that the committed types match
-  a fresh generation (ADR-0008, D10). With **mvp-scaffold**
-- **missing-photo-check**: frontend validation for a missing photo. With
-  **mvp-scaffold**
 - **mvp-confirm**: the confirm-or-edit screen, upload again, the
   empty-read screen (ADR-0007, *Scope and storage*), the failed-read
   screen (ADR-0008, D5), Post to Sheet (D7), its button disabled while
   its request is in flight, one screen for both `failed` and `unknown`
   (*Amendments*, 2026-11-19), and D2's test that a read past the limit
-  offers upload again. After **mvp-scaffold**
+  offers upload again
 - **upright-guidance**: capture guidance in the web UI: the photo must
   be upright (ADR-0002). With **mvp-confirm**
 - **mvp-cutover**: deletes the Jinja form, `GET /` and `POST /`
@@ -462,3 +453,13 @@ sort them into a section.
   `_log_failure`'s callers (`app/routes.py`) write `/items/{id}/...`, so
   a log search for one misses the other. Use one spelling. With
   **observability**
+- **d10-router-wording**: ADR-0008, D10's "no router … until a second
+  screen exists" will be triggered literally by **mvp-confirm**'s
+  screens; the intent was pages, not states of one flow (an inference).
+  A clarifying line in ADR-0008, on a docs branch
+- **iap-expiry-failed**: an expired IAP session probably reaches the
+  frontend as a network error (the sign-in redirect is cross-origin;
+  unverified), so it lands in the failed state. Verify it, and word that
+  screen for it. With **mvp-confirm**
+- **prettier**: add Prettier to `frontend/` on its own branch, with its
+  format check beside lint in CI
