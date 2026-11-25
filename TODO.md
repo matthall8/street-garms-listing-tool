@@ -453,3 +453,11 @@ sort them into a section.
   `_log_failure`'s callers (`app/routes.py`) write `/items/{id}/...`, so
   a log search for one misses the other. Use one spelling. With
   **observability**
+- **d10-router-wording**: ADR-0008, D10's "no router … until a second
+  screen exists" will be triggered literally by **mvp-confirm**'s
+  screens; the intent was pages, not states of one flow (an inference).
+  A clarifying line in ADR-0008, on a docs branch
+- **iap-expiry-failed**: an expired IAP session probably reaches the
+  frontend as a network error (the sign-in redirect is cross-origin;
+  unverified), so it lands in the failed state. Verify it, and word that
+  screen for it. With **mvp-confirm**
