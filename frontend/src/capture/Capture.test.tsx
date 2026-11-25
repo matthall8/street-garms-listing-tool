@@ -12,8 +12,8 @@ const photo = () => new File(['x'], 'label.jpg', { type: 'image/jpeg' })
 const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status })
 
 const choose = (file: File) =>
-  fireEvent.change(screen.getByLabelText(/input image/i), { target: { files: [file] } })
-const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  fireEvent.change(screen.getByLabelText(/open camera/i), { target: { files: [file] } })
+const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Read label' }))
 
 // A fetch that answers with `response` at once.
 const fetchResolving = (response: Response) => {
@@ -49,11 +49,11 @@ afterEach(() => {
 })
 
 describe('idle', () => {
-  it('shows the photo input and submit, with no message', () => {
+  it('shows the photo input and the read button, with no message', () => {
     render(<Capture />)
-    expect(screen.getByLabelText(/input image/i)).toHaveAttribute('type', 'file')
-    expect(screen.getByLabelText(/input image/i)).not.toHaveAttribute('capture')
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled()
+    expect(screen.getByLabelText(/open camera/i)).toHaveAttribute('type', 'file')
+    expect(screen.getByLabelText(/open camera/i)).not.toHaveAttribute('capture')
+    expect(screen.getByRole('button', { name: 'Read label' })).toBeEnabled()
     expect(screen.queryByText(NO_PHOTO)).not.toBeInTheDocument()
   })
 
@@ -65,7 +65,16 @@ describe('idle', () => {
 
     expect(screen.getByText(NO_PHOTO)).toBeInTheDocument()
     expect(fake).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Read label' })).toBeInTheDocument()
+  })
+
+  it('choosing a photo shows it is ready and clears the message', () => {
+    render(<Capture />)
+    submit()
+    choose(photo())
+    expect(screen.getByText('Photo ready')).toBeInTheDocument()
+    expect(screen.getByText('label.jpg, tap to change')).toBeInTheDocument()
+    expect(screen.queryByText(NO_PHOTO)).not.toBeInTheDocument()
   })
 
   it('an empty file counts as no photo', () => {
@@ -86,7 +95,7 @@ describe('after a submit', () => {
     render(<Capture />)
     choose(photo())
     submit()
-    expect(screen.getByText('Uploading')).toBeInTheDocument()
+    expect(screen.getByText('Reading the label')).toBeInTheDocument()
   })
 
   it('sends the chosen file itself', async () => {
@@ -139,7 +148,7 @@ describe('after a submit', () => {
     submit()
     fireEvent.click(await screen.findByRole('button', { name: 'Upload again' }))
 
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Read label' })).toBeInTheDocument()
     expect(screen.queryByText(NO_PHOTO)).not.toBeInTheDocument()
   })
 })
@@ -158,7 +167,7 @@ describe('the 2-minute limit (decision 14)', () => {
 
     await act(() => vi.advanceTimersByTimeAsync(UPLOAD_TIMEOUT_MS - 1))
     expect(request.signal().aborted).toBe(false)
-    expect(screen.getByText('Uploading')).toBeInTheDocument()
+    expect(screen.getByText('Reading the label')).toBeInTheDocument()
 
     await act(() => vi.advanceTimersByTimeAsync(1))
     expect(request.signal().aborted).toBe(true)
@@ -189,12 +198,12 @@ describe('the 2-minute limit (decision 14)', () => {
     vi.useFakeTimers()
     const request = fetchPending()
     render(<Capture />)
-    const form = screen.getByRole('button', { name: 'Submit' }).closest('form') as HTMLFormElement
+    const form = screen.getByRole('button', { name: 'Read label' }).closest('form') as HTMLFormElement
     choose(photo())
     submit()
 
     // The form is gone while uploading; submitting the old one does nothing.
-    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Read label' })).not.toBeInTheDocument()
     fireEvent.submit(form)
 
     expect(request.fake).toHaveBeenCalledOnce()

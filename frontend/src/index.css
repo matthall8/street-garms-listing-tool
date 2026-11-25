@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+@font-face {
+  font-family: Teko;
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("./assets/fonts/Teko/Teko-VariableFont_wght.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: Be Vietnam Pro;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/Be_Vietnam_Pro/BeVietnamPro-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: Be Vietnam Pro;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/Be_Vietnam_Pro/BeVietnamPro-Bold.ttf") format("truetype");
+}
+
+@theme {
+  --font-display: Teko, sans-serif;
+  --font-sans: Be Vietnam Pro, ui-sans-serif, system-ui, sans-serif;
+  --color-brand-green: #226f54;
+}
+
+@layer base {
+  body {
+    @apply bg-black text-white;
+  }
+}
