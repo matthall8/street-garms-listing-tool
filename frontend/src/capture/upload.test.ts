@@ -49,6 +49,14 @@ describe('a 200', () => {
       value_shown,
     })
   })
+
+  it('with a body that is not JSON gets the fallback, never a throw', async () => {
+    fetchResolving(new Response('<html><body>Signed out</body></html>', { status: 200 }))
+    expect(await uploadPhoto(photo(), new AbortController().signal)).toEqual({
+      type: 'failedResponse',
+      errorMessage: FALLBACK_MESSAGE,
+    })
+  })
 })
 
 describe('not a 200 (decision 9)', () => {
