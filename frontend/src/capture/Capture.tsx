@@ -1,13 +1,10 @@
 import { useState, useReducer, type ChangeEvent, type SubmitEvent } from "react"
+import { Button } from "./Button"
 import { CameraIcon, TagIcon } from "./icons"
 import { captureReducer, initialCapture } from "./state"
 import { UPLOAD_TIMEOUT_MS, uploadPhoto } from "./upload"
 
 const NO_PHOTO_MESSAGE = "Add a photo of the label showing the ART number."
-
-const buttonClass =
-    "w-full rounded-xl bg-brand-green py-4 text-lg font-bold uppercase tracking-wide " +
-    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
 
 export function Capture() {
     const [model, dispatch] = useReducer(captureReducer, initialCapture)
@@ -43,9 +40,9 @@ export function Capture() {
     }
 
     const uploadAgain = (
-        <button type="button" className={buttonClass} onClick={() => dispatch({ type: "reset" })}>
+        <Button type="button" onClick={() => dispatch({ type: "reset" })}>
             Upload again
-        </button>
+        </Button>
     )
 
     switch (model.state.status) {
@@ -82,9 +79,7 @@ export function Capture() {
                             {NO_PHOTO_MESSAGE}
                         </p>
                     )}
-                    <button type="submit" className={buttonClass}>
-                        Read label
-                    </button>
+                    <Button type="submit">Read label</Button>
                 </form>
             )
         case "uploading":
