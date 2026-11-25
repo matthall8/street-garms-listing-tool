@@ -51,6 +51,7 @@ These boundaries are enforced by `tests/test_boundaries.py::TestImportGraph`.
 | frontend types | in `frontend/`: `npm run typecheck` |
 | frontend lint | in `frontend/`: `npm run lint` |
 | frontend tests | in `frontend/`: `npm test` |
+| regenerate API types | after a route or model change: `.venv/bin/python tests/generate_openapi.py`, then in `frontend/`: `node scripts/generate-api-types.ts`; commit both outputs. The freshness tests in `tests/test_routes.py` and `frontend/scripts/` fail until both are regenerated |
 | CI | `.github/workflows/tests.yml`, on push/PR to main — Python: `uv sync --locked`, `ruff check`, `pyright` and `pytest -rs`, no catalogue, no key, with a `postgres:18.7` service and `TEST_DATABASE_URL` set, so the real-Postgres tests must run. Frontend: `npm ci`, build, type check, lint and tests, Node from `.nvmrc`. Docker: builds the image, checks the database, storage and Sheets clients import in it, starts it on a non-default `PORT` and checks `GET /` and `style.css` |
 | CLI | `.venv/bin/python main.py <label.jpg>` |
 | web | `.venv/bin/uvicorn --factory app:create_app` |
